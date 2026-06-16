@@ -2,7 +2,7 @@
 const { createContext, useContext, useState, useEffect, useCallback, useRef } = React;
 
 const PREF_KEY = "tg_crm_prefs_v2";
-const REMOTE_COLLECTIONS = new Set(["users", "customers", "orders", "tasks", "payments", "products", "clientStatuses", "aiSettings", "integrationConfigs"]);
+const REMOTE_COLLECTIONS = new Set(["users", "customers", "orders", "tasks", "taskColumns", "payments", "products", "clientStatuses", "aiSettings", "integrationConfigs"]);
 
 function loadPrefs() {
   try {
@@ -303,6 +303,10 @@ function AppProvider({ children }) {
     if (key === "tasks") {
       await apiSaveTask(item);
       await refreshCollections(["tasks"], ["dashboardOverview", "notifications"]);
+    }
+    if (key === "taskColumns") {
+      await apiSaveTaskColumn(item);
+      await refreshCollections(["taskColumns"], ["tasks"]);
     }
     if (key === "payments") {
       await apiSaveAccountingEntry(item, dataRef.current);

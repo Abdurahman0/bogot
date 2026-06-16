@@ -142,17 +142,21 @@ function TaskBoardCard({ task, user, meta, interactive = true }) {
   );
 }
 
-function TaskFormModal({ open, onClose, initial }) {
+function TaskFormModal({ open, onClose, initial, initialColumnId = "" }) {
   const { data, upsert, toast } = useApp();
   const columns = getTaskColumns(data);
   const assignees = taskAssignees(data);
-  const [form, setForm] = tkS(() => createTaskDraft(data, initial));
+  const [form, setForm] = tkS(() => {
+    const draft = createTaskDraft(data, initial);
+    return initialColumnId && !initial ? { ...draft, columnId: initialColumnId } : draft;
+  });
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
   tkE(() => {
     if (!open) return;
-    setForm(createTaskDraft(data, initial));
-  }, [open, initial, data.tasks, data.taskColumns, data.taskAssignees]);
+    const draft = createTaskDraft(data, initial);
+    setForm(initialColumnId && !initial ? { ...draft, columnId: initialColumnId } : draft);
+  }, [open, initial, initialColumnId, data.tasks, data.taskColumns, data.taskAssignees]);
 
   const save = async () => {
     if (!form.title.trim()) return;
@@ -201,6 +205,45 @@ function TaskFormModal({ open, onClose, initial }) {
 }
 window.TaskFormModal = TaskFormModal;
 
+function TaskColumnModal({ open, onClose, initialPosition = 0 }) {
+  const { upsert, toast } = useApp();
+  const [form, setForm] = tkS({ name: "", slug: "", position: initialPosition });
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
+  tkE(() => {
+    if (!open) return;
+    setForm({ name: "", slug: "", position: initialPosition });
+  }, [open, initialPosition]);
+
+  const save = async () => {
+    if (!form.name.trim()) return;
+    await upsert("taskColumns", {
+      name: form.name.trim(),
+      slug: (form.slug || "").trim(),
+      position: Number(form.position || 0),
+    });
+    toast("Yangi ustun yaratildi");
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Yangi ustun"
+      icon={<I.layers size={18} />}
+      width={460}
+      footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={save}>Saqlash</Button></>}
+    >
+      <div style={{ display: "grid", gap: 14 }}>
+        <Field label="Ustun nomi" required><Input value={form.name} onChange={(event) => set("name", event.target.value)} placeholder="Masalan, Tekshiruv" /></Field>
+        <Field label="Slug"><Input value={form.slug} onChange={(event) => set("slug", event.target.value)} placeholder="ixtiyoriy" /></Field>
+        <Field label="Tartib"><Input type="number" value={form.position} onChange={(event) => set("position", event.target.value)} /></Field>
+      </div>
+    </Modal>
+  );
+}
+
 function TaskViewModal({ task, user, column, open, onClose, onEdit, onDelete }) {
   return (
     <Modal
@@ -240,7 +283,8 @@ function TaskViewModal({ task, user, column, open, onClose, onEdit, onDelete }) 
 function TasksPage() {
   const { data, t, toast, moveTask, remove } = useApp();
   const [q, setQ] = tkS("");
-  const [addOpen, setAddOpen] = tkS(false);
+  const [createTaskColumnId, setCreateTaskColumnId] = tkS("");
+  const [columnModalOpen, setColumnModalOpen] = tkS(false);
   const [editTask, setEditTask] = tkS(null);
   const [viewTask, setViewTask] = tkS(null);
   const [deleteTask, setDeleteTask] = tkS(null);
@@ -390,7 +434,7 @@ function TasksPage() {
           crumbs={[{ label: "CRM" }, { label: t("page.tasks") }]}
           actions={<>
             <SearchInput value={q} onChange={setQ} placeholder="Vazifa qidirish..." width={220} />
-            <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setAddOpen(true)}>Yangi vazifa</Button>
+            <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setColumnModalOpen(true)}>Yangi ustun</Button>
           </>}
         />
 
@@ -457,6 +501,10 @@ function TasksPage() {
                   <div className="pk-ghost" style={{ height: dragState.height || 120 }} />
                 )}
               </div>
+              <button type="button" className="pk-col-add" onClick={() => setCreateTaskColumnId(column.id)}>
+                <I.plus size={14} />
+                <span>Vazifa qo'shish</span>
+              </button>
             </div>
           );
         })}
@@ -479,8 +527,9 @@ function TasksPage() {
         onEdit={() => { setEditTask(viewTask); setViewTask(null); }}
         onDelete={() => { setDeleteTask(viewTask); setViewTask(null); }}
       />
-      <TaskFormModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <TaskFormModal open={!!createTaskColumnId} onClose={() => setCreateTaskColumnId("")} initialColumnId={createTaskColumnId} />
       <TaskFormModal open={!!editTask} onClose={() => setEditTask(null)} initial={editTask} />
+      <TaskColumnModal open={columnModalOpen} onClose={() => setColumnModalOpen(false)} initialPosition={columns.length} />
       <ConfirmDialog
         open={!!deleteTask}
         onClose={() => setDeleteTask(null)}

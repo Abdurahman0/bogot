@@ -800,6 +800,17 @@ async function apiSaveTask(task) {
     : apiRequest("/api/tasks/", { method: "POST", body: payload });
 }
 
+async function apiSaveTaskColumn(column) {
+  const payload = {
+    name: (column.name || "").trim(),
+    slug: apiSlugify(column.slug || column.name || ""),
+    position: apiParseNumber(column.position || 0),
+  };
+  return isApiUuid(column.id)
+    ? apiRequest(`/api/tasks/columns/${column.id}/`, { method: "PATCH", body: payload })
+    : apiRequest("/api/tasks/columns/", { method: "POST", body: payload });
+}
+
 async function apiMoveTask(taskId, columnId, position) {
   if (!isApiUuid(taskId)) {
     throw new Error("Vazifa UUID topilmadi");
@@ -993,6 +1004,7 @@ Object.assign(window, {
   apiSaveClient,
   apiSaveDebtor,
   apiSaveTask,
+  apiSaveTaskColumn,
   apiMoveTask,
   apiSaveAccountingEntry,
   apiSaveProduct,
