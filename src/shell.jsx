@@ -509,8 +509,8 @@ function Toasts() {
 // ---------- Login ----------
 function Login() {
   const { login, dataLoading } = useApp();
-  const [username, setUsername] = shS("developer");
-  const [pw, setPw] = shS("Password123!");
+  const [username, setUsername] = shS("");
+  const [pw, setPw] = shS("");
   const submit = async (e) => {
     e && e.preventDefault();
     try {
@@ -537,7 +537,6 @@ function Login() {
       <div className="tg-login-form">
         <form onSubmit={submit}>
           <h2>Tizimga kirish</h2>
-          <p className="tg-login-note"><I.info size={14} /> Hozir tizim live backend orqali ishlaydi. Test foydalanuvchi: <strong>developer</strong></p>
           <Field label="Username"><Input value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" /></Field>
           <div style={{ height: 14 }} />
           <Field label="Parol"><Input value={pw} onChange={e => setPw(e.target.value)} type="password" autoComplete="current-password" /></Field>

@@ -8,6 +8,26 @@ const TASK_COLUMN_META = {
   canceled: { label: "Bekor qilingan", color: "#dc2626", bg: "#fef2f2", icon: "x" },
 };
 
+const TASK_COLUMN_COLOR_OPTIONS = [
+  "#2563eb",
+  "#7c3aed",
+  "#059669",
+  "#dc2626",
+  "#ea580c",
+  "#0891b2",
+  "#4f46e5",
+  "#ca8a04",
+];
+
+function hexToSoftBg(hex) {
+  const clean = String(hex || "").replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(clean)) return "var(--surface-2)";
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, 0.12)`;
+}
+
 function getTaskColumns(data) {
   const rows = data.taskColumns || [];
   return rows
@@ -16,6 +36,9 @@ function getTaskColumns(data) {
     .map((column, index) => ({
       ...column,
       name: column.name || TASK_COLUMN_META[column.slug]?.label || `Ustun ${index + 1}`,
+      color: column.color || TASK_COLUMN_META[column.slug]?.color || TASK_COLUMN_COLOR_OPTIONS[index % TASK_COLUMN_COLOR_OPTIONS.length],
+      sortOrder: Number((column.sortOrder ?? column.position) || index + 1),
+      position: Number((column.position ?? column.sortOrder) || index + 1),
     }));
 }
 
@@ -29,6 +52,14 @@ function isTaskDone(task) {
 
 function isTaskOverdue(task) {
   return !isTaskDone(task) && task.dueDate && new Date(task.dueDate).getTime() < Date.now();
+}
+
+function taskColumnSlugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "task_column";
 }
 
 function createTaskDraft(data, initial = null) {
@@ -117,6 +148,16 @@ function moveTaskInList(tasks, taskId, columns, targetColumnId, targetIndex) {
     .flatMap(([, rows]) => rows.map((task, index) => ({ ...task, position: index })));
 }
 
+function taskBoardSignature(tasks, columns) {
+  const order = (tasks || []).slice().sort((a, b) => {
+    const columnA = columns.find((column) => column.id === a.columnId)?.position ?? 0;
+    const columnB = columns.find((column) => column.id === b.columnId)?.position ?? 0;
+    if (columnA !== columnB) return columnA - columnB;
+    return Number(a.position || 0) - Number(b.position || 0);
+  });
+  return order.map((task) => `${task.id}:${task.columnId}:${Number(task.position || 0)}`).join("|");
+}
+
 function TaskBoardCard({ task, user, meta, interactive = true }) {
   const overdue = isTaskOverdue(task);
   return (
@@ -173,7 +214,7 @@ function TaskFormModal({ open, onClose, initial, initialColumnId = "" }) {
       ...initial,
       ...form,
       id: initial?.id,
-      dueDate: new Date(form.dueDate).toISOString(),
+      dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
       position: initial?.position ?? columnTasks.length,
       createdAt: initial?.createdAt || new Date().toISOString(),
     };
@@ -198,31 +239,52 @@ function TaskFormModal({ open, onClose, initial, initialColumnId = "" }) {
           <Field label="Ustun"><Select value={form.columnId} onChange={(value) => set("columnId", value)} options={columns.map((column) => ({ value: column.id, label: column.name }))} /></Field>
           <Field label="Mas'ul"><Select value={form.assignedUserId} onChange={(value) => set("assignedUserId", value)} options={assignees.map((user) => ({ value: user.id, label: user.fullName }))} /></Field>
         </div>
-        <Field label="Muddat"><Input type="datetime-local" value={form.dueDate} onChange={(event) => set("dueDate", event.target.value)} /></Field>
+        <Field label="Muddat"><DatePickerInput mode="datetime" value={form.dueDate} onChange={(value) => set("dueDate", value)} /></Field>
       </div>
     </Modal>
   );
 }
 window.TaskFormModal = TaskFormModal;
 
-function TaskColumnModal({ open, onClose, initialPosition = 0 }) {
-  const { upsert, toast } = useApp();
-  const [form, setForm] = tkS({ name: "", slug: "", position: initialPosition });
+function TaskColumnModal({ open, onClose, initialPosition = 0, initial = null, onSave }) {
+  const [form, setForm] = tkS({ name: "", slug: "", position: initialPosition, color: TASK_COLUMN_COLOR_OPTIONS[0] });
+  const [slugTouched, setSlugTouched] = tkS(false);
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
   tkE(() => {
     if (!open) return;
-    setForm({ name: "", slug: "", position: initialPosition });
-  }, [open, initialPosition]);
+    setForm({
+      name: initial?.name || "",
+      slug: initial?.slug || "",
+      position: initial?.position || initialPosition,
+      color: initial?.color || TASK_COLUMN_META[initial?.slug]?.color || TASK_COLUMN_COLOR_OPTIONS[0],
+    });
+    setSlugTouched(!!initial?.slug);
+  }, [open, initial, initialPosition]);
+
+  const setName = (value) => {
+    setForm((current) => ({
+      ...current,
+      name: value,
+      slug: slugTouched ? current.slug : taskColumnSlugify(value),
+    }));
+  };
+
+  const setSlug = (value) => {
+    setSlugTouched(true);
+    set("slug", taskColumnSlugify(value));
+  };
 
   const save = async () => {
     if (!form.name.trim()) return;
-    await upsert("taskColumns", {
+    await onSave({
+      ...initial,
       name: form.name.trim(),
-      slug: (form.slug || "").trim(),
-      position: Number(form.position || 0),
+      slug: taskColumnSlugify(form.slug || form.name),
+      color: form.color || TASK_COLUMN_COLOR_OPTIONS[0],
+      sortOrder: Math.max(1, Number(form.position || initialPosition || 1)),
+      position: Math.max(1, Number(form.position || initialPosition || 1)),
     });
-    toast("Yangi ustun yaratildi");
     onClose();
   };
 
@@ -230,15 +292,34 @@ function TaskColumnModal({ open, onClose, initialPosition = 0 }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Yangi ustun"
+      title={initial ? "Ustunni tahrirlash" : "Yangi ustun"}
       icon={<I.layers size={18} />}
       width={460}
       footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={save}>Saqlash</Button></>}
     >
       <div style={{ display: "grid", gap: 14 }}>
-        <Field label="Ustun nomi" required><Input value={form.name} onChange={(event) => set("name", event.target.value)} placeholder="Masalan, Tekshiruv" /></Field>
-        <Field label="Slug"><Input value={form.slug} onChange={(event) => set("slug", event.target.value)} placeholder="ixtiyoriy" /></Field>
-        <Field label="Tartib"><Input type="number" value={form.position} onChange={(event) => set("position", event.target.value)} /></Field>
+        <Field label="Ustun nomi" required><Input value={form.name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Tekshiruv" /></Field>
+        <Field label="Slug"><Input value={form.slug} onChange={(event) => setSlug(event.target.value)} placeholder="tekshiruv_bosqichi" /></Field>
+        <Field label="Tartib"><Input type="number" min="1" value={form.position} onChange={(event) => set("position", event.target.value)} /></Field>
+        <Field label="Rang">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {TASK_COLUMN_COLOR_OPTIONS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => set("color", color)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  border: form.color === color ? `2px solid ${color}` : "1px solid var(--border)",
+                  background: color,
+                  boxShadow: form.color === color ? `0 0 0 3px ${hexToSoftBg(color)}` : "none",
+                }}
+              />
+            ))}
+          </div>
+        </Field>
       </div>
     </Modal>
   );
@@ -281,10 +362,12 @@ function TaskViewModal({ task, user, column, open, onClose, onEdit, onDelete }) 
 }
 
 function TasksPage() {
-  const { data, t, toast, moveTask, remove } = useApp();
+  const { data, t, toast, moveTask, remove, reloadData } = useApp();
   const [q, setQ] = tkS("");
   const [createTaskColumnId, setCreateTaskColumnId] = tkS("");
   const [columnModalOpen, setColumnModalOpen] = tkS(false);
+  const [editColumn, setEditColumn] = tkS(null);
+  const [deleteColumn, setDeleteColumn] = tkS(null);
   const [editTask, setEditTask] = tkS(null);
   const [viewTask, setViewTask] = tkS(null);
   const [deleteTask, setDeleteTask] = tkS(null);
@@ -378,12 +461,18 @@ function TasksPage() {
       const nextColumnId = dragState.overColumnId || dragState.fromColumnId;
       const nextIndex = dragState.overIndex == null ? 0 : dragState.overIndex;
       const optimistic = moveTaskInList(sourceTasks, dragState.id, columns, nextColumnId, nextIndex);
+      const currentSignature = taskBoardSignature(sourceTasks, columns);
+      const nextSignature = optimistic ? taskBoardSignature(optimistic, columns) : currentSignature;
+      if (!optimistic || currentSignature === nextSignature) {
+        setDragState(null);
+        window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+        return;
+      }
       if (optimistic) setOptimisticTasks(optimistic);
       setDragState(null);
       setMoving(true);
       try {
         await moveTask(dragState.id, nextColumnId, nextIndex);
-        toast("Vazifa joyi yangilandi");
       } catch (error) {
         setOptimisticTasks(null);
         toast(error.message || "Vazifa ko'chirilmadi", "error");
@@ -425,6 +514,43 @@ function TasksPage() {
     setViewTask(task);
   };
 
+  const saveColumnWithReorder = async (draft) => {
+    const ordered = columns
+      .slice()
+      .sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
+    const existingIndex = ordered.findIndex((column) => column.id === draft.id);
+    const base = existingIndex >= 0
+      ? ordered.filter((column) => column.id !== draft.id)
+      : ordered.slice();
+    const targetPosition = Math.max(1, Math.min(Number(draft.position || 1), base.length + 1));
+    base.splice(targetPosition - 1, 0, { ...(existingIndex >= 0 ? ordered[existingIndex] : {}), ...draft });
+
+    const nextColumns = base.map((column, index) => ({
+      ...column,
+      name: (column.name || "").trim(),
+      slug: taskColumnSlugify(column.slug || column.name || ""),
+      color: column.color || TASK_COLUMN_META[column.slug]?.color || TASK_COLUMN_COLOR_OPTIONS[index % TASK_COLUMN_COLOR_OPTIONS.length],
+      sortOrder: index + 1,
+      position: index + 1,
+    }));
+
+    const created = nextColumns.find((column) => !column.id);
+    if (created) {
+      const createdResponse = await apiSaveTaskColumn(created);
+      const createdId = createdResponse?.id || createdResponse?.data?.id || created.id;
+      if (createdId) created.id = createdId;
+    }
+
+    for (const column of nextColumns) {
+      if (!column.id) continue;
+      await apiSaveTaskColumn(column);
+    }
+
+    await reloadData();
+    toast(draft.id ? "Ustun yangilandi" : "Yangi ustun yaratildi");
+    if (editColumn?.id === draft.id) setEditColumn(null);
+  };
+
   return (
     <div className="pk-page fade-in">
       <div className="pk-page-head">
@@ -454,7 +580,7 @@ function TasksPage() {
         )}
         {columns.map((column) => {
           const baseMeta = TASK_COLUMN_META[column.slug] || TASK_COLUMN_META.todo;
-          const meta = { ...baseMeta, name: column.name };
+          const meta = { ...baseMeta, name: column.name, color: column.color || baseMeta.color, bg: hexToSoftBg(column.color || baseMeta.color) };
           const rawItems = tasks.filter((task) => task.columnId === column.id);
           const items = dragState ? rawItems.filter((task) => task.id !== dragState.id) : rawItems;
           const hasDropTarget = dragState && dragState.overColumnId === column.id;
@@ -467,7 +593,11 @@ function TasksPage() {
                   <span className="pk-col-name">{column.name}</span>
                   <span className="pk-col-cnt">{rawItems.length}</span>
                 </div>
-                <span className="pk-col-total">{rawItems.length} ta</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="pk-col-total">{rawItems.length} ta</span>
+                  <IconButton icon={<I.edit size={14} />} label="Ustunni tahrirlash" onClick={() => setEditColumn(column)} />
+                  <IconButton icon={<I.trash size={14} />} label="Ustunni o'chirish" onClick={() => setDeleteColumn(column)} />
+                </div>
               </div>
 
               <div className={`pk-cards${hasDropTarget ? " pk-cards-over" : ""}`}>
@@ -529,7 +659,8 @@ function TasksPage() {
       />
       <TaskFormModal open={!!createTaskColumnId} onClose={() => setCreateTaskColumnId("")} initialColumnId={createTaskColumnId} />
       <TaskFormModal open={!!editTask} onClose={() => setEditTask(null)} initial={editTask} />
-      <TaskColumnModal open={columnModalOpen} onClose={() => setColumnModalOpen(false)} initialPosition={columns.length} />
+      <TaskColumnModal open={columnModalOpen} onClose={() => setColumnModalOpen(false)} initialPosition={columns.length + 1} onSave={saveColumnWithReorder} />
+      <TaskColumnModal open={!!editColumn} onClose={() => setEditColumn(null)} initialPosition={editColumn?.position || 1} initial={editColumn} onSave={saveColumnWithReorder} />
       <ConfirmDialog
         open={!!deleteTask}
         onClose={() => setDeleteTask(null)}
@@ -544,12 +675,21 @@ function TasksPage() {
         confirmLabel="O'chirish"
         danger
       />
+      <ConfirmDialog
+        open={!!deleteColumn}
+        onClose={() => setDeleteColumn(null)}
+        onConfirm={async () => {
+          await remove("taskColumns", deleteColumn.id);
+          toast("Ustun o'chirildi");
+          setDeleteColumn(null);
+        }}
+        title="Ustunni o'chirish"
+        message={`"${deleteColumn?.name || ""}" ustunini o'chirmoqchimisiz?`}
+        details={deleteColumn ? `Slug: ${deleteColumn.slug || "-"}\nTartib: ${deleteColumn.position || 1}` : ""}
+        confirmLabel="O'chirish"
+        danger
+      />
 
-      {moving && (
-        <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 70 }}>
-          <Card style={{ padding: "10px 14px" }}>Vazifa yangilanmoqda...</Card>
-        </div>
-      )}
     </div>
   );
 }

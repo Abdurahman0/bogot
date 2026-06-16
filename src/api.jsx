@@ -130,6 +130,14 @@ function apiSlugify(value) {
     .replace(/^-+|-+$/g, "") || "status";
 }
 
+function apiTaskColumnSlugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "task_column";
+}
+
 function apiErrorMessage(payload, fallback = "So'rov bajarilmadi") {
   if (!payload) return fallback;
   if (typeof payload === "string") return payload;
@@ -343,11 +351,14 @@ function mapApiDebtor(debtor) {
 }
 
 function mapApiTaskColumn(column, index = 0) {
+  const sortOrder = apiParseNumber(column.sort_order ?? column.position ?? index);
   return {
     id: column.id,
     name: column.name || column.slug || `Ustun ${index + 1}`,
     slug: column.slug || `column_${index + 1}`,
-    position: apiParseNumber(column.position ?? column.sort_order ?? index),
+    color: column.color || "",
+    sortOrder,
+    position: sortOrder,
   };
 }
 
@@ -803,8 +814,9 @@ async function apiSaveTask(task) {
 async function apiSaveTaskColumn(column) {
   const payload = {
     name: (column.name || "").trim(),
-    slug: apiSlugify(column.slug || column.name || ""),
-    position: apiParseNumber(column.position || 0),
+    slug: apiTaskColumnSlugify(column.slug || column.name || ""),
+    color: (column.color || "").trim() || null,
+    sort_order: apiParseNumber((column.sortOrder ?? column.position) || 0),
   };
   return isApiUuid(column.id)
     ? apiRequest(`/api/tasks/columns/${column.id}/`, { method: "PATCH", body: payload })

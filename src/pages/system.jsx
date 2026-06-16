@@ -1,6 +1,33 @@
 /* pages/system.jsx вЂ” Users, Roles, Settings, Notifications, Audit, Integrations, Help */
 const { useState: sysS, useMemo: sysM } = React;
 
+const PERMISSION_LABELS_UZ = {
+  "dashboard.view": "Dashboardni ko'rish",
+  "audit_logs.view": "Audit jurnalini ko'rish",
+  "users.view": "Foydalanuvchilarni ko'rish",
+  "users.manage": "Foydalanuvchilarni boshqarish",
+  "clients.view": "Mijozlarni ko'rish",
+  "clients.manage": "Mijozlarni boshqarish",
+  "accounting.view": "Hisob-kitobni ko'rish",
+  "accounting.manage": "Hisob-kitobni boshqarish",
+  "products.view": "Mahsulotlarni ko'rish",
+  "products.manage": "Mahsulotlarni boshqarish",
+  "tasks.view": "Vazifalarni ko'rish",
+  "tasks.manage": "Vazifalarni boshqarish",
+  "notifications.view": "Bildirishnomalarni ko'rish",
+  "notifications.manage": "Bildirishnomalarni boshqarish",
+  "chats.view": "Chatlarni ko'rish",
+  "chats.manage": "Chatlarni boshqarish",
+  "integrations.view": "Integratsiyalarni ko'rish",
+  "integrations.manage": "Integratsiyalarni boshqarish",
+  "ai.view": "AI sozlamalarini ko'rish",
+  "ai.manage": "AI sozlamalarini boshqarish",
+};
+
+function permissionLabelUz(permissionKey) {
+  return PERMISSION_LABELS_UZ[permissionKey] || permissionKey;
+}
+
 /* ======= USERS ======= */
 function UsersPage() {
   const { data, t, upsert, remove, toast } = useApp();
@@ -12,7 +39,8 @@ function UsersPage() {
   const [viewUser, setViewUser] = sysS(null);
   const [deleteUser, setDeleteUser] = sysS(null);
   const [viewPermissions, setViewPermissions] = sysS([]);
-  const [form, setForm] = sysS({ fullName: "", email: "", phone: "", role: "operator", region: "Toshkent", status: "active", password: "" });
+  const [viewRole, setViewRole] = sysS("operator");
+  const [form, setForm] = sysS({ fullName: "", email: "", phone: "", role: "operator", region: "", status: "active", password: "" });
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const ROLES_UZ = { developer: "Developer", admin: "Administrator", operator: "Operator" };
@@ -26,6 +54,15 @@ function UsersPage() {
       .catch(() => setViewPermissions(viewUser.permissions || []));
   }, [viewUser?.id]);
 
+  React.useEffect(() => {
+    setViewRole(viewUser?.rawRole || viewUser?.role || "operator");
+  }, [viewUser]);
+
+  const hasRegionField = sysM(
+    () => data.users.some((u) => Object.prototype.hasOwnProperty.call(u || {}, "region")),
+    [data.users]
+  );
+
   const filtered = sysM(() => data.users.filter(u =>
     (roleFilter === "all" || u.role === roleFilter) &&
     (!q || u.fullName.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()))
@@ -33,18 +70,26 @@ function UsersPage() {
 
   const openEdit = (u) => {
     setEditUser(u);
-    setForm({ fullName: u.fullName, email: u.email, phone: u.phone, role: u.rawRole || u.role, region: u.region || "Toshkent", status: u.status, password: "" });
+    setForm({ fullName: u.fullName, email: u.email, phone: u.phone, role: u.rawRole || u.role, region: u.region || "", status: u.status, password: "" });
     setAddOpen(true);
   };
   const saveUser = async () => {
+    const nextRegion = String(form.region || "").trim();
     const payload = editUser
-      ? { ...editUser, ...form, rawRole: form.role }
-      : { id: "U" + Date.now(), ...form, rawRole: form.role, avatarHue: Math.random() * 360, createdAt: new Date().toISOString(), completedSales: 0, activeLeads: 0 };
+      ? { ...editUser, ...form, rawRole: form.role, ...(hasRegionField ? { region: nextRegion } : {}) }
+      : { id: "U" + Date.now(), ...form, rawRole: form.role, ...(hasRegionField ? { region: nextRegion } : {}), avatarHue: Math.random() * 360, createdAt: new Date().toISOString(), completedSales: 0, activeLeads: 0 };
     await upsert("users", payload);
     toast(editUser ? "Foydalanuvchi yangilandi" : "Foydalanuvchi qo'shildi");
     setAddOpen(false);
     setEditUser(null);
-    setForm({ fullName: "", email: "", phone: "", role: "operator", region: "Toshkent", status: "active", password: "" });
+    setForm({ fullName: "", email: "", phone: "", role: "operator", region: "", status: "active", password: "" });
+  };
+  const saveViewRole = async () => {
+    if (!viewUser) return;
+    const nextUser = { ...viewUser, role: viewRole, rawRole: viewRole };
+    await upsert("users", nextUser);
+    setViewUser(nextUser);
+    toast("Foydalanuvchi roli yangilandi");
   };
 
   const stats = sysM(() => ({
@@ -56,7 +101,7 @@ function UsersPage() {
   return (
     <div className="page fade-in">
       <PageHeader title={t("page.users")} desc="Tizim foydalanuvchilarini boshqarish" crumbs={[{ label: "Tizim" }, { label: t("page.users") }]}
-        actions={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => { setEditUser(null); setForm({ fullName: "", email: "", phone: "", role: "operator", region: "Toshkent", status: "active", password: "" }); setAddOpen(true); }}>Foydalanuvchi qo'shish</Button>} />
+        actions={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => { setEditUser(null); setForm({ fullName: "", email: "", phone: "", role: "operator", region: "", status: "active", password: "" }); setAddOpen(true); }}>Foydalanuvchi qo'shish</Button>} />
 
       <div className="grid-kpi" style={{ marginBottom: 22 }}>
         <StatTile label="Jami" value={stats.total} />
@@ -72,13 +117,13 @@ function UsersPage() {
         {loading ? <SkeletonRows rows={10} cols={6} /> : (
           <div className="tg-table-wrap">
             <table className="tg-table">
-              <thead><tr><th>Foydalanuvchi</th><th>Rol</th><th>Hudud</th><th>Holat</th><th>Savdolar</th><th>Qo'shilgan</th><th></th></tr></thead>
+              <thead><tr><th>Foydalanuvchi</th><th>Rol</th>{hasRegionField && <th>Hudud</th>}<th>Holat</th><th>Savdolar</th><th>Qo'shilgan</th><th></th></tr></thead>
               <tbody>
                 {filtered.map(u => (
                   <tr key={u.id}>
                     <td><div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar name={u.fullName} hue={u.avatarHue} size={32} /><div><div className="tg-cell-strong">{u.fullName}</div><div className="tg-cell-sub">{u.email}</div></div></div></td>
                     <td><Badge color={ROLE_COLORS[u.role]}>{ROLES_UZ[u.role]}</Badge></td>
-                    <td>{u.region || "Toshkent"}</td>
+                    {hasRegionField && <td>{u.region || "-"}</td>}
                     <td><StatusBadge status={u.status === "active" ? "active" : "inactive"} label={u.status === "active" ? "Faol" : "Nofaol"} /></td>
                     <td><Badge color="blue" size="sm">{u.completedSales}</Badge></td>
                     <td className="tg-cell-sub">{fmtDate(u.createdAt)}</td>
@@ -106,28 +151,41 @@ function UsersPage() {
           <Field label={editUser ? "Yangi parol" : "Parol"}><Input value={form.password} onChange={e => setF("password", e.target.value)} type="password" placeholder={editUser ? "O'zgartirmasangiz bo'sh qoldiring" : "Kamida 8 belgi"} /></Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <Field label="Rol"><Select value={form.role} onChange={v => setF("role", v)} options={ROLE_OPTIONS.map(r => ({ value: r, label: ROLES_UZ[r] }))} /></Field>
-            <Field label="Hudud"><Select value={form.region} onChange={v => setF("region", v)} options={["Toshkent", "Samarqand", "Namangan", "Andijon", "Farg'ona"].map(r => ({ value: r, label: r }))} /></Field>
+            {hasRegionField && <Field label="Hudud"><Select value={form.region} onChange={v => setF("region", v)} options={["Toshkent", "Samarqand", "Namangan", "Andijon", "Farg'ona"].map(r => ({ value: r, label: r }))} /></Field>}
           </div>
           <Field label="Holat"><Select value={form.status} onChange={v => setF("status", v)} options={[{ value: "active", label: "Faol" }, { value: "inactive", label: "Nofaol" }]} /></Field>
         </div>
       </Modal>
       <Modal open={!!viewUser} onClose={() => setViewUser(null)} title="Foydalanuvchi ma'lumotlari" icon={<I.user size={18} />} width={460}
-        footer={<Button variant="primary" onClick={() => setViewUser(null)}>Yopish</Button>}>
+        footer={<>
+          <Button variant="ghost" onClick={() => setViewUser(null)}>Bekor</Button>
+          <Button variant="soft" icon={<I.edit size={14} />} onClick={() => {
+            const current = viewUser;
+            setViewUser(null);
+            openEdit(current);
+          }}>To'liq tahrir</Button>
+          <Button variant="primary" onClick={saveViewRole}>Rolni saqlash</Button>
+        </>}>
         {viewUser && (
           <div style={{ display: "grid", gap: 16 }}>
             <div className="tg-meta">
               <div className="tg-meta-row"><span className="tg-meta-k">Foydalanuvchi</span><span className="tg-meta-v">{viewUser.fullName}</span></div>
               <div className="tg-meta-row"><span className="tg-meta-k">Email</span><span className="tg-meta-v">{viewUser.email}</span></div>
               <div className="tg-meta-row"><span className="tg-meta-k">Telefon</span><span className="tg-meta-v">{viewUser.phone}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Rol</span><span className="tg-meta-v">{ROLES_UZ[viewUser.role]}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Hudud</span><span className="tg-meta-v">{viewUser.region || "Toshkent"}</span></div>
+              <div className="tg-meta-row" style={{ alignItems: "center" }}>
+                <span className="tg-meta-k">Rol</span>
+                <span className="tg-meta-v" style={{ minWidth: 180 }}>
+                  <Select value={viewRole} onChange={setViewRole} options={ROLE_OPTIONS.map(r => ({ value: r, label: ROLES_UZ[r] }))} />
+                </span>
+              </div>
+              {hasRegionField && viewUser.region ? <div className="tg-meta-row"><span className="tg-meta-k">Hudud</span><span className="tg-meta-v">{viewUser.region}</span></div> : null}
               <div className="tg-meta-row"><span className="tg-meta-k">Savdolar</span><span className="tg-meta-v">{viewUser.completedSales}</span></div>
             </div>
             <div>
               <div className="tg-section-title">Ruxsatlar</div>
               {(viewPermissions || []).length ? (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {viewPermissions.map((permission) => <Badge key={permission} color="blue" size="sm">{permission}</Badge>)}
+                  {viewPermissions.map((permission) => <Badge key={permission} color="blue" size="sm">{permissionLabelUz(permission)}</Badge>)}
                 </div>
               ) : (
                 <div className="tg-cell-sub">Qo'shimcha ruxsat topilmadi</div>
@@ -220,7 +278,7 @@ function RolesPage() {
         <Panel title="Default ruxsatlar" icon="shield" color="violet">
           {selectedRole ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {(selectedRole.default_permissions || []).map((permission) => <Badge key={permission} color="blue" size="sm">{permission}</Badge>)}
+              {(selectedRole.default_permissions || []).map((permission) => <Badge key={permission} color="blue" size="sm">{permissionLabelUz(permission)}</Badge>)}
             </div>
           ) : (
             <EmptyState icon={<I.lock size={22} />} title="Rollar topilmadi" message="Backend role ma'lumoti kelmadi." />

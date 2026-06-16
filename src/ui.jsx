@@ -162,6 +162,289 @@ function Field({ label, children, hint, required }) {
 }
 function Input(props) { return <input className="tg-input" {...props} />; }
 function Textarea(props) { return <textarea className="tg-input" rows={3} {...props} />; }
+const DATE_PICKER_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+const DATE_PICKER_DAYS = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
+
+function datePickerPad(value) {
+  return String(value).padStart(2, "0");
+}
+
+function datePickerParse(value, mode = "date") {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const [datePart, timePart = ""] = raw.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const [hours = 0, minutes = 0] = timePart.slice(0, 5).split(":").map(Number);
+  return new Date(year, month - 1, day, mode === "datetime" ? (hours || 0) : 0, mode === "datetime" ? (minutes || 0) : 0, 0, 0);
+}
+
+function datePickerToDateValue(date) {
+  return `${date.getFullYear()}-${datePickerPad(date.getMonth() + 1)}-${datePickerPad(date.getDate())}`;
+}
+
+function datePickerToDateTimeValue(date) {
+  return `${datePickerToDateValue(date)}T${datePickerPad(date.getHours())}:${datePickerPad(date.getMinutes())}`;
+}
+
+function datePickerDisplay(value, mode = "date") {
+  const parsed = datePickerParse(value, mode);
+  if (!parsed) return "";
+  const dateLabel = parsed.toLocaleDateString("uz-UZ", { day: "2-digit", month: "long", year: "numeric" });
+  if (mode !== "datetime") return dateLabel;
+  const timeLabel = `${datePickerPad(parsed.getHours())}:${datePickerPad(parsed.getMinutes())}`;
+  return `${dateLabel} • ${timeLabel}`;
+}
+
+function datePickerMonthMatrix(viewDate) {
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstWeekDay = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstWeekDay; i += 1) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day += 1) cells.push(new Date(year, month, day, 0, 0, 0, 0));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function datePickerIsDisabled(date, min, max) {
+  if (!date) return true;
+  const current = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const minDate = min ? datePickerParse(min, "date") : null;
+  const maxDate = max ? datePickerParse(max, "date") : null;
+  if (minDate && current < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()).getTime()) return true;
+  if (maxDate && current > new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()).getTime()) return true;
+  return false;
+}
+
+function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled, min, max }) {
+  const ref = uR(null);
+  const popRef = uR(null);
+  const parsedValue = datePickerParse(value, mode);
+  const [open, setOpen] = uS(false);
+  const [popoverStyle, setPopoverStyle] = uS(null);
+  const [viewDate, setViewDate] = uS(parsedValue || new Date());
+  const [draft, setDraft] = uS(value || "");
+
+  const syncFromValue = React.useCallback(() => {
+    const nextParsed = datePickerParse(value, mode) || new Date();
+    setDraft(value || "");
+    setViewDate(nextParsed);
+  }, [value, mode]);
+
+  uE(() => {
+    if (!open) return;
+    syncFromValue();
+  }, [open, syncFromValue]);
+
+  const updatePosition = React.useCallback(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const popWidth = 324;
+    const popHeight = mode === "datetime" ? 420 : 378;
+    const gap = 8;
+    const viewportPad = 12;
+    const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPad;
+    const spaceAbove = rect.top - gap - viewportPad;
+    const openUp = spaceBelow < popHeight && spaceAbove > spaceBelow;
+    const left = Math.min(Math.max(viewportPad, rect.left), window.innerWidth - popWidth - viewportPad);
+    const top = openUp
+      ? Math.max(viewportPad, rect.top - popHeight - gap)
+      : Math.min(rect.bottom + gap, window.innerHeight - popHeight - viewportPad);
+    setPopoverStyle({
+      position: "fixed",
+      top,
+      left,
+      width: popWidth,
+      zIndex: 1250,
+    });
+  }, [mode]);
+
+  uE(() => {
+    if (!open) return;
+    updatePosition();
+    const handlePointerDown = (event) => {
+      if (ref.current && ref.current.contains(event.target)) return;
+      if (popRef.current && popRef.current.contains(event.target)) return;
+      setOpen(false);
+    };
+    const handleViewport = () => updatePosition();
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    window.addEventListener("resize", handleViewport);
+    window.addEventListener("scroll", handleViewport, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      window.removeEventListener("resize", handleViewport);
+      window.removeEventListener("scroll", handleViewport, true);
+    };
+  }, [open, updatePosition]);
+
+  const selectedDate = datePickerParse(mode === "datetime" ? draft : value, mode);
+  const displayValue = datePickerDisplay(value, mode);
+  const timeHours = datePickerPad((selectedDate || new Date()).getHours());
+  const timeMinutes = datePickerPad((selectedDate || new Date()).getMinutes());
+  const today = new Date();
+
+  const moveMonth = (delta) => {
+    setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
+  };
+
+  const setTimePart = (key, nextValue) => {
+    const current = datePickerParse(draft, "datetime") || new Date();
+    const numeric = Math.max(0, Math.min(key === "hours" ? 23 : 59, Number(nextValue) || 0));
+    if (key === "hours") current.setHours(numeric);
+    if (key === "minutes") current.setMinutes(numeric);
+    setDraft(datePickerToDateTimeValue(current));
+  };
+
+  const commitValue = (next) => {
+    onChange && onChange(next);
+  };
+
+  const pickDay = (date) => {
+    if (datePickerIsDisabled(date, min, max)) return;
+    const current = selectedDate || new Date();
+    const next = new Date(date.getFullYear(), date.getMonth(), date.getDate(), current.getHours(), current.getMinutes(), 0, 0);
+    setViewDate(next);
+    if (mode === "datetime") {
+      setDraft(datePickerToDateTimeValue(next));
+      return;
+    }
+    commitValue(datePickerToDateValue(next));
+    setOpen(false);
+  };
+
+  const applyToday = () => {
+    const current = mode === "datetime" ? (selectedDate || new Date()) : new Date();
+    const next = new Date(today.getFullYear(), today.getMonth(), today.getDate(), current.getHours(), current.getMinutes(), 0, 0);
+    if (mode === "datetime") {
+      setDraft(datePickerToDateTimeValue(next));
+      setViewDate(next);
+      return;
+    }
+    commitValue(datePickerToDateValue(next));
+    setOpen(false);
+  };
+
+  const clearValue = () => {
+    if (mode === "datetime") setDraft("");
+    commitValue("");
+    setOpen(false);
+  };
+
+  const saveDateTime = () => {
+    commitValue(draft || "");
+    setOpen(false);
+  };
+
+  const cells = datePickerMonthMatrix(viewDate);
+
+  return (
+    <div className="tg-dd" ref={ref}>
+      <button
+        type="button"
+        className="tg-input tg-date-trigger"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((current) => !current)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <span className="tg-date-trigger-value" data-empty={displayValue ? undefined : "1"}>
+          {displayValue || placeholder || (mode === "datetime" ? "Sana va vaqt tanlang" : "Sana tanlang")}
+        </span>
+        <span className="tg-date-trigger-icon"><I.calendar size={16} /></span>
+      </button>
+      {open && popoverStyle && ReactDOM.createPortal(
+        <div ref={popRef} className="tg-date-pop pop-in" style={popoverStyle}>
+          <div className="tg-date-pop-head">
+            <div>
+              <div className="tg-date-pop-title">{DATE_PICKER_MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}</div>
+              <div className="tg-date-pop-sub">{mode === "datetime" ? "Sana va vaqtni tanlang" : "Kerakli sanani tanlang"}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button type="button" className="tg-date-nav" onClick={() => moveMonth(-1)}><I.chevLeft size={15} /></button>
+              <button type="button" className="tg-date-nav" onClick={() => moveMonth(1)}><I.chevRight size={15} /></button>
+            </div>
+          </div>
+
+          <div className="tg-date-quick">
+            <button type="button" className="tg-date-chip" onClick={applyToday}>Bugun</button>
+            {mode === "datetime" && <button type="button" className="tg-date-chip" onClick={() => setDraft(datePickerToDateTimeValue(new Date()))}>Hozir</button>}
+            <button type="button" className="tg-date-chip" onClick={clearValue}>Tozalash</button>
+          </div>
+
+          <div className="tg-date-weekdays">
+            {DATE_PICKER_DAYS.map((day) => <span key={day}>{day}</span>)}
+          </div>
+
+          <div className="tg-date-grid">
+            {cells.map((date, index) => {
+              if (!date) return <span key={`empty_${index}`} />;
+              const selected = selectedDate
+                && date.getFullYear() === selectedDate.getFullYear()
+                && date.getMonth() === selectedDate.getMonth()
+                && date.getDate() === selectedDate.getDate();
+              const isToday = date.getFullYear() === today.getFullYear()
+                && date.getMonth() === today.getMonth()
+                && date.getDate() === today.getDate();
+              const disabledDate = datePickerIsDisabled(date, min, max);
+              return (
+                <button
+                  key={`${date.getFullYear()}_${date.getMonth()}_${date.getDate()}`}
+                  type="button"
+                  className="tg-date-day"
+                  data-selected={selected ? "1" : undefined}
+                  data-today={isToday ? "1" : undefined}
+                  disabled={disabledDate}
+                  onClick={() => pickDay(date)}
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+
+          {mode === "datetime" && (
+            <div className="tg-date-time">
+              <div className="tg-date-time-field">
+                <span>Soat</span>
+                <input
+                  className="tg-input"
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={timeHours}
+                  onChange={(event) => setTimePart("hours", event.target.value)}
+                />
+              </div>
+              <div className="tg-date-time-sep">:</div>
+              <div className="tg-date-time-field">
+                <span>Daqiqa</span>
+                <input
+                  className="tg-input"
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={timeMinutes}
+                  onChange={(event) => setTimePart("minutes", event.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === "datetime" && (
+            <div className="tg-date-actions">
+              <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Bekor qilish</Button>
+              <Button variant="primary" size="sm" onClick={saveDateTime}>Saqlash</Button>
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 function Select({ value, defaultValue, onChange, options, placeholder, style, disabled, ...rest }) {
   const [open, setOpen] = uS(false);
   const [innerValue, setInnerValue] = uS(defaultValue ?? options?.[0]?.value ?? "");
@@ -229,17 +512,79 @@ function Toggle({ checked, onChange, label }) {
 function Dropdown({ trigger, items, align = "right", width = 200, direction = "down" }) {
   const [open, setOpen] = uS(false);
   const ref = uR(null);
+  const menuRef = uR(null);
+  const [menuStyle, setMenuStyle] = uS(null);
+
+  const updatePosition = () => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const gap = 6;
+    const viewportPad = 12;
+    const menuWidth = Number(width) || 200;
+    const estimatedHeight = Math.min(320, items.filter((item) => !item.divider).length * 42 + items.filter((item) => item.divider).length * 12 + 12);
+    const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPad;
+    const spaceAbove = rect.top - gap - viewportPad;
+    const openUp = direction === "up" || (direction !== "down" && spaceBelow < estimatedHeight && spaceAbove > spaceBelow);
+    const left = align === "left"
+      ? Math.min(Math.max(viewportPad, rect.left), window.innerWidth - menuWidth - viewportPad)
+      : Math.min(Math.max(viewportPad, rect.right - menuWidth), window.innerWidth - menuWidth - viewportPad);
+    const top = openUp
+      ? Math.max(viewportPad, rect.top - estimatedHeight - gap)
+      : Math.min(rect.bottom + gap, window.innerHeight - estimatedHeight - viewportPad);
+
+    setMenuStyle({
+      position: "fixed",
+      top,
+      left,
+      width: menuWidth,
+      maxHeight: Math.max(120, window.innerHeight - top - viewportPad),
+      overflowY: "auto",
+      zIndex: 1200,
+    });
+  };
+
   uE(() => {
     if (!open) return;
-    const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    updatePosition();
+    const on = (e) => {
+      if (ref.current && ref.current.contains(e.target)) return;
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onViewportChange = () => updatePosition();
     document.addEventListener("pointerdown", on, true);
-    return () => document.removeEventListener("pointerdown", on, true);
-  }, [open]);
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
+    return () => {
+      document.removeEventListener("pointerdown", on, true);
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
+    };
+  }, [open, align, direction, items, width]);
+
+  uE(() => {
+    if (!open || !menuRef.current || !ref.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const rect = ref.current.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const gap = 6;
+      const viewportPad = 12;
+      const openUp = direction === "up" || (direction !== "down" && window.innerHeight - rect.bottom - gap - viewportPad < menuRect.height && rect.top > window.innerHeight - rect.bottom);
+      const left = align === "left"
+        ? Math.min(Math.max(viewportPad, rect.left), window.innerWidth - menuRect.width - viewportPad)
+        : Math.min(Math.max(viewportPad, rect.right - menuRect.width), window.innerWidth - menuRect.width - viewportPad);
+      const top = openUp
+        ? Math.max(viewportPad, rect.top - menuRect.height - gap)
+        : Math.min(rect.bottom + gap, window.innerHeight - menuRect.height - viewportPad);
+      setMenuStyle((current) => current ? { ...current, top, left, width: menuRect.width, maxHeight: Math.max(120, window.innerHeight - top - viewportPad) } : current);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, align, direction, items.length]);
   return (
     <div className="tg-dd" ref={ref}>
       <div onClick={() => setOpen(o => !o)}>{trigger}</div>
-      {open && (
-        <div className={"tg-dd-menu pop-in tg-dd-" + align + (direction === "up" ? " tg-dd-up" : "")} style={{ width }}>
+      {open && menuStyle && ReactDOM.createPortal((
+        <div ref={menuRef} className="tg-dd-menu pop-in" style={menuStyle}>
           {items.map((it, i) => it.divider ? <div key={i} className="tg-dd-divider" /> : (
             <button key={i} className="tg-dd-item" data-danger={it.danger ? "1" : undefined}
               onClick={() => { setOpen(false); it.onClick && it.onClick(); }}>
@@ -247,7 +592,7 @@ function Dropdown({ trigger, items, align = "right", width = 200, direction = "d
             </button>
           ))}
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }
@@ -495,7 +840,7 @@ function ExportDropdown({ label = "Hisobot", size = "sm", filename = "export", r
 
 Object.assign(window, {
   Card, CardHead, Button, IconButton, Badge, StatusBadge, Avatar, Tabs, Segmented,
-  SearchInput, Field, Input, Textarea, Select, Toggle, Dropdown, Modal, Drawer,
+  SearchInput, Field, Input, Textarea, DatePickerInput, Select, Toggle, Dropdown, Modal, Drawer,
   ConfirmDialog, EmptyState, SkeletonRows, useLoading, Progress, Delta, ACUnit,
   ExportDropdown,
 });

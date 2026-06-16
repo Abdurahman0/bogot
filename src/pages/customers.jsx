@@ -2,7 +2,8 @@
 const { useState: cuS, useMemo: cuM } = React;
 const customerTuman = (customer) => customer?.district || "";
 const customerMahalla = (customer) => customer?.mahalla || "";
-const customerLocationLabel = (customer) => [customerTuman(customer), customerMahalla(customer)].filter(Boolean).join(" / ") || "Kiritilmagan";
+const customerLocationLabel = (customer) => [customerTuman(customer), customerMahalla(customer)].filter(Boolean).join(" / ");
+const hasCustomerLocation = (customer) => !!customerLocationLabel(customer);
 const customerLocations = (locations) => locations || window.TUMAN_MAHALLA || {};
 const customerDistrictOptions = (locations) => Object.keys(customerLocations(locations));
 const mahallaOptionsFor = (district, locations) => customerLocations(locations)[district] || [];
@@ -234,7 +235,6 @@ function CustomersPage() {
         onSave={saveStatus}
         form={statusForm}
         setField={setStatusField}
-        statuses={data.clientStatuses || []}
         defaultClientStatus={defaultClientStatus}
         editing={!!editStatus}
       />
@@ -276,7 +276,7 @@ function CustomersPage() {
         }}
         title="Mijozni o'chirish"
         message={`"${deleteCustomer?.fullName || ""}" mijoz yozuvini o'chirmoqchimisiz?`}
-        details={deleteCustomer ? `Telefon: ${deleteCustomer.phone}\nHudud: ${customerLocationLabel(deleteCustomer)}` : ""}
+        details={deleteCustomer ? [`Telefon: ${deleteCustomer.phone}`, hasCustomerLocation(deleteCustomer) ? `Hudud: ${customerLocationLabel(deleteCustomer)}` : ""].filter(Boolean).join("\n") : ""}
         confirmLabel="O'chirish"
         danger
       />
@@ -299,33 +299,26 @@ function CustomersPage() {
 }
 window.CustomersPage = CustomersPage;
 
-function CustomerStatusModal({ open, onClose, onSave, form, setField, statuses, defaultClientStatus, editing }) {
+function CustomerStatusModal({ open, onClose, onSave, form, setField, defaultClientStatus, editing }) {
   return (
-    <Modal open={open} onClose={onClose} title={editing ? "Holatni tahrirlash" : "Yangi holat"} icon={<I.flag size={18} />} width={520}
+    <Modal open={open} onClose={onClose} title={editing ? "Holatni tahrirlash" : "Yangi holat"} icon={<I.flag size={18} />} width={460}
       footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={onSave}>Saqlash</Button></>}>
-      <div style={{ display: "grid", gap: 16 }}>
-        <Card style={{ padding: 14, background: "linear-gradient(135deg, rgba(20,184,166,.08), rgba(59,130,246,.08))", border: "1px solid rgba(20,184,166,.18)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 4 }}>Joriy asosiy holat</div>
-              <div style={{ fontSize: 16, fontWeight: 760 }}>{localizeCustomerStatusName(defaultClientStatus)}</div>
-            </div>
-            <Badge color="teal" size="sm">{statuses.length} ta holat</Badge>
-          </div>
-        </Card>
+      <div style={{ display: "grid", gap: 14 }}>
         <Field label="Holat nomi" required><Input value={form.name} onChange={e => setField("name", e.target.value)} placeholder="Masalan, Faol mijoz" /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 14 }}>
-          <Field label="Qisqa nom"><Input value={form.slug} onChange={e => setField("slug", e.target.value)} placeholder="ixtiyoriy" /></Field>
+          <Field label="Slug"><Input value={form.slug} onChange={e => setField("slug", e.target.value)} placeholder="faol_mijoz" /></Field>
           <Field label="Tartib"><Input type="number" value={form.sortOrder} onChange={e => setField("sortOrder", Number(e.target.value || 0))} /></Field>
         </div>
-        <Field label="Asosiy holat"><Toggle checked={!!form.isDefault} onChange={value => setField("isDefault", value)} /></Field>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {statuses.map((status) => (
-            <Badge key={status.id} color={status.isDefault ? "green" : "slate"} size="sm">
-              {localizeCustomerStatusName(status.name)}
-            </Badge>
-          ))}
-          {!statuses.length && <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>Hali holatlar yo'q</span>}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 650 }}>Asosiy holat</div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+              {form.isDefault
+                ? "Bu holat yangi mijozlar uchun default bo'ladi."
+                : `Joriy default: ${localizeCustomerStatusName(defaultClientStatus) || "yo'q"}`}
+            </div>
+          </div>
+          <Toggle checked={!!form.isDefault} onChange={value => setField("isDefault", value)} />
         </div>
       </div>
     </Modal>
@@ -344,8 +337,8 @@ function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
       <div className="tg-meta">
         <div className="tg-meta-row"><span className="tg-meta-k">Mijoz</span><span className="tg-meta-v">{customer.fullName}</span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">Telefon</span><span className="tg-meta-v">{customer.phone}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{customerTuman(customer)}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{customerMahalla(customer) || "Kiritilmagan"}</span></div>
+        {!!customerTuman(customer) && <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{customerTuman(customer)}</span></div>}
+        {!!customerMahalla(customer) && <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{customerMahalla(customer)}</span></div>}
         <div className="tg-meta-row"><span className="tg-meta-k">Manzil</span><span className="tg-meta-v">{customer.address}</span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">Tizim</span><span className="tg-meta-v">{customer.currentSystemKw} kW</span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">To'lov turi</span><span className="tg-meta-v">{customer.paymentTypeLabel}</span></div>
@@ -516,7 +509,7 @@ function CustomerDetailPage({ id }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}><h2 style={{ margin: 0, fontSize: 21, fontWeight: 720 }}>{c.fullName}</h2><Badge color={customerStatusTone(c)} size="sm">{localizeCustomerStatusName(c.statusName || c.status)}</Badge></div>
             <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap", color: "var(--text-2)", fontSize: 13 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}><I.phone size={14} />{c.phone}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 5 }}><I.mapPin size={14} />{customerLocationLabel(c)}</span>
+              {hasCustomerLocation(c) && <span style={{ display: "flex", alignItems: "center", gap: 5 }}><I.mapPin size={14} />{customerLocationLabel(c)}</span>}
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}><I.sun size={14} />{c.currentSystemKw} kW</span>
             </div>
           </div>
@@ -533,8 +526,8 @@ function CustomerDetailPage({ id }) {
           <Panel title="Kontakt ma'lumotlari" icon="user" color="accent">
             <div className="tg-meta">
               <div className="tg-meta-row"><span className="tg-meta-k">Manzil</span><span className="tg-meta-v">{c.address}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{customerTuman(c)}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{customerMahalla(c) || "Kiritilmagan"}</span></div>
+              {!!customerTuman(c) && <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{customerTuman(c)}</span></div>}
+              {!!customerMahalla(c) && <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{customerMahalla(c)}</span></div>}
               <div className="tg-meta-row"><span className="tg-meta-k">To'lov turi</span><span className="tg-meta-v">{c.paymentTypeLabel}</span></div>
               <div className="tg-meta-row"><span className="tg-meta-k">Ro'yxatdan o'tgan</span><span className="tg-meta-v">{fmtDate(c.createdAt)}</span></div>
             </div>

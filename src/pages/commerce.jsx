@@ -8,7 +8,8 @@ const orderLocations = (locations) => locations || {};
 const orderDistrictOptions = (locations) => Object.keys(orderLocations(locations));
 const orderTuman = (order) => order?.district || "";
 const orderMahalla = (order) => order?.mahalla || "";
-const orderLocationLabel = (order) => [orderTuman(order), orderMahalla(order)].filter(Boolean).join(" / ") || "Hudud kiritilmagan";
+const orderLocationLabel = (order) => [orderTuman(order), orderMahalla(order)].filter(Boolean).join(" / ");
+const hasOrderLocation = (order) => !!orderLocationLabel(order);
 const debtorMahallasFor = (district, locations) => orderLocations(locations)[district] || [];
 const ACCOUNTING_CATEGORY_OPTIONS = [
   { value: "cash_income", label: "Naqd kirim" },
@@ -23,6 +24,9 @@ const ACCOUNTING_CATEGORY_OPTIONS = [
 function OrderRow({ o, onClick }) {
   const overdueAmount = debtNum(o.overdueAmountUzs);
   const remainingDebt = debtNum(o.remainingDebtUzs);
+  const locationText = orderLocationLabel(o);
+  const metaParts = [o.businessLine, o.paymentType === "credit" ? "Kredit" : "Naqd", fmtDate(o.createdAt)].filter(Boolean);
+  const subMetaParts = [locationText, o.deliveryAddress].filter(Boolean);
   return (
     <Card hover onClick={onClick}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -32,7 +36,7 @@ function OrderRow({ o, onClick }) {
           <div className="tg-cell-sub">{o.businessLine} • {o.paymentType === "credit" ? "Kredit" : "Naqd"} • {fmtDate(o.createdAt)}</div>
           <div className="tg-cell-sub">{orderLocationLabel(o)} • {o.deliveryAddress}</div>
         </div>
-        <Badge color="slate" size="sm">{orderMahalla(o) || orderTuman(o) || "Hududsiz"}</Badge>
+        {hasOrderLocation(o) && <Badge color="slate" size="sm">{orderMahalla(o) || orderTuman(o)}</Badge>}
         <Badge color={overdueAmount > 0 ? "red" : remainingDebt > 0 ? "amber" : "green"} size="sm">
           {overdueAmount > 0 ? "Muddati o'tgan" : remainingDebt > 0 ? "Qoldiq bor" : "Yopilgan"}
         </Badge>
@@ -43,12 +47,53 @@ function OrderRow({ o, onClick }) {
 }
 window.OrderRow = OrderRow;
 
+OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete }) {
+  const overdueAmount = debtNum(o.overdueAmountUzs);
+  const remainingDebt = debtNum(o.remainingDebtUzs);
+  const locationText = orderLocationLabel(o);
+  const metaParts = [o.businessLine, o.paymentType === "credit" ? "Kredit" : "Naqd", fmtDate(o.createdAt)].filter(Boolean);
+  const subMetaParts = [locationText, o.deliveryAddress].filter(Boolean);
+  return (
+    <Card hover onClick={onClick}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        <span className="tg-card-icon" style={{ color: "var(--amber)", background: "var(--amber-bg)" }}><I.wallet size={17} /></span>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div className="tg-cell-strong">{o.customerName}</div>
+          <div className="tg-cell-sub">{metaParts.join(" • ")}</div>
+          {!!subMetaParts.length && <div className="tg-cell-sub">{subMetaParts.join(" • ")}</div>}
+        </div>
+        {hasOrderLocation(o) && <Badge color="slate" size="sm">{orderMahalla(o) || orderTuman(o)}</Badge>}
+        <Badge color={overdueAmount > 0 ? "red" : remainingDebt > 0 ? "amber" : "green"} size="sm">
+          {overdueAmount > 0 ? "Muddati o'tgan" : remainingDebt > 0 ? "Qoldiq bor" : "Yopilgan"}
+        </Badge>
+        {(onEdit || onDelete) && (
+          <div onClick={(event) => event.stopPropagation()}>
+            <Dropdown
+              align="right"
+              trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />}
+              items={[
+                { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: onEdit },
+                { divider: true },
+                { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: onDelete },
+              ].filter((item) => item.divider || item.onClick)}
+            />
+          </div>
+        )}
+        <div style={{ fontWeight: 700, fontSize: 15, minWidth: 130, textAlign: "right" }}>{fmtUZS(remainingDebt)}</div>
+      </div>
+    </Card>
+  );
+};
+window.OrderRow = OrderRow;
+
 function OrdersPage() {
-  const { data, t, nav, upsert, toast } = useApp();
+  const { data, t, nav, upsert, remove, toast } = useApp();
   const loading = useLoading(320);
   const [q, setQ] = coS("");
   const [statusTab, setStatusTab] = coS("all");
   const [createOpen, setCreateOpen] = coS(false);
+  const [editOrder, setEditOrder] = coS(null);
+  const [deleteOrder, setDeleteOrder] = coS(null);
   const districts = orderDistrictOptions(data.locations);
 
   const filtered = coM(() => data.orders.filter(o => {
@@ -62,6 +107,7 @@ function OrdersPage() {
 
   const grouped = coM(() => {
     const map = new Map();
+    const ungrouped = [];
     filtered
       .slice()
       .sort((a, b) =>
@@ -70,28 +116,35 @@ function OrdersPage() {
         a.customerName.localeCompare(b.customerName, "uz")
       )
       .forEach((o) => {
-        const tuman = orderTuman(o) || "Tuman kiritilmagan";
-        const mahalla = orderMahalla(o) || "Mahalla kiritilmagan";
+        const tuman = orderTuman(o);
+        const mahalla = orderMahalla(o);
+        if (!tuman) {
+          ungrouped.push(o);
+          return;
+        }
         if (!map.has(tuman)) map.set(tuman, new Map());
         const mahallaMap = map.get(tuman);
-        if (!mahallaMap.has(mahalla)) mahallaMap.set(mahalla, []);
-        mahallaMap.get(mahalla).push(o);
+        if (!mahallaMap.has(mahalla || "")) mahallaMap.set(mahalla || "", []);
+        mahallaMap.get(mahalla || "").push(o);
       });
-    return Array.from(map.entries()).map(([district, mahallaMap]) => {
-      const mahallas = Array.from(mahallaMap.entries()).map(([mahalla, orders]) => ({
-        mahalla,
-        orders,
-        totalDebt: orders.reduce((sum, row) => sum + debtNum(row.remainingDebtUzs), 0),
-        overdueDebt: orders.reduce((sum, row) => sum + debtNum(row.overdueAmountUzs), 0),
-      }));
-      return {
-        district,
-        mahallas,
-        orders: mahallas.flatMap(group => group.orders),
-        totalDebt: mahallas.reduce((sum, group) => sum + group.totalDebt, 0),
-        overdueDebt: mahallas.reduce((sum, group) => sum + group.overdueDebt, 0),
-      };
-    });
+    return {
+      located: Array.from(map.entries()).map(([district, mahallaMap]) => {
+        const mahallas = Array.from(mahallaMap.entries()).map(([mahalla, orders]) => ({
+          mahalla,
+          orders,
+          totalDebt: orders.reduce((sum, row) => sum + debtNum(row.remainingDebtUzs), 0),
+          overdueDebt: orders.reduce((sum, row) => sum + debtNum(row.overdueAmountUzs), 0),
+        }));
+        return {
+          district,
+          mahallas,
+          orders: mahallas.flatMap(group => group.orders),
+          totalDebt: mahallas.reduce((sum, group) => sum + group.totalDebt, 0),
+          overdueDebt: mahallas.reduce((sum, group) => sum + group.overdueDebt, 0),
+        };
+      }),
+      ungrouped,
+    };
   }, [filtered]);
 
   const totalDebt = data.orders.reduce((sum, o) => sum + debtNum(o.remainingDebtUzs), 0);
@@ -113,7 +166,7 @@ function OrdersPage() {
         <StatTile label="Jami qarzdorlik" value={fmtShort(totalDebt)} sub="so'm" color="red" />
         <StatTile label="Muddati o'tgan" value={fmtShort(overdue)} sub="so'm" color="amber" />
         <StatTile label="Kredit mijozlar" value={data.orders.filter(o => o.paymentType === "credit").length} color="blue" />
-        <StatTile label="Tumanlar" value={new Set(data.orders.map(o => orderTuman(o) || "Tuman kiritilmagan")).size} color="violet" />
+        <StatTile label="Tumanlar" value={new Set(data.orders.map(o => orderTuman(o)).filter(Boolean)).size} color="violet" />
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Mijoz, ID, tuman yoki mahalla..." width={260} />
@@ -137,7 +190,7 @@ function OrdersPage() {
         <Card><EmptyState icon={<I.wallet size={26} />} title="Qarzdorlar topilmadi" /></Card>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {grouped.map(group => (
+          {grouped.located.map(group => (
             <div key={group.district}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 10 }}>
                 <div>
@@ -153,25 +206,32 @@ function OrdersPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {group.mahallas.map((mahallaGroup) => (
-                  <Card key={`${group.district}_${mahallaGroup.mahalla}`} style={{ padding: 12 }}>
+                  <Card key={`${group.district}_${mahallaGroup.mahalla || "no_mahalla"}`} style={{ padding: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span className="tg-card-icon" style={{ color: "var(--violet)", background: "var(--violet-bg)" }}><I.home size={14} /></span>
-                        <div style={{ fontSize: 14, fontWeight: 720 }}>{mahallaGroup.mahalla}</div>
-                        <Badge color="slate" size="sm">{mahallaGroup.orders.length} ta</Badge>
-                      </div>
+                      {mahallaGroup.mahalla ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span className="tg-card-icon" style={{ color: "var(--violet)", background: "var(--violet-bg)" }}><I.home size={14} /></span>
+                          <div style={{ fontSize: 14, fontWeight: 720 }}>{mahallaGroup.mahalla}</div>
+                          <Badge color="slate" size="sm">{mahallaGroup.orders.length} ta</Badge>
+                        </div>
+                      ) : <div />}
                       <div className="tg-cell-sub">
                         Qoldiq: {fmtUZS(mahallaGroup.totalDebt)}{mahallaGroup.overdueDebt > 0 ? ` • Muddati o'tgan: ${fmtUZS(mahallaGroup.overdueDebt)}` : ""}
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {mahallaGroup.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} />)}
+                      {mahallaGroup.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
                     </div>
                   </Card>
                 ))}
               </div>
             </div>
           ))}
+          {!!grouped.ungrouped.length && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+            </div>
+          )}
         </div>
       )}
       <OrderFormModal
@@ -184,16 +244,42 @@ function OrdersPage() {
           setCreateOpen(false);
         }}
       />
+      <OrderFormModal
+        open={!!editOrder}
+        onClose={() => setEditOrder(null)}
+        initial={editOrder}
+        locations={data.locations}
+        onSave={async (order) => {
+          await upsert("orders", order);
+          toast("Qarzdor yozuvi yangilandi");
+          setEditOrder(null);
+        }}
+      />
+      <ConfirmDialog
+        open={!!deleteOrder}
+        onClose={() => setDeleteOrder(null)}
+        onConfirm={async () => {
+          await remove("orders", deleteOrder.id);
+          toast("Qarzdor yozuvi o'chirildi");
+          setDeleteOrder(null);
+        }}
+        title="Qarzdor yozuvini o'chirish"
+        message={`"${deleteOrder?.customerName || ""}" yozuvini o'chirmoqchimisiz?`}
+        details={deleteOrder ? [`Telefon: ${deleteOrder.phone || "-"}`, `Qoldiq qarz: ${fmtUZS(debtNum(deleteOrder.remainingDebtUzs))}`, hasOrderLocation(deleteOrder) ? `Hudud: ${orderLocationLabel(deleteOrder)}` : ""].filter(Boolean).join("\n") : ""}
+        confirmLabel="O'chirish"
+        danger
+      />
     </div>
   );
 }
 window.OrdersPage = OrdersPage;
 
 function OrderFormModal({ open, onClose, onSave, initial, locations }) {
-  const { data } = useApp();
+  const { data, toast } = useApp();
   const districts = orderDistrictOptions(locations);
   const blank = {
     customerName: "",
+    phone: "",
     district: "",
     mahalla: "",
     businessLine: "Quyosh panel biznesi",
@@ -224,6 +310,11 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
       footer={<>
         <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
         <Button variant="primary" onClick={async () => {
+          const phone = (form.phone || "").trim();
+          if (!phone) {
+            toast("Telefon raqamini kiriting", "error");
+            return;
+          }
           const totalUzs = +form.totalUzs || 0;
           const paidUzs = +form.paidUzs || 0;
           const overdueAmountUzs = +form.overdueAmountUzs || 0;
@@ -236,6 +327,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             customerId: linkedCustomer?.id || null,
             leadId: linkedLead?.id || null,
             customerName: (form.customerName || "").trim(),
+            phone: phone || linkedCustomer?.phone || "",
             district: (form.district || "").trim(),
             mahalla: form.mahalla || linkedCustomer?.mahalla || "",
             businessLine: form.businessLine,
@@ -261,8 +353,13 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <Field label="Mijoz"><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
+          <Field label="Telefon" required><Input value={form.phone || ""} onChange={e => set("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
           <Field label="Tuman"><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder="Masalan, Bog'ot" /></Field>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <Field label="Mahalla"><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder="Masalan, Yangiobod" /></Field>
+          <Field label="Yo'nalish"><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: "Quyosh panel biznesi" }, { value: "Eski biznes", label: "Eski biznes" }]} /></Field>
+          <Field label="To'lov turi"><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: "Kredit" }, { value: "cash", label: "Naqd" }]} /></Field>
         </div>
         {!!districts.length && (
           <div style={{ display: "grid", gap: 8 }}>
@@ -316,10 +413,6 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             </div>
           </div>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Yo'nalish"><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: "Quyosh panel biznesi" }, { value: "Eski biznes", label: "Eski biznes" }]} /></Field>
-          <Field label="To'lov turi"><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: "Kredit" }, { value: "cash", label: "Naqd" }]} /></Field>
-        </div>
         <Field label="Manzil"><Input value={form.deliveryAddress} onChange={e => set("deliveryAddress", e.target.value)} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <Field label="Jami summa"><Input type="number" value={form.totalUzs} onChange={e => set("totalUzs", e.target.value)} /></Field>
@@ -327,8 +420,8 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
           <Field label="Muddati o'tgan"><Input type="number" value={form.overdueAmountUzs} onChange={e => set("overdueAmountUzs", e.target.value)} /></Field>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Muddat"><Input type="date" value={(form.dueDate || "").slice(0, 10)} onChange={e => set("dueDate", e.target.value)} /></Field>
-          <Field label="Keyingi eslatma"><Input type="date" value={(form.nextReminderAt || "").slice(0, 10)} onChange={e => set("nextReminderAt", e.target.value)} /></Field>
+          <Field label="Muddat"><DatePickerInput value={(form.dueDate || "").slice(0, 10)} onChange={(value) => set("dueDate", value)} /></Field>
+          <Field label="Keyingi eslatma"><DatePickerInput value={(form.nextReminderAt || "").slice(0, 10)} onChange={(value) => set("nextReminderAt", value)} /></Field>
         </div>
         <Field label="Izoh"><Textarea rows={4} value={form.note || ""} onChange={e => set("note", e.target.value)} placeholder="To'lov kelishuvi yoki eslatma..." /></Field>
       </div>
@@ -354,8 +447,8 @@ function OrderDetailPage({ id }) {
           <Panel title="Qarzdorlik tarkibi" icon="wallet" color="amber">
             <div className="tg-meta">
               <div className="tg-meta-row"><span className="tg-meta-k">Biznes yo'nalishi</span><span className="tg-meta-v">{o.businessLine}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{orderTuman(o) || "Kiritilmagan"}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{orderMahalla(o) || "Kiritilmagan"}</span></div>
+              {!!orderTuman(o) && <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{orderTuman(o)}</span></div>}
+              {!!orderMahalla(o) && <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{orderMahalla(o)}</span></div>}
               <div className="tg-meta-row"><span className="tg-meta-k">Manzil</span><span className="tg-meta-v">{o.deliveryAddress}</span></div>
               <div className="tg-meta-row"><span className="tg-meta-k">Jami summa</span><span className="tg-meta-v">{fmtUZS(totalUzs)}</span></div>
               <div className="tg-meta-row"><span className="tg-meta-k">To'langan</span><span className="tg-meta-v">{fmtUZS(paidUzs)}</span></div>
@@ -444,7 +537,7 @@ function PaymentsPage() {
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Kategoriya, mijoz, ID..." width={260} />
-        <FilterSelect label="Yo'nalish" icon="chart" value={direction} onChange={setDirection} options={[{ value: "all", label: "Barchasi" }, { value: "income", label: "Kirim" }, { value: "expense", label: "Chiqim" }]} />
+        <FilterSelect label="Yo'nalish" icon="chart" value={direction} onChange={setDirection} options={[{ value: "income", label: "Kirim" }, { value: "expense", label: "Chiqim" }]} />
         <div className="toolbar-spacer" />
         <ExportDropdown label="Hisobot" size="sm" filename="hisob-kitob" rows={filtered} mapper={p => ({
           Sana: p.date,
@@ -540,7 +633,7 @@ function PaymentFormModal({ open, onClose, onSave, initial }) {
       }}>Saqlash</Button></>}>
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Sana"><Input value={(form.date || "").slice(0, 10)} onChange={e => set("date", e.target.value)} type="date" /></Field>
+          <Field label="Sana"><DatePickerInput value={(form.date || "").slice(0, 10)} onChange={(value) => set("date", value)} /></Field>
           <Field label="Kategoriya"><Select value={form.rawCategory} onChange={v => {
             const selected = ACCOUNTING_CATEGORY_OPTIONS.find((option) => option.value === v);
             set("rawCategory", v);

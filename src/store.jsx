@@ -353,6 +353,10 @@ function AppProvider({ children }) {
       await apiDelete(`/api/tasks/${id}/`);
       await refreshCollections(["tasks"], ["dashboardOverview", "notifications"]);
     }
+    if (key === "taskColumns") {
+      await apiDelete(`/api/tasks/columns/${id}/`);
+      await refreshCollections(["taskColumns", "tasks"]);
+    }
     if (key === "payments") {
       await apiDelete(`/api/clients/accounting/entries/${id}/`);
       await refreshCollections(["payments", "accountingDays"], ["dashboardOverview"]);

@@ -91,6 +91,85 @@
 .tg-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
 .tg-input::placeholder { color: var(--text-3); }
 .tg-select { appearance: none; background-image: none; padding-right: 12px; cursor: pointer; }
+.tg-date-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; cursor: pointer; }
+.tg-date-trigger-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tg-date-trigger-value[data-empty="1"] { color: var(--text-3); }
+.tg-date-trigger-icon { color: var(--text-3); display: inline-flex; flex-shrink: 0; }
+.tg-date-pop {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 84%, #0b1020), var(--elevated));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 22px 60px rgba(2, 6, 23, .35), 0 8px 22px rgba(2, 6, 23, .18);
+  padding: 16px;
+}
+.tg-date-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.tg-date-pop-title { font-size: 15px; font-weight: 760; letter-spacing: -.02em; color: var(--text); }
+.tg-date-pop-sub { margin-top: 4px; font-size: 11.5px; color: var(--text-3); }
+.tg-date-nav {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .16s;
+}
+.tg-date-nav:hover { background: var(--surface-2); color: var(--text); border-color: rgba(var(--accent-rgb), .28); }
+.tg-date-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tg-date-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tg-date-chip:hover { background: var(--surface-2); color: var(--text); border-color: rgba(var(--accent-rgb), .26); }
+.tg-date-weekdays,
+.tg-date-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.tg-date-weekdays { margin-bottom: 8px; }
+.tg-date-weekdays span {
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 4px 0;
+}
+.tg-date-grid { gap: 4px; }
+.tg-date-day {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .14s ease;
+}
+.tg-date-day:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); color: var(--text); }
+.tg-date-day[data-today="1"] { color: var(--accent); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .3); }
+.tg-date-day[data-selected="1"] {
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(var(--accent-rgb), .28);
+}
+.tg-date-day:disabled { opacity: .26; cursor: not-allowed; }
+.tg-date-time { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; margin-top: 16px; }
+.tg-date-time-field { display: grid; gap: 6px; }
+.tg-date-time-field span { font-size: 11.5px; font-weight: 650; color: var(--text-3); }
+.tg-date-time-field .tg-input { text-align: center; }
+.tg-date-time-sep { padding-bottom: 10px; font-size: 22px; line-height: 1; font-weight: 700; color: var(--text-3); }
+.tg-date-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 
 .tg-toggle { width: 40px; height: 23px; border-radius: 20px; background: var(--surface-3); border: 1px solid var(--border); padding: 2px; transition: background .18s; flex-shrink: 0; }
 .tg-toggle[data-on="1"] { background: var(--accent); border-color: var(--accent); }
@@ -345,7 +424,7 @@
 
 /* ---- Kanban board ---- */
 .tg-kanban { display: grid; gap: 14px; align-items: stretch; overflow-x: auto; }
-.tg-kanban-col { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; min-height: 120px; min-width: 200px; height: min(68vh, calc(100vh - var(--header-h) - 260px)); display: flex; flex-direction: column; overflow: hidden; }
+.tg-kanban-col { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; min-height: 120px; min-width: 200px; height: min(68vh, calc(100vh - var(--header-h) - 260px)); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, .04), inset 0 1px 0 rgba(255,255,255,.02); }
 .tg-kanban-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
 .tg-kanban-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 80px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), .32) transparent; }
 .tg-kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; user-select: none; }
@@ -613,12 +692,47 @@
 .pk-board { display: flex; gap: 16px; overflow-x: auto; overflow-y: hidden; padding: 0 20px 20px; flex: 1; align-items: stretch; }
 .pk-board-dragging .pk-card { animation: none; }
 
-.pk-col { background: var(--surface-2); border-radius: 12px; width: 320px; min-width: 320px; display: flex; flex-direction: column; transition: background .18s; height: min(72vh, calc(100vh - var(--header-h) - 220px)); overflow: hidden; }
+.pk-col {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--col-color, var(--accent)) 10%, var(--surface-2)) 0%,
+    color-mix(in srgb, var(--col-color, var(--accent)) 4%, var(--surface-2)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--col-color, var(--accent)) 18%, var(--border));
+  border-radius: 12px;
+  width: 320px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  transition: background .18s, border-color .18s, box-shadow .18s;
+  height: min(72vh, calc(100vh - var(--header-h) - 220px));
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, .04),
+    inset 0 1px 0 rgba(255,255,255,.02),
+    inset 0 0 0 1px color-mix(in srgb, var(--col-color, var(--accent)) 7%, transparent);
+}
 .pk-col-over { background: color-mix(in srgb, var(--col-color, var(--accent)) 7%, var(--surface-2)) !important; outline: 2px dashed color-mix(in srgb, var(--col-color, var(--accent)) 60%, transparent); outline-offset: -2px; }
 
-.pk-col-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 10px; }
+.pk-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 10px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--col-color, var(--accent)) 12%, transparent), transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--col-color, var(--accent)) 14%, var(--border-soft));
+}
 .pk-col-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.pk-col-cnt { background: var(--surface-3); color: var(--text-2); border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pk-col-cnt {
+  background: color-mix(in srgb, var(--col-color, var(--accent)) 14%, var(--surface-3));
+  color: color-mix(in srgb, var(--col-color, var(--accent)) 60%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--col-color, var(--accent)) 18%, transparent);
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .pk-col-total { font-size: 11.5px; color: var(--text-3); font-weight: 550; }
 
 .pk-cards { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 120px; min-height: 0; border-radius: 8px; transition: background .15s; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--col-color, var(--accent)) 35%, transparent) transparent; }
@@ -669,7 +783,21 @@
 .tg-kanban-body:hover::-webkit-scrollbar-thumb { background-color: rgba(var(--accent-rgb), .42); }
 .pk-cards:hover::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--col-color, var(--accent)) 48%, transparent); }
 
-.pk-col-add { margin: 0 8px 8px; padding: 7px 10px; border-radius: 8px; border: 1.5px dashed var(--border); background: transparent; color: var(--text-3); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all .15s; }
+.pk-col-add {
+  margin: 0 8px 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px dashed color-mix(in srgb, var(--col-color, var(--accent)) 22%, var(--border));
+  background: color-mix(in srgb, var(--col-color, var(--accent)) 4%, transparent);
+  color: var(--text-3);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all .15s;
+}
 
 /* ========== Theme toggle (sun/moon switch) ========== */
 .tg-theme-toggle { position: relative; width: 62px; height: 32px; border-radius: 999px; border: 2px solid var(--border); background: var(--surface-2); cursor: pointer; padding: 0; flex-shrink: 0; transition: border-color .35s ease, background .35s ease; }
@@ -688,7 +816,17 @@
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
 }
-.pk-col-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.pk-col-add:hover {
+  border-color: var(--col-color, var(--accent));
+  color: var(--col-color, var(--accent));
+  background: color-mix(in srgb, var(--col-color, var(--accent)) 12%, transparent);
+}
+
+[data-theme="light"] .pk-col,
+[data-theme="light"] .tg-kanban-col {
+  border-color: color-mix(in srgb, var(--col-color, var(--accent)) 18%, #d8deea);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 8px 24px rgba(15, 23, 42, .04), inset 0 1px 0 rgba(255,255,255,.75);
+}
 
 /* ========== Customize Panel ========== */
 .tg-cust-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 320px; background: var(--elevated); border-left: 1px solid var(--border); z-index: 1101; display: flex; flex-direction: column; box-shadow: -8px 0 32px rgba(0,0,0,.18); }
