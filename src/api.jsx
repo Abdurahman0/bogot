@@ -1,5 +1,5 @@
 /* api.jsx - live backend integration */
-const API_BASE = (window.TG_API_BASE || localStorage.getItem("tg_api_base") || "http://192.168.1.15:8000").replace(/\/$/, "");
+const API_BASE = (window.TG_ENV?.API_BASE || window.TG_API_BASE || localStorage.getItem("tg_api_base") || "http://localhost:8000").replace(/\/$/, "");
 const SESSION_KEY = "tg_crm_session_v1";
 
 const API_ROLE_MAP = {
@@ -80,6 +80,7 @@ function apiCreateEmptyData() {
 }
 
 function apiWebSocketBase() {
+  if (window.TG_ENV?.WS_BASE) return String(window.TG_ENV.WS_BASE).replace(/\/$/, "");
   if (API_BASE.startsWith("https://")) return API_BASE.replace(/^https:\/\//, "wss://");
   if (API_BASE.startsWith("http://")) return API_BASE.replace(/^http:\/\//, "ws://");
   return API_BASE;
