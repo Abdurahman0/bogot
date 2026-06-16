@@ -32,10 +32,13 @@ const customerStatusTone = (customer) => {
 function CustomersPage() {
   const { data, t, nav, upsert, remove, toast } = useApp();
   const loading = useLoading(300);
+  const [viewMode, setViewMode] = cuS("clients");
   const [q, setQ] = cuS("");
   const [fDistrict, setFDistrict] = cuS("all");
   const [fStatus, setFStatus] = cuS("all");
   const [statusModalOpen, setStatusModalOpen] = cuS(false);
+  const [editStatus, setEditStatus] = cuS(null);
+  const [deleteStatus, setDeleteStatus] = cuS(null);
   const [statusForm, setStatusForm] = cuS({ name: "", slug: "", isDefault: false, sortOrder: (data.clientStatuses || []).length + 1 });
   const [viewCustomer, setViewCustomer] = cuS(null);
   const [editCustomer, setEditCustomer] = cuS(null);
@@ -44,6 +47,11 @@ function CustomersPage() {
   const districts = customerDistrictOptions(data.locations);
   const statusOptions = [{ value: "all", label: "Barcha holatlar" }, ...(data.clientStatuses || []).map((status) => ({ value: status.id, label: localizeCustomerStatusName(status.name) }))];
   const defaultClientStatus = localizeCustomerStatusName((data.clientStatuses || []).find((status) => status.isDefault)?.name);
+  const sortedStatuses = cuM(() => (data.clientStatuses || []).slice().sort((a, b) => {
+    const orderDiff = Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    if (orderDiff !== 0) return orderDiff;
+    return String(a.name || "").localeCompare(String(b.name || ""), "uz");
+  }), [data.clientStatuses]);
 
   const filtered = cuM(() => data.customers.filter(c => {
     if (q && !c.fullName.toLowerCase().includes(q.toLowerCase()) && !c.phone.includes(q)) return false;
@@ -72,7 +80,10 @@ function CustomersPage() {
     ) },
   ];
 
+  const statusUsageCount = (statusId) => data.customers.filter((customer) => customer.statusId === statusId).length;
+
   const openStatusCreate = () => {
+    setEditStatus(null);
     setStatusForm({
       name: "",
       slug: "",
@@ -82,53 +93,150 @@ function CustomersPage() {
     setStatusModalOpen(true);
   };
 
+  const openStatusEdit = (status) => {
+    setEditStatus(status);
+    setStatusForm({
+      id: status.id,
+      name: status.name || "",
+      slug: status.slug || "",
+      isDefault: !!status.isDefault,
+      sortOrder: Number(status.sortOrder || 0),
+    });
+    setStatusModalOpen(true);
+  };
+
   const setStatusField = (key, value) => setStatusForm((current) => ({ ...current, [key]: value }));
 
   const saveStatus = async () => {
     if (!statusForm.name.trim()) return;
     await upsert("clientStatuses", {
+      ...editStatus,
       name: statusForm.name.trim(),
       slug: (statusForm.slug || "").trim(),
       isDefault: !!statusForm.isDefault,
       sortOrder: Number(statusForm.sortOrder || 0),
     });
-    toast("Yangi holat qo'shildi");
+    toast(editStatus ? "Holat yangilandi" : "Yangi holat qo'shildi");
     setStatusModalOpen(false);
+    setEditStatus(null);
   };
+
+  const statusColumns = [
+    { key: "name", label: "Holat", sortVal: (row) => row.name, render: (row) => <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Badge color={row.isDefault ? "green" : "blue"} size="sm">{localizeCustomerStatusName(row.name)}</Badge>{row.isDefault && <span className="tg-cell-sub">Asosiy</span>}</div> },
+    { key: "slug", label: "Slug", sortVal: (row) => row.slug, render: (row) => <span className="tg-cell-sub" style={{ fontFamily: "monospace" }}>{row.slug || "-"}</span> },
+    { key: "order", label: "Tartib", sortVal: (row) => Number(row.sortOrder || 0), render: (row) => <span>{row.sortOrder || 0}</span> },
+    { key: "customers", label: "Mijozlar", sortVal: (row) => statusUsageCount(row.id), render: (row) => <Badge color="slate" size="sm">{statusUsageCount(row.id)} ta</Badge> },
+    { key: "actions", label: "", width: 44, render: (row) => (
+      <div onClick={(event) => event.stopPropagation()}>
+        <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />} items={[
+          { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => openStatusEdit(row) },
+          { divider: true },
+          { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteStatus(row) },
+        ]} />
+      </div>
+    ) },
+  ];
+
+  const modeChips = [
+    { value: "clients", label: "Mijozlar", count: data.customers.length, icon: <I.users size={14} /> },
+    { value: "statuses", label: "Statuslar", count: sortedStatuses.length, icon: <I.flag size={14} /> },
+  ];
+  const pageDesc = viewMode === "statuses" ? `${sortedStatuses.length} ta holat` : `${data.customers.length} ta mijoz`;
 
   return (
     <div className="page fade-in">
-      <PageHeader title={t("page.customers")} desc={`${data.customers.length} ta mijoz`} crumbs={[{ label: "CRM" }, { label: t("page.customers") }]}
+      <PageHeader title={t("page.customers")} desc={pageDesc} crumbs={[{ label: "CRM" }, { label: t("page.customers") }]}
         actions={<>
-          <ExportDropdown label="Hisobot" size="sm" filename="mijozlar" rows={filtered} mapper={c => ({
+          {viewMode === "clients" && <ExportDropdown label="Hisobot" size="sm" filename="mijozlar" rows={filtered} mapper={c => ({
             Ism: c.fullName,
             Telefon: c.phone,
             Tuman: customerTuman(c),
             Mahalla: customerMahalla(c),
             "Tizim (kW)": c.currentSystemKw,
             "Qoldiq qarz": c.debtBalanceUzs,
-          })} />
-          <Button variant="soft" size="sm" icon={<I.flag size={15} />} onClick={openStatusCreate}>Yangi holat</Button>
-          <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setAddOpen(true)}>Yangi mijoz</Button>
+          })} />}
+          {viewMode === "statuses" && <Button variant="soft" size="sm" icon={<I.flag size={15} />} onClick={openStatusCreate}>Yangi holat</Button>}
+          {viewMode === "clients" && <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setAddOpen(true)}>Yangi mijoz</Button>}
         </>} />
-      <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Ism yoki telefon..." width={260} />
-        <FilterSelect label="Tuman" icon="mapPin" value={fDistrict} onChange={setFDistrict} options={districts.map(d => ({ value: d, label: d }))} />
-        <FilterSelect label="Holat" icon="flag" value={fStatus} onChange={setFStatus} options={statusOptions} />
-        <div className="toolbar-spacer" />
-        <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{filtered.length} ta</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        {modeChips.map((chip) => {
+          const active = viewMode === chip.value;
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => setViewMode(chip.value)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: 999,
+                border: active ? "1px solid rgba(var(--accent-rgb), .35)" : "1px solid var(--border)",
+                background: active ? "var(--accent-soft)" : "var(--surface)",
+                color: active ? "var(--accent)" : "var(--text-2)",
+                padding: "9px 14px",
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                transition: "all .18s",
+              }}
+            >
+              {chip.icon}
+              <span>{chip.label}</span>
+              <span style={{
+                minWidth: 22,
+                height: 22,
+                padding: "0 7px",
+                borderRadius: 999,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: active ? "rgba(var(--accent-rgb), .14)" : "var(--surface-3)",
+                color: active ? "var(--accent)" : "var(--text-3)",
+                fontSize: 11.5,
+                fontWeight: 700,
+              }}>
+                {chip.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
-      <Card pad={false}>
-        {loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={{ key: "debt", dir: "desc" }} />}
-      </Card>
+      {viewMode === "clients" && (
+        <>
+          <div className="toolbar">
+            <SearchInput value={q} onChange={setQ} placeholder="Ism yoki telefon..." width={260} />
+            <FilterSelect label="Tuman" icon="mapPin" value={fDistrict} onChange={setFDistrict} options={districts.map(d => ({ value: d, label: d }))} />
+            <FilterSelect label="Holat" icon="flag" value={fStatus} onChange={setFStatus} options={statusOptions} />
+            <div className="toolbar-spacer" />
+            <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{filtered.length} ta</span>
+          </div>
+          <Card pad={false}>
+            {loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={{ key: "debt", dir: "desc" }} />}
+          </Card>
+        </>
+      )}
+      {viewMode === "statuses" && (
+        <div style={{ display: "grid", gap: 16 }}>
+          <div className="grid-3">
+            <StatTile label="Jami statuslar" value={sortedStatuses.length} color="blue" />
+            <StatTile label="Asosiy status" value={defaultClientStatus || "Yo'q"} color="green" />
+            <StatTile label="Statusli mijozlar" value={data.customers.filter((customer) => customer.statusId).length} color="amber" />
+          </div>
+          <Card pad={false}>
+            {loading ? <SkeletonRows rows={6} cols={5} /> : <DataTable columns={statusColumns} rows={sortedStatuses} onRowClick={openStatusEdit} defaultSort={{ key: "order", dir: "asc" }} />}
+          </Card>
+        </div>
+      )}
       <CustomerStatusModal
         open={statusModalOpen}
-        onClose={() => setStatusModalOpen(false)}
+        onClose={() => { setStatusModalOpen(false); setEditStatus(null); }}
         onSave={saveStatus}
         form={statusForm}
         setField={setStatusField}
         statuses={data.clientStatuses || []}
         defaultClientStatus={defaultClientStatus}
+        editing={!!editStatus}
       />
       <CustomerViewModal
         open={!!viewCustomer}
@@ -172,14 +280,28 @@ function CustomersPage() {
         confirmLabel="O'chirish"
         danger
       />
+      <ConfirmDialog
+        open={!!deleteStatus}
+        onClose={() => setDeleteStatus(null)}
+        onConfirm={async () => {
+          await remove("clientStatuses", deleteStatus.id);
+          toast("Holat o'chirildi");
+          setDeleteStatus(null);
+        }}
+        title="Holatni o'chirish"
+        message={`"${localizeCustomerStatusName(deleteStatus?.name || "")}" holatini o'chirmoqchimisiz?`}
+        details={deleteStatus ? `Slug: ${deleteStatus.slug || "-"}\nBiriktirilgan mijozlar: ${statusUsageCount(deleteStatus.id)} ta` : ""}
+        confirmLabel="O'chirish"
+        danger
+      />
     </div>
   );
 }
 window.CustomersPage = CustomersPage;
 
-function CustomerStatusModal({ open, onClose, onSave, form, setField, statuses, defaultClientStatus }) {
+function CustomerStatusModal({ open, onClose, onSave, form, setField, statuses, defaultClientStatus, editing }) {
   return (
-    <Modal open={open} onClose={onClose} title="Yangi holat" icon={<I.flag size={18} />} width={520}
+    <Modal open={open} onClose={onClose} title={editing ? "Holatni tahrirlash" : "Yangi holat"} icon={<I.flag size={18} />} width={520}
       footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={onSave}>Saqlash</Button></>}>
       <div style={{ display: "grid", gap: 16 }}>
         <Card style={{ padding: 14, background: "linear-gradient(135deg, rgba(20,184,166,.08), rgba(59,130,246,.08))", border: "1px solid rgba(20,184,166,.18)" }}>

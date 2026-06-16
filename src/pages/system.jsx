@@ -271,27 +271,15 @@ function RolesPage() {
 /* ======= SETTINGS ======= */
 function SettingsPage() {
   const { data, t, theme, setTheme, lang, setLang, sidebarCollapsed, setSidebarCollapsed, upsert, remove, toast } = useApp();
-  const [tab, setTab] = sysS("statuses");
-  const [statusModalOpen, setStatusModalOpen] = sysS(false);
-  const [editStatus, setEditStatus] = sysS(null);
-  const [deleteStatus, setDeleteStatus] = sysS(null);
-  const [statusForm, setStatusForm] = sysS({ name: "", slug: "", isDefault: false, sortOrder: 0 });
+  const [tab, setTab] = sysS("ai");
   const [aiModalOpen, setAiModalOpen] = sysS(false);
   const [editAi, setEditAi] = sysS(null);
   const [deleteAi, setDeleteAi] = sysS(null);
   const [aiForm, setAiForm] = sysS({ name: "", model: "", temperature: 0.7, system_prompt: "", function_calling_enabled: true, is_active: false });
-  const setStatusField = (k, v) => setStatusForm(f => ({ ...f, [k]: v }));
   const setAiField = (k, v) => setAiForm(f => ({ ...f, [k]: v }));
-  const resetStatusForm = () => setStatusForm({ name: "", slug: "", isDefault: false, sortOrder: 0 });
   const resetAiForm = () => setAiForm({ name: "", model: "", temperature: 0.7, system_prompt: "", function_calling_enabled: true, is_active: false });
   const activeAiMap = Object.fromEntries((data.activeAiSettings || []).map((row) => [row.id || row.name, true]));
 
-  const openStatusCreate = () => { setEditStatus(null); resetStatusForm(); setStatusModalOpen(true); };
-  const openStatusEdit = (status) => {
-    setEditStatus(status);
-    setStatusForm({ name: status.name || "", slug: status.slug || "", isDefault: !!status.isDefault, sortOrder: status.sortOrder || 0 });
-    setStatusModalOpen(true);
-  };
   const openAiCreate = () => { setEditAi(null); resetAiForm(); setAiModalOpen(true); };
   const openAiEdit = (setting) => {
     setEditAi(setting);
@@ -304,13 +292,6 @@ function SettingsPage() {
       is_active: !!setting.is_active,
     });
     setAiModalOpen(true);
-  };
-  const saveStatus = async () => {
-    await upsert("clientStatuses", { ...editStatus, ...statusForm });
-    toast(editStatus ? "Mijoz holati yangilandi" : "Mijoz holati qo'shildi");
-    setStatusModalOpen(false);
-    setEditStatus(null);
-    resetStatusForm();
   };
   const saveAiSetting = async () => {
     await upsert("aiSettings", { ...editAi, ...aiForm, temperature: Number(aiForm.temperature || 0) });
@@ -325,44 +306,8 @@ function SettingsPage() {
       <PageHeader title={t("page.settings")} desc="Live backend sozlamalari va CRM ko'rinishi" crumbs={[{ label: "Tizim" }, { label: t("page.settings") }]} />
 
       <div style={{ marginBottom: 18 }}>
-        <Tabs tabs={[{ value: "statuses", label: "Mijoz holatlari" }, { value: "ai", label: "AI sozlamalari" }, { value: "appearance", label: "Ko'rinish" }]} active={tab} onChange={setTab} />
+        <Tabs tabs={[{ value: "ai", label: "AI sozlamalari" }, { value: "appearance", label: "Ko'rinish" }]} active={tab} onChange={setTab} />
       </div>
-
-      {tab === "statuses" && (
-        <div className="grid-dash">
-          <Panel title="Mijoz statuslari" icon="users" color="accent" pad={false}
-            action={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={openStatusCreate}>Yangi status</Button>}>
-            <div className="tg-table-wrap">
-              <table className="tg-table">
-                <thead><tr><th>Nomi</th><th>Slug</th><th>Tartib</th><th>Default</th><th></th></tr></thead>
-                <tbody>
-                  {(data.clientStatuses || []).map((status) => (
-                    <tr key={status.id}>
-                      <td className="tg-cell-strong">{status.name}</td>
-                      <td className="tg-cell-sub" style={{ fontFamily: "monospace" }}>{status.slug}</td>
-                      <td>{status.sortOrder || 0}</td>
-                      <td>{status.isDefault ? <Badge color="green" size="sm">Ha</Badge> : <Badge color="slate" size="sm">Yo'q</Badge>}</td>
-                      <td>
-                        <div style={{ display: "flex", gap: 4 }}>
-                          <IconButton icon={<I.edit size={15} />} label="Tahrir" onClick={() => openStatusEdit(status)} />
-                          <IconButton icon={<I.trash size={15} />} label="O'chirish" onClick={() => setDeleteStatus(status)} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-          <Panel title="Statuslardan foydalanish" icon="layers" color="blue">
-            <div className="tg-meta">
-              <div className="tg-meta-row"><span className="tg-meta-k">Jami statuslar</span><span className="tg-meta-v">{(data.clientStatuses || []).length}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Jami mijozlar</span><span className="tg-meta-v">{(data.customers || []).length}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Default status</span><span className="tg-meta-v">{(data.clientStatuses || []).find((status) => status.isDefault)?.name || "Belgilanmagan"}</span></div>
-            </div>
-          </Panel>
-        </div>
-      )}
 
       {tab === "ai" && (
         <div className="grid-dash">
@@ -431,18 +376,6 @@ function SettingsPage() {
         </div>
       )}
 
-      <Modal open={statusModalOpen} onClose={() => setStatusModalOpen(false)} title={editStatus ? "Statusni tahrirlash" : "Yangi status"} icon={<I.users size={18} />} width={460}
-        footer={<><Button variant="ghost" onClick={() => setStatusModalOpen(false)}>Bekor</Button><Button variant="primary" onClick={saveStatus}>Saqlash</Button></>}>
-        <div style={{ display: "grid", gap: 14 }}>
-          <Field label="Nomi"><Input value={statusForm.name} onChange={(e) => setStatusField("name", e.target.value)} /></Field>
-          <Field label="Slug"><Input value={statusForm.slug} onChange={(e) => setStatusField("slug", e.target.value)} placeholder="auto bo'sh qoldirsa ham bo'ladi" /></Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Tartib"><Input type="number" value={statusForm.sortOrder} onChange={(e) => setStatusField("sortOrder", Number(e.target.value || 0))} /></Field>
-            <Field label="Default"><Toggle checked={!!statusForm.isDefault} onChange={(value) => setStatusField("isDefault", value)} /></Field>
-          </div>
-        </div>
-      </Modal>
-
       <Modal open={aiModalOpen} onClose={() => setAiModalOpen(false)} title={editAi ? "AI sozlamasini tahrirlash" : "Yangi AI sozlama"} icon={<I.robot size={18} />} width={560}
         footer={<><Button variant="ghost" onClick={() => setAiModalOpen(false)}>Bekor</Button><Button variant="primary" onClick={saveAiSetting}>Saqlash</Button></>}>
         <div style={{ display: "grid", gap: 14 }}>
@@ -458,16 +391,6 @@ function SettingsPage() {
           <Field label="System prompt"><Textarea rows={6} value={aiForm.system_prompt} onChange={(e) => setAiField("system_prompt", e.target.value)} /></Field>
         </div>
       </Modal>
-
-      <ConfirmDialog
-        open={!!deleteStatus}
-        onClose={() => setDeleteStatus(null)}
-        onConfirm={async () => { await remove("clientStatuses", deleteStatus.id); toast("Status o'chirildi"); setDeleteStatus(null); }}
-        title="Statusni o'chirish"
-        message={`"${deleteStatus?.name || ""}" statusini o'chirmoqchimisiz?`}
-        confirmLabel="O'chirish"
-        danger
-      />
 
       <ConfirmDialog
         open={!!deleteAi}

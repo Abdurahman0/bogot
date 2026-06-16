@@ -511,9 +511,6 @@ function Login() {
   const { login, dataLoading } = useApp();
   const [username, setUsername] = shS("developer");
   const [pw, setPw] = shS("Password123!");
-  const accounts = [
-    { username: "developer", password: "Password123!", label: "Developer", desc: "Live backend bilan to'liq kirish" },
-  ];
   const submit = async (e) => {
     e && e.preventDefault();
     try {
@@ -547,19 +544,6 @@ function Login() {
           <div style={{ height: 20 }} />
           <Button variant="primary" size="lg" full type="submit" disabled={dataLoading}>{dataLoading ? "Yuklanmoqda..." : <>Kirish <I.arrowRight size={17} /></>}</Button>
         </form>
-        <div className="tg-login-accounts">
-          <div className="tg-login-accounts-title">Tez kirish</div>
-          {accounts.map(a => (
-            <button key={a.username} type="button" className="tg-login-account" onClick={() => { setUsername(a.username); setPw(a.password); }}>
-              <Avatar name={a.label} size={36} />
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{a.label}</div>
-                <div style={{ fontSize: 12, color: "var(--text-3)" }}>{a.username}</div>
-              </div>
-              <I.arrowRight size={16} style={{ color: "var(--text-3)" }} />
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );

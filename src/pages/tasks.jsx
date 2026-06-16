@@ -76,7 +76,48 @@ function getTaskDropTarget(clientX, clientY, dragId) {
   return { columnId, index };
 }
 
-function TaskBoardCard({ task, user, meta, onDelete, interactive = true }) {
+function moveTaskInList(tasks, taskId, columns, targetColumnId, targetIndex) {
+  const list = (tasks || []).slice().sort((a, b) => {
+    const columnA = columns.find((column) => column.id === a.columnId)?.position ?? 0;
+    const columnB = columns.find((column) => column.id === b.columnId)?.position ?? 0;
+    if (columnA !== columnB) return columnA - columnB;
+    return Number(a.position || 0) - Number(b.position || 0);
+  });
+  const dragged = list.find((task) => task.id === taskId);
+  if (!dragged) return null;
+
+  const nextColumns = columns.slice().sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
+  const remaining = list.filter((task) => task.id !== taskId);
+  const buckets = Object.fromEntries(nextColumns.map((column) => [column.id, []]));
+
+  remaining.forEach((task) => {
+    if (!buckets[task.columnId]) buckets[task.columnId] = [];
+    buckets[task.columnId].push(task);
+  });
+
+  Object.keys(buckets).forEach((columnId) => {
+    buckets[columnId] = buckets[columnId].slice().sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
+  });
+
+  if (!buckets[targetColumnId]) buckets[targetColumnId] = [];
+  const insertAt = Math.max(0, Math.min(targetIndex, buckets[targetColumnId].length));
+  buckets[targetColumnId].splice(insertAt, 0, {
+    ...dragged,
+    columnId: targetColumnId,
+    columnSlug: nextColumns.find((column) => column.id === targetColumnId)?.slug || dragged.columnSlug,
+    columnName: nextColumns.find((column) => column.id === targetColumnId)?.name || dragged.columnName,
+  });
+
+  return Object.entries(buckets)
+    .sort((a, b) => {
+      const columnA = nextColumns.find((column) => column.id === a[0])?.position ?? Number.MAX_SAFE_INTEGER;
+      const columnB = nextColumns.find((column) => column.id === b[0])?.position ?? Number.MAX_SAFE_INTEGER;
+      return columnA - columnB;
+    })
+    .flatMap(([, rows]) => rows.map((task, index) => ({ ...task, position: index })));
+}
+
+function TaskBoardCard({ task, user, meta, interactive = true }) {
   const overdue = isTaskOverdue(task);
   return (
     <>
@@ -95,11 +136,6 @@ function TaskBoardCard({ task, user, meta, onDelete, interactive = true }) {
             <Avatar name={user.fullName} hue={user.avatarHue} size={20} />
             <span>{user.fullName.split(" ")[0]}</span>
           </span>
-        )}
-        {interactive && (
-          <button className="pk-card-del" title="O'chirish" onClick={onDelete}>
-            <I.trash size={12} />
-          </button>
         )}
       </div>
     </>
@@ -175,9 +211,8 @@ function TaskViewModal({ task, user, column, open, onClose, onEdit, onDelete }) 
       width={520}
       footer={
         <>
-          <Button variant="ghost" onClick={onDelete} icon={<I.trash size={15} />}>O'chirish</Button>
           <Button variant="default" onClick={onEdit} icon={<I.edit size={15} />}>Tahrirlash</Button>
-          <Button variant="primary" onClick={onClose}>Yopish</Button>
+          <Button variant="danger" onClick={onDelete} icon={<I.trash size={15} />}>O'chirish</Button>
         </>
       }
     >
@@ -211,13 +246,15 @@ function TasksPage() {
   const [deleteTask, setDeleteTask] = tkS(null);
   const [dragState, setDragState] = tkS(null);
   const [moving, setMoving] = tkS(false);
+  const [optimisticTasks, setOptimisticTasks] = tkS(null);
   const pendingRef = tkR(null);
   const suppressClickRef = tkR(false);
 
   const columns = tkM(() => getTaskColumns(data), [data.taskColumns, data.tasks]);
   const columnsById = tkM(() => Object.fromEntries(columns.map((column) => [column.id, column])), [columns]);
   const assignees = tkM(() => taskAssignees(data), [data.taskAssignees, data.users]);
-  const tasks = tkM(() => (data.tasks || [])
+  const sourceTasks = optimisticTasks || data.tasks || [];
+  const tasks = tkM(() => sourceTasks
     .filter((task) => !q || task.title.toLowerCase().includes(q.toLowerCase()) || (task.description || "").toLowerCase().includes(q.toLowerCase()))
     .slice()
     .sort((a, b) => {
@@ -225,17 +262,21 @@ function TasksPage() {
       const columnB = columnsById[b.columnId]?.position ?? 0;
       if (columnA !== columnB) return columnA - columnB;
       return Number(a.position || 0) - Number(b.position || 0);
-    }), [data.tasks, q, columnsById]);
+    }), [sourceTasks, q, columnsById]);
 
   const counts = tkM(() => ({
-    total: data.tasks.length,
-    overdue: data.tasks.filter((task) => isTaskOverdue(task)).length,
-    done: data.tasks.filter((task) => task.columnSlug === "done").length,
-    open: data.tasks.filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled").length,
-  }), [data.tasks]);
+    total: sourceTasks.length,
+    overdue: sourceTasks.filter((task) => isTaskOverdue(task)).length,
+    done: sourceTasks.filter((task) => task.columnSlug === "done").length,
+    open: sourceTasks.filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled").length,
+  }), [sourceTasks]);
 
-  const dragTask = tkM(() => dragState ? data.tasks.find((task) => task.id === dragState.id) || null : null, [data.tasks, dragState]);
+  const dragTask = tkM(() => dragState ? sourceTasks.find((task) => task.id === dragState.id) || null : null, [sourceTasks, dragState]);
   const userOf = (id) => assignees.find((user) => user.id === id) || data.users.find((user) => user.id === id);
+
+  tkE(() => {
+    if (!moving) setOptimisticTasks(null);
+  }, [data.tasks, moving]);
 
   tkE(() => {
     if (!dragState) return undefined;
@@ -292,12 +333,15 @@ function TasksPage() {
       if (!dragState) return;
       const nextColumnId = dragState.overColumnId || dragState.fromColumnId;
       const nextIndex = dragState.overIndex == null ? 0 : dragState.overIndex;
+      const optimistic = moveTaskInList(sourceTasks, dragState.id, columns, nextColumnId, nextIndex);
+      if (optimistic) setOptimisticTasks(optimistic);
       setDragState(null);
       setMoving(true);
       try {
         await moveTask(dragState.id, nextColumnId, nextIndex);
         toast("Vazifa joyi yangilandi");
       } catch (error) {
+        setOptimisticTasks(null);
         toast(error.message || "Vazifa ko'chirilmadi", "error");
       } finally {
         setMoving(false);
@@ -313,7 +357,7 @@ function TasksPage() {
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [dragState, moveTask, toast]);
+  }, [columns, dragState, moveTask, sourceTasks, toast]);
 
   const handlePointerDown = (event, task, columnId, index) => {
     if (event.button !== 0) return;
@@ -358,7 +402,7 @@ function TasksPage() {
         </div>
       </div>
 
-      <div className="pk-board">
+      <div className={`pk-board${dragState || moving || optimisticTasks ? " pk-board-dragging" : ""}`}>
         {!columns.length && (
           <Card style={{ padding: 24 }}>
             <EmptyState icon={<I.layers size={24} />} title="Ustunlar topilmadi" message="Backenddan task ustunlari kelmadi." />
@@ -404,10 +448,6 @@ function TasksPage() {
                         task={task}
                         user={userOf(task.assignedUserId)}
                         meta={meta}
-                        onDelete={(event) => {
-                          event.stopPropagation();
-                          setDeleteTask(task);
-                        }}
                       />
                     </div>
                   </React.Fragment>
