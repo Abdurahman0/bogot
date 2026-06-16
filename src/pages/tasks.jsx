@@ -8,25 +8,8 @@ const TASK_COLUMN_META = {
   canceled: { label: "Bekor qilingan", color: "#dc2626", bg: "#fef2f2", icon: "x" },
 };
 
-function fallbackTaskColumns(rows = []) {
-  const seed = [
-    { id: "todo", slug: "todo", name: "Navbat", position: 0 },
-    { id: "in_progress", slug: "in_progress", name: "Jarayonda", position: 1 },
-    { id: "done", slug: "done", name: "Bajarilgan", position: 2 },
-    { id: "canceled", slug: "canceled", name: "Bekor qilingan", position: 3 },
-  ];
-  if (!rows.length) return seed;
-  const slugs = [...new Set(rows.map((row) => row.columnSlug || row.status || "todo"))];
-  return slugs.map((slug, index) => ({
-    id: slug,
-    slug,
-    name: TASK_COLUMN_META[slug]?.label || slug,
-    position: index,
-  }));
-}
-
 function getTaskColumns(data) {
-  const rows = (data.taskColumns || []).length ? data.taskColumns : fallbackTaskColumns(data.tasks || []);
+  const rows = data.taskColumns || [];
   return rows
     .slice()
     .sort((a, b) => Number(a.position || 0) - Number(b.position || 0))
@@ -51,8 +34,8 @@ function isTaskOverdue(task) {
 function createTaskDraft(data, initial = null) {
   const columns = getTaskColumns(data);
   const assignees = taskAssignees(data);
-  const defaultColumn = columns[0] || { id: "todo", slug: "todo", name: "Navbat" };
-  const defaultAssignee = assignees[0]?.id || "";
+  const defaultColumn = columns.find((column) => isApiUuid(column.id)) || columns[0] || { id: "", slug: "todo", name: "Navbat" };
+  const defaultAssignee = assignees.find((user) => isApiUuid(user.id))?.id || "";
   if (initial) {
     return {
       ...initial,
@@ -137,11 +120,19 @@ function TaskFormModal({ open, onClose, initial }) {
 
   const save = async () => {
     if (!form.title.trim()) return;
+    if (!isApiUuid(form.columnId)) {
+      toast("Vazifa uchun haqiqiy ustun tanlang", "error");
+      return;
+    }
+    if (form.assignedUserId && !isApiUuid(form.assignedUserId)) {
+      toast("Mas'ul foydalanuvchi UUID bilan kelmadi", "error");
+      return;
+    }
     const columnTasks = (data.tasks || []).filter((task) => task.columnId === form.columnId && task.id !== initial?.id);
     const payload = {
       ...initial,
       ...form,
-      id: initial?.id || `TASK-${Date.now()}`,
+      id: initial?.id,
       dueDate: new Date(form.dueDate).toISOString(),
       position: initial?.position ?? columnTasks.length,
       createdAt: initial?.createdAt || new Date().toISOString(),
@@ -368,6 +359,11 @@ function TasksPage() {
       </div>
 
       <div className="pk-board">
+        {!columns.length && (
+          <Card style={{ padding: 24 }}>
+            <EmptyState icon={<I.layers size={24} />} title="Ustunlar topilmadi" message="Backenddan task ustunlari kelmadi." />
+          </Card>
+        )}
         {columns.map((column) => {
           const baseMeta = TASK_COLUMN_META[column.slug] || TASK_COLUMN_META.todo;
           const meta = { ...baseMeta, name: column.name };

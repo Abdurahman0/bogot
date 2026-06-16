@@ -14,18 +14,7 @@ function loadPrefs() {
 }
 
 function createLocalSeed() {
-  const empty = apiCreateEmptyData();
-  const demo = typeof generateData === "function" ? generateData() : empty;
-  return {
-    ...empty,
-    leads: demo.leads || [],
-    tasks: demo.tasks || [],
-    calls: demo.calls || [],
-    notifications: demo.notifications || [],
-    banners: demo.banners || [],
-    referrals: demo.referrals || [],
-    locations: demo.locations || empty.locations,
-  };
+  return apiCreateEmptyData();
 }
 
 function mergeLocationMaps(primary = {}, secondary = {}) {
@@ -45,20 +34,78 @@ function mergeLocationMaps(primary = {}, secondary = {}) {
   );
 }
 
+function buildLocationMap(customers = [], orders = []) {
+  const base = window.cloneLocationMap ? window.cloneLocationMap() : {};
+  [...customers, ...orders].forEach((row) => {
+    const district = row.district || "";
+    const mahalla = row.mahalla || "";
+    if (!district) return;
+    if (!base[district]) base[district] = [];
+    if (mahalla && !base[district].includes(mahalla)) base[district].push(mahalla);
+  });
+  return Object.fromEntries(
+    Object.entries(base)
+      .sort((a, b) => a[0].localeCompare(b[0], "uz"))
+      .map(([district, mahallas]) => [district, [...mahallas].sort((a, b) => a.localeCompare(b, "uz"))])
+  );
+}
+
 function mergeRemoteData(remote, previous) {
   const seed = createLocalSeed();
   const prev = previous || seed;
-  return {
+  const next = {
     ...seed,
-    leads: prev.leads || seed.leads,
-    tasks: prev.tasks || seed.tasks,
-    calls: prev.calls || seed.calls,
-    notifications: prev.notifications || seed.notifications,
-    banners: prev.banners || seed.banners,
-    referrals: prev.referrals || seed.referrals,
+    ...prev,
     ...remote,
-    locations: mergeLocationMaps(remote.locations || {}, prev.locations || seed.locations),
   };
+  if ("customers" in remote || "orders" in remote) {
+    next.locations = buildLocationMap(next.customers || [], next.orders || []);
+  } else if ("locations" in remote) {
+    next.locations = mergeLocationMaps(remote.locations || {}, prev.locations || seed.locations);
+  } else {
+    next.locations = prev.locations || seed.locations;
+  }
+  return next;
+}
+
+const BASE_COLLECTIONS = ["authUser", "users", "notifications"];
+
+function routeCollectionKeys(route) {
+  const normalized = normalizeRoute(route);
+  const main = normalized.split("/").filter(Boolean)[0] || "dashboard";
+
+  switch (main) {
+    case "dashboard":
+      return [...BASE_COLLECTIONS, "customers", "orders", "tasks", "taskColumns", "payments", "accountingDays", "products", "dashboardOverview"];
+    case "customers":
+    case "leads":
+      return [...BASE_COLLECTIONS, "customers", "clientStatuses", "orders", "payments", "accountingDays"];
+    case "tasks":
+    case "pipeline":
+      return [...BASE_COLLECTIONS, "tasks", "taskColumns", "taskAssignees"];
+    case "inbox":
+      return [...BASE_COLLECTIONS, "conversations", "customers"];
+    case "products":
+      return [...BASE_COLLECTIONS, "products"];
+    case "debtors":
+    case "orders":
+      return [...BASE_COLLECTIONS, "orders", "customers"];
+    case "accounting":
+    case "payments":
+      return [...BASE_COLLECTIONS, "payments", "accountingDays", "orders", "customers"];
+    case "users":
+      return [...BASE_COLLECTIONS];
+    case "roles":
+      return [...BASE_COLLECTIONS, "roles", "permissions", "permissionsAll"];
+    case "notifications":
+      return [...BASE_COLLECTIONS];
+    case "integrations":
+      return [...BASE_COLLECTIONS, "integrationConfigs", "integrationEvents", "aiSettings"];
+    case "settings":
+      return [...BASE_COLLECTIONS, "clientStatuses", "customers", "aiSettings", "activeAiSettings"];
+    default:
+      return [...BASE_COLLECTIONS];
+  }
 }
 
 const AppCtx = createContext(null);
@@ -86,6 +133,7 @@ function AppProvider({ children }) {
   const [data, setData] = useState(() => createLocalSeed());
   const dataRef = useRef(data);
   const chatWsRef = useRef(null);
+  const loadedCollectionsRef = useRef(new Set());
 
   useEffect(() => {
     dataRef.current = data;
@@ -144,12 +192,16 @@ function AppProvider({ children }) {
   }, []);
   const dismissToast = useCallback((id) => setToasts((items) => items.filter((item) => item.id !== id)), []);
 
-  const syncRemoteData = useCallback(async ({ silent = false } = {}) => {
+  const loadCollections = useCallback(async (keys, { silent = false, force = false } = {}) => {
     if (!apiLoadSession()?.access) return null;
+    const requested = [...new Set((keys || []).filter(Boolean))];
+    const targetKeys = force ? requested : requested.filter((key) => !loadedCollectionsRef.current.has(key));
+    if (!targetKeys.length) return null;
     setDataLoading(true);
     try {
-      const remote = await apiBootstrap();
+      const remote = await apiLoadCollections(targetKeys, dataRef.current);
       setData((previous) => mergeRemoteData(remote, previous));
+      targetKeys.forEach((key) => loadedCollectionsRef.current.add(key));
       if (remote.authUser?.role) setRole(remote.authUser.role);
       return remote;
     } catch (error) {
@@ -160,19 +212,37 @@ function AppProvider({ children }) {
     }
   }, [toast]);
 
+  const refreshCollections = useCallback(async (requiredKeys, optionalKeys = []) => {
+    const keys = [
+      ...requiredKeys,
+      ...optionalKeys.filter((key) => loadedCollectionsRef.current.has(key)),
+    ];
+    return loadCollections(keys, { silent: true, force: true });
+  }, [loadCollections]);
+
   const logout = useCallback(() => {
     apiClearSession();
+    loadedCollectionsRef.current = new Set();
     setAuthed(false);
     setDataLoading(false);
     setData(createLocalSeed());
   }, []);
 
   useEffect(() => {
-    if (!savedSession?.access) return;
-    syncRemoteData({ silent: true }).catch((error) => {
-      if ((error.message || "").toLowerCase().includes("token")) logout();
-    });
-  }, [logout, savedSession?.access, syncRemoteData]);
+    if (!authed) return undefined;
+    const syncRouteCollections = () => {
+      loadCollections(routeCollectionKeys(readRoute()), { silent: true }).catch((error) => {
+        if ((error.message || "").toLowerCase().includes("token")) logout();
+      });
+    };
+    syncRouteCollections();
+    window.addEventListener("app:navigate", syncRouteCollections);
+    window.addEventListener("popstate", syncRouteCollections);
+    return () => {
+      window.removeEventListener("app:navigate", syncRouteCollections);
+      window.removeEventListener("popstate", syncRouteCollections);
+    };
+  }, [authed, loadCollections, logout]);
 
   const login = useCallback(async (username, password) => {
     setDataLoading(true);
@@ -182,9 +252,9 @@ function AppProvider({ children }) {
       const refresh = result?.refresh || result?.tokens?.refresh || result?.token?.refresh;
       if (!access) throw new Error("Access token qaytmadi");
       apiSaveSession({ access, refresh, user: result?.user || null });
+      loadedCollectionsRef.current = new Set();
       setAuthed(true);
-      const remote = await apiBootstrap();
-      setData((previous) => mergeRemoteData(remote, previous));
+      const remote = await loadCollections(routeCollectionKeys(readRoute()), { silent: true, force: true });
       setRole(remote.authUser?.role || apiUiRole(result?.user?.role || "operator"));
       toast("Tizimga kirildi");
       return remote;
@@ -196,7 +266,7 @@ function AppProvider({ children }) {
     } finally {
       setDataLoading(false);
     }
-  }, [toast]);
+  }, [loadCollections, toast]);
 
   const update = useCallback((key, updater) => {
     setData((current) => ({
@@ -218,18 +288,44 @@ function AppProvider({ children }) {
       return item;
     }
 
-    if (key === "users") await apiSaveUser(item);
-    if (key === "customers") await apiSaveClient(item, dataRef.current);
-    if (key === "orders") await apiSaveDebtor(item);
-    if (key === "tasks") await apiSaveTask(item);
-    if (key === "payments") await apiSaveAccountingEntry(item, dataRef.current);
-    if (key === "products") await apiSaveProduct(item);
-    if (key === "clientStatuses") await apiSaveClientStatus(item);
-    if (key === "aiSettings") await apiSaveAiSetting(item);
-    if (key === "integrationConfigs") await apiSaveIntegrationConfig(item);
-    await syncRemoteData({ silent: true });
+    if (key === "users") {
+      await apiSaveUser(item);
+      await refreshCollections(["users"]);
+    }
+    if (key === "customers") {
+      await apiSaveClient(item, dataRef.current);
+      await refreshCollections(["customers"], ["dashboardOverview", "notifications"]);
+    }
+    if (key === "orders") {
+      await apiSaveDebtor(item);
+      await refreshCollections(["orders"], ["dashboardOverview", "notifications"]);
+    }
+    if (key === "tasks") {
+      await apiSaveTask(item);
+      await refreshCollections(["tasks"], ["dashboardOverview", "notifications"]);
+    }
+    if (key === "payments") {
+      await apiSaveAccountingEntry(item, dataRef.current);
+      await refreshCollections(["payments", "accountingDays"], ["dashboardOverview"]);
+    }
+    if (key === "products") {
+      await apiSaveProduct(item);
+      await refreshCollections(["products"], ["dashboardOverview"]);
+    }
+    if (key === "clientStatuses") {
+      await apiSaveClientStatus(item);
+      await refreshCollections(["clientStatuses"]);
+    }
+    if (key === "aiSettings") {
+      await apiSaveAiSetting(item);
+      await refreshCollections(["aiSettings"], ["activeAiSettings"]);
+    }
+    if (key === "integrationConfigs") {
+      await apiSaveIntegrationConfig(item);
+      await refreshCollections(["integrationConfigs"], ["integrationEvents"]);
+    }
     return item;
-  }, [syncRemoteData]);
+  }, [refreshCollections]);
 
   const remove = useCallback(async (key, id) => {
     if (!REMOTE_COLLECTIONS.has(key)) {
@@ -237,17 +333,43 @@ function AppProvider({ children }) {
       return;
     }
 
-    if (key === "users") await apiDelete(`/api/users/${id}/`);
-    if (key === "customers") await apiDelete(`/api/clients/${id}/`);
-    if (key === "orders") await apiDelete(`/api/clients/debtors/${id}/`);
-    if (key === "tasks") await apiDelete(`/api/tasks/${id}/`);
-    if (key === "payments") await apiDelete(`/api/clients/accounting/entries/${id}/`);
-    if (key === "products") await apiDelete(`/api/products/${id}/`);
-    if (key === "clientStatuses") await apiDelete(`/api/clients/statuses/${id}/`);
-    if (key === "aiSettings") await apiDelete(`/api/settings/ai/${id}/`);
-    if (key === "integrationConfigs") await apiDelete(`/api/settings/integrations/${id}/`);
-    await syncRemoteData({ silent: true });
-  }, [syncRemoteData]);
+    if (key === "users") {
+      await apiDelete(`/api/users/${id}/`);
+      await refreshCollections(["users"]);
+    }
+    if (key === "customers") {
+      await apiDelete(`/api/clients/${id}/`);
+      await refreshCollections(["customers"], ["dashboardOverview", "notifications"]);
+    }
+    if (key === "orders") {
+      await apiDelete(`/api/clients/debtors/${id}/`);
+      await refreshCollections(["orders"], ["dashboardOverview", "notifications"]);
+    }
+    if (key === "tasks") {
+      await apiDelete(`/api/tasks/${id}/`);
+      await refreshCollections(["tasks"], ["dashboardOverview", "notifications"]);
+    }
+    if (key === "payments") {
+      await apiDelete(`/api/clients/accounting/entries/${id}/`);
+      await refreshCollections(["payments", "accountingDays"], ["dashboardOverview"]);
+    }
+    if (key === "products") {
+      await apiDelete(`/api/products/${id}/`);
+      await refreshCollections(["products"], ["dashboardOverview"]);
+    }
+    if (key === "clientStatuses") {
+      await apiDelete(`/api/clients/statuses/${id}/`);
+      await refreshCollections(["clientStatuses"]);
+    }
+    if (key === "aiSettings") {
+      await apiDelete(`/api/settings/ai/${id}/`);
+      await refreshCollections(["aiSettings"], ["activeAiSettings"]);
+    }
+    if (key === "integrationConfigs") {
+      await apiDelete(`/api/settings/integrations/${id}/`);
+      await refreshCollections(["integrationConfigs"], ["integrationEvents"]);
+    }
+  }, [refreshCollections]);
 
   const refreshConversation = useCallback(async (sessionId, nextMessages = null) => {
     const rawSession = await apiLoadChatSession(sessionId);
@@ -315,8 +437,8 @@ function AppProvider({ children }) {
 
   const moveTask = useCallback(async (taskId, columnId, position) => {
     await apiMoveTask(taskId, columnId, position);
-    await syncRemoteData({ silent: true });
-  }, [syncRemoteData]);
+    await refreshCollections(["tasks"], ["dashboardOverview", "notifications"]);
+  }, [refreshCollections]);
 
   const markNotificationRead = useCallback(async (notificationId) => {
     await apiMarkNotificationRead(notificationId);
@@ -389,13 +511,13 @@ function AppProvider({ children }) {
 
   const resetData = useCallback(async () => {
     if (authed) {
-      await syncRemoteData();
+      await loadCollections(routeCollectionKeys(readRoute()), { force: true });
       toast("Ma'lumotlar yangilandi");
       return;
     }
     setData(createLocalSeed());
     toast("Ma'lumotlar tiklandi");
-  }, [authed, syncRemoteData, toast]);
+  }, [authed, loadCollections, toast]);
 
   const nav = useCallback((to, opts) => window.navTo(to, opts), []);
 
@@ -403,7 +525,7 @@ function AppProvider({ children }) {
     theme, setTheme, accent, setAccent, lang, setLang, density, setDensity,
     layout, setLayout, container, setContainer, direction, setDirection,
     sidebarCollapsed, setSidebarCollapsed, role, setRole, authed, setAuthed,
-    dataLoading, data, setData, update, upsert, remove, resetData, reloadData: syncRemoteData,
+    dataLoading, data, setData, update, upsert, remove, resetData, reloadData: () => loadCollections(routeCollectionKeys(readRoute()), { force: true }),
     login, logout, ensureConversationMessages, sendConversationMessage, setConversationMode, markConversationRead,
     moveTask, markNotificationRead, markAllNotificationsRead, clearNotifications,
     t, toast, toasts, dismissToast, nav,

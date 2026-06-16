@@ -239,14 +239,12 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
   const districts = customerDistrictOptions(locations);
   const statusOptions = (data.clientStatuses || []).map((status) => ({ value: status.id, label: localizeCustomerStatusName(status.name) }));
   const defaultStatus = (data.clientStatuses || []).find((status) => status.isDefault) || data.clientStatuses?.[0] || null;
-  const defaultDistrict = districts[0] || "";
-  const defaultMahalla = mahallaOptionsFor(defaultDistrict, locations)[0] || "";
   const blank = {
     fullName: "",
     phone: "+998 ",
-    district: defaultDistrict,
-    mahalla: defaultMahalla,
-    address: `${defaultDistrict} tumani`,
+    district: "",
+    mahalla: "",
+    address: "",
     currentSystemKw: 10,
     paymentType: "cash",
     statusId: defaultStatus?.id || null,
@@ -256,8 +254,8 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
     notes: "",
   };
   const normalizeLocation = (item) => {
-    const district = item?.district || defaultDistrict;
-    const mahalla = item?.mahalla || mahallaOptionsFor(district, locations)[0] || "";
+    const district = item?.district || "";
+    const mahalla = item?.mahalla || "";
     return { ...blank, ...item, district, mahalla };
   };
   const [form, setForm] = cuS(normalizeLocation(initial || blank));
@@ -294,7 +292,6 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
       statusName: data.clientStatuses.find((status) => status.id === form.statusId)?.name || form.statusName || "",
     });
   };
-  const districtMahallas = mahallaOptionsFor(form.district, locations);
   return (
     <Modal open={open} onClose={onClose} title={initial ? "Mijozni tahrirlash" : "Yangi mijoz"} icon={<I.user size={18} />} width={540}
       footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={save}>Saqlash</Button></>}>
@@ -302,9 +299,61 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
         <Field label="To'liq ism" required><Input value={form.fullName} onChange={e => set("fullName", e.target.value)} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Field label="Telefon"><Input value={form.phone} onChange={e => set("phone", e.target.value)} /></Field>
-          <Field label="Tuman"><Select value={form.district} onChange={v => setForm(f => ({ ...f, district: v, mahalla: mahallaOptionsFor(v, locations)[0] || "" }))} options={districts.map(d => ({ value: d, label: d }))} /></Field>
+          <Field label="Tuman"><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder="Masalan, Bog'ot" /></Field>
         </div>
-        <Field label="Mahalla"><Select value={form.mahalla} onChange={v => set("mahalla", v)} options={districtMahallas.map(m => ({ value: m, label: m }))} /></Field>
+        <Field label="Mahalla"><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder="Masalan, Yangiobod" /></Field>
+        {!!districts.length && (
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud tumanlar</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {districts.slice(0, 10).map((district) => (
+                <button
+                  key={district}
+                  type="button"
+                  onClick={() => set("district", district)}
+                  style={{
+                    border: "1px solid var(--border)",
+                    background: form.district === district ? "var(--accent-soft)" : "var(--surface-2)",
+                    color: form.district === district ? "var(--accent)" : "var(--text-2)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {district}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {!!form.district && !!mahallaOptionsFor(form.district, locations).length && (
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud mahallalar</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {mahallaOptionsFor(form.district, locations).slice(0, 12).map((mahalla) => (
+                <button
+                  key={mahalla}
+                  type="button"
+                  onClick={() => set("mahalla", mahalla)}
+                  style={{
+                    border: "1px solid var(--border)",
+                    background: form.mahalla === mahalla ? "var(--accent-soft)" : "var(--surface-2)",
+                    color: form.mahalla === mahalla ? "var(--accent)" : "var(--text-2)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {mahalla}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <Field label="Manzil"><Input value={form.address} onChange={e => set("address", e.target.value)} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Field label="Tizim quvvati (kW)"><Input type="number" value={form.currentSystemKw} onChange={e => set("currentSystemKw", e.target.value)} /></Field>

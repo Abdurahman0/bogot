@@ -351,20 +351,29 @@ function mapApiTaskColumn(column, index = 0) {
   };
 }
 
+function apiRelationId(value) {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || null;
+  return null;
+}
+
 function mapApiTask(task, columnsById = {}) {
-  const column = columnsById[task.column] || columnsById[task.column_id] || null;
+  const columnId = apiRelationId(task.column_id) || apiRelationId(task.column);
+  const assignedUserId = apiRelationId(task.assigned_to_id) || apiRelationId(task.assigned_to);
+  const column = columnsById[columnId] || null;
   return {
     id: task.id,
     title: task.title || "",
     description: task.description || "",
     notes: task.description || "",
-    assignedUserId: task.assigned_to_id || task.assigned_to || null,
+    assignedUserId,
     dueDate: task.due_at || task.due_date || new Date().toISOString(),
     createdAt: task.created_at || new Date().toISOString(),
     updatedAt: task.updated_at || task.created_at || new Date().toISOString(),
-    columnId: task.column_id || task.column || column?.id || null,
-    columnSlug: column?.slug || "todo",
-    columnName: column?.name || "Vazifa",
+    columnId: columnId || column?.id || null,
+    columnSlug: column?.slug || apiRelationId(task.column?.slug) || "todo",
+    columnName: column?.name || (typeof task.column === "object" ? task.column.name : "") || "Vazifa",
     position: apiParseNumber(task.position || 0),
   };
 }
@@ -519,83 +528,168 @@ function mergeLocations(customers, orders) {
   );
 }
 
-async function apiBootstrap() {
-  const [
-    me,
-    permissions,
-    permissionsAll,
-    roles,
-    users,
-    clientStatuses,
-    clients,
-    debtors,
-    taskColumns,
-    tasks,
-    taskAssignees,
-    notifications,
-    accountingDays,
-    accountingEntries,
-    products,
-    chatSessions,
-    audit,
-    integrationConfigs,
-    integrationEvents,
-    aiSettings,
-    activeAiSettings,
-    dashboardOverview,
-  ] = await Promise.all([
-    apiRequest("/api/auth/me/").catch(() => null),
-    apiRequest("/api/auth/permissions/").catch(() => []),
-    apiRequest("/api/auth/permissions/all/").catch(() => []),
-    apiRequest("/api/auth/roles/").catch(() => []),
-    apiPaginateAll("/api/users/").catch(() => []),
-    apiPaginateAll("/api/clients/statuses/").catch(() => []),
-    apiPaginateAll("/api/clients/").catch(() => []),
-    apiPaginateAll("/api/clients/debtors/").catch(() => []),
-    apiPaginateAll("/api/tasks/columns/").catch(() => []),
-    apiPaginateAll("/api/tasks/").catch(() => []),
-    apiPaginateAll("/api/tasks/assignees/").catch(() => []),
-    apiPaginateAll("/api/notifications/?ordering=-created_at").catch(() => []),
-    apiPaginateAll("/api/clients/accounting/days/").catch(() => []),
-    apiPaginateAll("/api/clients/accounting/entries/").catch(() => []),
-    apiPaginateAll("/api/products/").catch(() => []),
-    apiPaginateAll("/api/chats/sessions/").catch(() => []),
-    apiPaginateAll("/api/audit-logs/").catch(() => []),
-    apiPaginateAll("/api/settings/integrations/").catch(() => []),
-    apiPaginateAll("/api/settings/integrations/events/").catch(() => []),
-    apiPaginateAll("/api/settings/ai/").catch(() => []),
-    apiRequest("/api/settings/ai/active/").catch(() => []),
-    apiRequest("/api/dashboard/overview/").catch(() => null),
-  ]);
+async function apiLoadCollections(keys = [], currentData = {}) {
+  const wanted = new Set(keys);
+  const data = {};
+  const jobs = [];
 
-  const data = apiCreateEmptyData();
-  data.authUser = me ? mapApiUser(apiUnwrap(me)) : null;
-  data.permissions = Array.isArray(apiUnwrap(permissions)) ? apiUnwrap(permissions) : apiUnwrap(permissions)?.permissions || [];
-  data.permissionsAll = Array.isArray(apiUnwrap(permissionsAll)) ? apiUnwrap(permissionsAll) : apiUnwrap(permissionsAll)?.permissions || [];
-  data.roles = Array.isArray(apiUnwrap(roles)) ? apiUnwrap(roles) : apiUnwrap(roles)?.roles || [];
-  data.users = users.map(mapApiUser);
-  if (data.authUser && !data.users.find((user) => user.id === data.authUser.id)) data.users.unshift(data.authUser);
-  data.clientStatuses = clientStatuses.map(mapApiClientStatus);
-  data.customers = clients.map(mapApiClient);
-  data.orders = debtors.map(mapApiDebtor);
-  data.taskColumns = taskColumns.map(mapApiTaskColumn).sort((a, b) => a.position - b.position);
-  const columnsById = Object.fromEntries(data.taskColumns.map((column) => [column.id, column]));
-  data.tasks = tasks.map((task) => mapApiTask(task, columnsById));
-  data.taskAssignees = taskAssignees.map(mapApiUser);
-  data.notifications = notifications.map(mapApiNotification);
-  data.locations = mergeLocations(data.customers, data.orders);
-  data.accountingDays = accountingDays;
-  const dayMap = Object.fromEntries(accountingDays.map((day) => [day.id, day]));
-  data.payments = accountingEntries.map((entry) => mapApiAccountingEntry(entry, dayMap));
-  data.products = products.map(mapApiProduct);
-  data.conversations = chatSessions.map(mapApiConversation);
-  data.audit = audit.map(mapApiAuditLog);
-  data.integrationConfigs = integrationConfigs;
-  data.integrationEvents = integrationEvents;
-  data.aiSettings = aiSettings;
-  data.activeAiSettings = Array.isArray(apiUnwrap(activeAiSettings)) ? apiUnwrap(activeAiSettings) : apiListItems(activeAiSettings);
-  data.dashboardOverview = apiUnwrap(dashboardOverview);
+  if (wanted.has("authUser")) jobs.push(
+    apiRequest("/api/auth/me/").catch(() => null).then((me) => {
+      data.authUser = me ? mapApiUser(apiUnwrap(me)) : null;
+    })
+  );
+  if (wanted.has("permissions")) jobs.push(
+    apiRequest("/api/auth/permissions/").catch(() => []).then((permissions) => {
+      data.permissions = Array.isArray(apiUnwrap(permissions)) ? apiUnwrap(permissions) : apiUnwrap(permissions)?.permissions || [];
+    })
+  );
+  if (wanted.has("permissionsAll")) jobs.push(
+    apiRequest("/api/auth/permissions/all/").catch(() => []).then((permissionsAll) => {
+      data.permissionsAll = Array.isArray(apiUnwrap(permissionsAll)) ? apiUnwrap(permissionsAll) : apiUnwrap(permissionsAll)?.permissions || [];
+    })
+  );
+  if (wanted.has("roles")) jobs.push(
+    apiRequest("/api/auth/roles/").catch(() => []).then((roles) => {
+      data.roles = Array.isArray(apiUnwrap(roles)) ? apiUnwrap(roles) : apiUnwrap(roles)?.roles || [];
+    })
+  );
+  if (wanted.has("users")) jobs.push(
+    apiPaginateAll("/api/users/").catch(() => []).then((users) => {
+      data.users = users.map(mapApiUser);
+    })
+  );
+  if (wanted.has("clientStatuses")) jobs.push(
+    apiPaginateAll("/api/clients/statuses/").catch(() => []).then((clientStatuses) => {
+      data.clientStatuses = clientStatuses.map(mapApiClientStatus);
+    })
+  );
+  if (wanted.has("customers")) jobs.push(
+    apiPaginateAll("/api/clients/").catch(() => []).then((clients) => {
+      data.customers = clients.map(mapApiClient);
+    })
+  );
+  if (wanted.has("orders")) jobs.push(
+    apiPaginateAll("/api/clients/debtors/").catch(() => []).then((debtors) => {
+      data.orders = debtors.map(mapApiDebtor);
+    })
+  );
+  if (wanted.has("taskColumns")) jobs.push(
+    apiPaginateAll("/api/tasks/columns/").catch(() => []).then((taskColumns) => {
+      data.taskColumns = taskColumns.map(mapApiTaskColumn).sort((a, b) => a.position - b.position);
+    })
+  );
+  if (wanted.has("taskAssignees")) jobs.push(
+    apiPaginateAll("/api/tasks/assignees/").catch(() => []).then((taskAssignees) => {
+      data.taskAssignees = taskAssignees.map(mapApiUser);
+    })
+  );
+  if (wanted.has("notifications")) jobs.push(
+    apiPaginateAll("/api/notifications/?ordering=-created_at").catch(() => []).then((notifications) => {
+      data.notifications = notifications.map(mapApiNotification);
+    })
+  );
+  if (wanted.has("accountingDays")) jobs.push(
+    apiPaginateAll("/api/clients/accounting/days/").catch(() => []).then((accountingDays) => {
+      data.accountingDays = accountingDays;
+    })
+  );
+  if (wanted.has("products")) jobs.push(
+    apiPaginateAll("/api/products/").catch(() => []).then((products) => {
+      data.products = products.map(mapApiProduct);
+    })
+  );
+  if (wanted.has("conversations")) jobs.push(
+    apiPaginateAll("/api/chats/sessions/").catch(() => []).then((chatSessions) => {
+      data.conversations = chatSessions.map(mapApiConversation);
+    })
+  );
+  if (wanted.has("audit")) jobs.push(
+    apiPaginateAll("/api/audit-logs/").catch(() => []).then((audit) => {
+      data.audit = audit.map(mapApiAuditLog);
+    })
+  );
+  if (wanted.has("integrationConfigs")) jobs.push(
+    apiPaginateAll("/api/settings/integrations/").catch(() => []).then((integrationConfigs) => {
+      data.integrationConfigs = integrationConfigs;
+    })
+  );
+  if (wanted.has("integrationEvents")) jobs.push(
+    apiPaginateAll("/api/settings/integrations/events/").catch(() => []).then((integrationEvents) => {
+      data.integrationEvents = integrationEvents;
+    })
+  );
+  if (wanted.has("aiSettings")) jobs.push(
+    apiPaginateAll("/api/settings/ai/").catch(() => []).then((aiSettings) => {
+      data.aiSettings = aiSettings;
+    })
+  );
+  if (wanted.has("activeAiSettings")) jobs.push(
+    apiRequest("/api/settings/ai/active/").catch(() => []).then((activeAiSettings) => {
+      data.activeAiSettings = Array.isArray(apiUnwrap(activeAiSettings)) ? apiUnwrap(activeAiSettings) : apiListItems(activeAiSettings);
+    })
+  );
+  if (wanted.has("dashboardOverview")) jobs.push(
+    apiRequest("/api/dashboard/overview/").catch(() => null).then((dashboardOverview) => {
+      data.dashboardOverview = apiUnwrap(dashboardOverview);
+    })
+  );
+
+  await Promise.all(jobs);
+
+  if (wanted.has("users") && wanted.has("authUser") && data.authUser && !data.users.find((user) => user.id === data.authUser.id)) {
+    data.users.unshift(data.authUser);
+  }
+
+  if (wanted.has("tasks")) {
+    const taskColumns = wanted.has("taskColumns") ? data.taskColumns : (currentData.taskColumns || []);
+    const columnsById = Object.fromEntries(taskColumns.map((column) => [column.id, column]));
+    const tasks = await apiPaginateAll("/api/tasks/").catch(() => []);
+    data.tasks = tasks.map((task) => mapApiTask(task, columnsById));
+  }
+
+  if (wanted.has("payments")) {
+    const accountingDays = wanted.has("accountingDays") ? data.accountingDays : (currentData.accountingDays || []);
+    const dayMap = Object.fromEntries(accountingDays.map((day) => [day.id, day]));
+    const accountingEntries = await apiPaginateAll("/api/clients/accounting/entries/").catch(() => []);
+    data.payments = accountingEntries.map((entry) => mapApiAccountingEntry(entry, dayMap));
+  }
+
+  if (wanted.has("customers") || wanted.has("orders")) {
+    const customers = wanted.has("customers") ? data.customers : (currentData.customers || []);
+    const orders = wanted.has("orders") ? data.orders : (currentData.orders || []);
+    data.locations = mergeLocations(customers, orders);
+  }
+
   return data;
+}
+
+const API_BOOTSTRAP_KEYS = [
+  "authUser",
+  "permissions",
+  "permissionsAll",
+  "roles",
+  "users",
+  "clientStatuses",
+  "customers",
+  "orders",
+  "taskColumns",
+  "tasks",
+  "taskAssignees",
+  "notifications",
+  "accountingDays",
+  "payments",
+  "products",
+  "conversations",
+  "audit",
+  "integrationConfigs",
+  "integrationEvents",
+  "aiSettings",
+  "activeAiSettings",
+  "dashboardOverview",
+];
+
+async function apiBootstrap() {
+  return apiLoadCollections(API_BOOTSTRAP_KEYS);
 }
 
 async function apiLogin(username, password) {
@@ -687,6 +781,12 @@ async function apiSaveDebtor(order) {
 }
 
 async function apiSaveTask(task) {
+  if (!isApiUuid(task.columnId)) {
+    throw new Error("Vazifa ustuni uchun UUID topilmadi");
+  }
+  if (task.assignedUserId && !isApiUuid(task.assignedUserId)) {
+    throw new Error("Mas'ul foydalanuvchi uchun UUID topilmadi");
+  }
   const payload = {
     title: (task.title || "").trim(),
     description: task.description || task.notes || "",
@@ -701,6 +801,12 @@ async function apiSaveTask(task) {
 }
 
 async function apiMoveTask(taskId, columnId, position) {
+  if (!isApiUuid(taskId)) {
+    throw new Error("Vazifa UUID topilmadi");
+  }
+  if (!isApiUuid(columnId)) {
+    throw new Error("Ustun UUID topilmadi");
+  }
   return apiRequest(`/api/tasks/${taskId}/move/`, {
     method: "POST",
     body: {
@@ -879,6 +985,7 @@ Object.assign(window, {
   apiClearSession,
   apiCreateEmptyData,
   apiRequest,
+  apiLoadCollections,
   apiBootstrap,
   apiLogin,
   apiDelete,

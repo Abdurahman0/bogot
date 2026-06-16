@@ -4,7 +4,7 @@ const debtNum = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
-const orderLocations = (locations) => locations || window.TUMAN_MAHALLA || {};
+const orderLocations = (locations) => locations || {};
 const orderDistrictOptions = (locations) => Object.keys(orderLocations(locations));
 const orderTuman = (order) => order?.district || "";
 const orderMahalla = (order) => order?.mahalla || "";
@@ -44,12 +44,11 @@ function OrderRow({ o, onClick }) {
 window.OrderRow = OrderRow;
 
 function OrdersPage() {
-  const { data, t, nav, upsert, update, toast } = useApp();
+  const { data, t, nav, upsert, toast } = useApp();
   const loading = useLoading(320);
   const [q, setQ] = coS("");
   const [statusTab, setStatusTab] = coS("all");
   const [createOpen, setCreateOpen] = coS(false);
-  const [locationsOpen, setLocationsOpen] = coS(false);
   const districts = orderDistrictOptions(data.locations);
 
   const filtered = coM(() => data.orders.filter(o => {
@@ -108,7 +107,6 @@ function OrdersPage() {
     <div className="page fade-in">
       <PageHeader title={t("page.orders")} desc={`${data.orders.length} ta qarzdor yozuvi`} crumbs={[{ label: "Katalog va moliya" }, { label: t("page.orders") }]}
         actions={<>
-          <Button variant="default" size="sm" icon={<I.mapPin size={15} />} onClick={() => setLocationsOpen(true)}>Hududlar</Button>
           <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi qarzdor</Button>
         </>} />
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
@@ -186,16 +184,6 @@ function OrdersPage() {
           setCreateOpen(false);
         }}
       />
-      <LocationManagerModal
-        open={locationsOpen}
-        onClose={() => setLocationsOpen(false)}
-        locations={data.locations}
-        districts={districts}
-        onSave={(nextLocations) => {
-          update("locations", nextLocations);
-          window.TUMAN_MAHALLA = nextLocations;
-        }}
-      />
     </div>
   );
 }
@@ -204,12 +192,10 @@ window.OrdersPage = OrdersPage;
 function OrderFormModal({ open, onClose, onSave, initial, locations }) {
   const { data } = useApp();
   const districts = orderDistrictOptions(locations);
-  const defaultDistrict = districts[0] || "";
-  const defaultMahalla = debtorMahallasFor(defaultDistrict, locations)[0] || "";
   const blank = {
     customerName: "",
-    district: defaultDistrict,
-    mahalla: defaultMahalla,
+    district: "",
+    mahalla: "",
     businessLine: "Quyosh panel biznesi",
     deliveryAddress: "",
     paymentType: "credit",
@@ -221,8 +207,8 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
     note: "",
   };
   const normalizeLocation = (item) => {
-    const district = item?.district || defaultDistrict;
-    const mahalla = item?.mahalla || debtorMahallasFor(district, locations)[0] || "";
+    const district = item?.district || "";
+    const mahalla = item?.mahalla || "";
     return { ...blank, ...item, district, mahalla };
   };
   const [form, setForm] = coS(normalizeLocation(initial || blank));
@@ -232,7 +218,6 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
   }, [initial, open]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const districtMahallas = debtorMahallasFor(form.district, locations);
 
   return (
     <Modal open={open} onClose={onClose} title={initial ? "Qarzdor yozuvini tahrirlash" : "Yangi qarzdor"} icon={initial ? <I.edit size={18} /> : <I.plus size={18} />} width={620}
@@ -276,9 +261,61 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <Field label="Mijoz"><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
-          <Field label="Tuman"><Select value={form.district} onChange={v => setForm(f => ({ ...f, district: v, mahalla: debtorMahallasFor(v, locations)[0] || "" }))} options={districts.map(d => ({ value: d, label: d }))} /></Field>
-          <Field label="Mahalla"><Select value={form.mahalla} onChange={v => set("mahalla", v)} options={districtMahallas.map(m => ({ value: m, label: m }))} /></Field>
+          <Field label="Tuman"><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder="Masalan, Bog'ot" /></Field>
+          <Field label="Mahalla"><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder="Masalan, Yangiobod" /></Field>
         </div>
+        {!!districts.length && (
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud tumanlar</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {districts.slice(0, 10).map((district) => (
+                <button
+                  key={district}
+                  type="button"
+                  onClick={() => set("district", district)}
+                  style={{
+                    border: "1px solid var(--border)",
+                    background: form.district === district ? "var(--accent-soft)" : "var(--surface-2)",
+                    color: form.district === district ? "var(--accent)" : "var(--text-2)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {district}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {!!form.district && !!debtorMahallasFor(form.district, locations).length && (
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud mahallalar</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {debtorMahallasFor(form.district, locations).slice(0, 12).map((mahalla) => (
+                <button
+                  key={mahalla}
+                  type="button"
+                  onClick={() => set("mahalla", mahalla)}
+                  style={{
+                    border: "1px solid var(--border)",
+                    background: form.mahalla === mahalla ? "var(--accent-soft)" : "var(--surface-2)",
+                    color: form.mahalla === mahalla ? "var(--accent)" : "var(--text-2)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {mahalla}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Field label="Yo'nalish"><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: "Quyosh panel biznesi" }, { value: "Eski biznes", label: "Eski biznes" }]} /></Field>
           <Field label="To'lov turi"><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: "Kredit" }, { value: "cash", label: "Naqd" }]} /></Field>
@@ -294,104 +331,6 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
           <Field label="Keyingi eslatma"><Input type="date" value={(form.nextReminderAt || "").slice(0, 10)} onChange={e => set("nextReminderAt", e.target.value)} /></Field>
         </div>
         <Field label="Izoh"><Textarea rows={4} value={form.note || ""} onChange={e => set("note", e.target.value)} placeholder="To'lov kelishuvi yoki eslatma..." /></Field>
-      </div>
-    </Modal>
-  );
-}
-
-function LocationManagerModal({ open, onClose, locations, districts, onSave }) {
-  const { toast } = useApp();
-  const [districtName, setDistrictName] = coS("");
-  const [selectedDistrict, setSelectedDistrict] = coS("");
-  const [mahallaName, setMahallaName] = coS("");
-
-  React.useEffect(() => {
-    if (!open) return;
-    setDistrictName("");
-    setMahallaName("");
-    setSelectedDistrict(districts[0] || "");
-  }, [open]);
-
-  const safeLocations = orderLocations(locations);
-  const commit = (nextLocations, message) => {
-    onSave(nextLocations);
-    toast(message);
-  };
-  const addDistrict = () => {
-    const name = districtName.trim();
-    if (!name) return;
-    if (safeLocations[name]) {
-      toast("Bu tuman allaqachon mavjud", "error");
-      return;
-    }
-    const nextLocations = { ...safeLocations, [name]: [] };
-    setDistrictName("");
-    setSelectedDistrict(name);
-    commit(nextLocations, "Yangi tuman qo'shildi");
-  };
-  const addMahalla = () => {
-    const district = selectedDistrict;
-    const name = mahallaName.trim();
-    if (!district || !name) return;
-    if ((safeLocations[district] || []).includes(name)) {
-      toast("Bu mahalla allaqachon mavjud", "error");
-      return;
-    }
-    const nextLocations = {
-      ...safeLocations,
-      [district]: [...(safeLocations[district] || []), name],
-    };
-    setMahallaName("");
-    commit(nextLocations, "Yangi mahalla qo'shildi");
-  };
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Hududlarni boshqarish"
-      icon={<I.mapPin size={18} />}
-      width={680}
-      footer={<><Button variant="ghost" onClick={onClose}>Yopish</Button></>}
-    >
-      <div style={{ display: "grid", gap: 18 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "end" }}>
-          <Field label="Yangi tuman">
-            <Input value={districtName} onChange={e => setDistrictName(e.target.value)} placeholder="Masalan, Qibray" />
-          </Field>
-          <Button variant="primary" icon={<I.plus size={15} />} onClick={addDistrict}>Tuman qo'shish</Button>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12, alignItems: "end" }}>
-          <Field label="Tuman">
-            <Select value={selectedDistrict} onChange={setSelectedDistrict} options={districts.map(d => ({ value: d, label: d }))} placeholder="Tumanni tanlang" />
-          </Field>
-          <Field label="Yangi mahalla">
-            <Input value={mahallaName} onChange={e => setMahallaName(e.target.value)} placeholder="Masalan, Markaz" />
-          </Field>
-          <Button variant="primary" icon={<I.plus size={15} />} onClick={addMahalla} disabled={!selectedDistrict}>Mahalla qo'shish</Button>
-        </div>
-        <div style={{ display: "grid", gap: 14 }}>
-          {districts.map((district) => (
-            <Card key={district} style={{ padding: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="tg-card-icon" style={{ color: "var(--blue)", background: "var(--blue-bg)" }}><I.mapPin size={14} /></span>
-                  <strong style={{ fontSize: 14 }}>{district}</strong>
-                </div>
-                <Badge color="slate" size="sm">{(safeLocations[district] || []).length} ta mahalla</Badge>
-              </div>
-              {(safeLocations[district] || []).length ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {(safeLocations[district] || []).map((mahalla) => (
-                    <Badge key={`${district}_${mahalla}`} color={selectedDistrict === district ? "blue" : "slate"} size="sm">{mahalla}</Badge>
-                  ))}
-                </div>
-              ) : (
-                <div className="tg-cell-sub">Mahalla kiritilmagan</div>
-              )}
-            </Card>
-          ))}
-        </div>
       </div>
     </Modal>
   );

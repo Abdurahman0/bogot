@@ -172,8 +172,8 @@ function Select({ value, defaultValue, onChange, options, placeholder, style, di
   uE(() => {
     if (!open) return;
     const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("pointerdown", onDoc, true);
+    return () => document.removeEventListener("pointerdown", onDoc, true);
   }, [open]);
   uE(() => {
     if (controlled) return;
@@ -232,8 +232,8 @@ function Dropdown({ trigger, items, align = "right", width = 200, direction = "d
   uE(() => {
     if (!open) return;
     const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", on);
-    return () => document.removeEventListener("mousedown", on);
+    document.addEventListener("pointerdown", on, true);
+    return () => document.removeEventListener("pointerdown", on, true);
   }, [open]);
   return (
     <div className="tg-dd" ref={ref}>
@@ -450,8 +450,8 @@ function ExportDropdown({ label = "Hisobot", size = "sm", filename = "export", r
   uE(() => {
     if (!open) return;
     const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", on);
-    return () => document.removeEventListener("mousedown", on);
+    document.addEventListener("pointerdown", on, true);
+    return () => document.removeEventListener("pointerdown", on, true);
   }, [open]);
 
   const handle = (fmt) => {
