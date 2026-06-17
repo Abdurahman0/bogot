@@ -1,6 +1,6 @@
 /* icons.jsx — Texno Grand custom icon set (built from scratch) */
-const Icon = ({ d, paths, size = 18, stroke = 1.8, fill = "none", className, style }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+const Icon = ({ d, paths, size = 18, stroke = 1.9, fill = "none", viewBox = "0 0 24 24", className, style }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox={viewBox}
     fill={fill} stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round"
     className={className} style={style} aria-hidden="true">
     {paths || <path d={d} />}
@@ -11,31 +11,36 @@ const I = {
 
   /* ── Navigation & Pages ─────────────────────────────── */
 
-  // House with dot window
+  // Clean house silhouette
   home: (p) => <Icon {...p} paths={<>
-    <path d="M3 11.5L12 3.5L21 11.5V21H15V15H9V21H3V11.5Z"/>
-    <circle cx="12" cy="9.5" r="1.3" fill="currentColor" stroke="none"/>
+    <path d="M4 10.5L12 4l8 6.5"/>
+    <path d="M6 9.5V20h12V9.5"/>
+    <path d="M10 20v-5.5h4V20"/>
   </>}/>,
 
-  // Three ascending bars (bar chart, not line)
+  // Rounded bar chart
   chart: (p) => <Icon {...p} paths={<>
-    <rect x="3" y="14" width="4.5" height="7" rx="1.5"/>
-    <rect x="9.75" y="9" width="4.5" height="12" rx="1.5"/>
-    <rect x="16.5" y="4" width="4.5" height="17" rx="1.5"/>
+    <path d="M4 20V13"/>
+    <path d="M10 20V9"/>
+    <path d="M16 20V5"/>
+    <path d="M3 20h18"/>
+    <rect x="3" y="12" width="2" height="8" rx="1"/>
+    <rect x="9" y="8" width="2" height="12" rx="1"/>
+    <rect x="15" y="4" width="2" height="16" rx="1"/>
   </>}/>,
 
-  // Two overlapping people
+  // Cleaner overlapping people
   users: (p) => <Icon {...p} paths={<>
-    <circle cx="8.5" cy="7.5" r="3"/>
-    <path d="M2 20.5c0-3.5 2.9-5.5 6.5-5.5s6.5 2 6.5 5.5"/>
-    <path d="M15.5 4.5a3 3 0 0 1 0 6"/>
-    <path d="M21 20.5c0-2.5-1.7-4.2-4-5"/>
+    <circle cx="9" cy="8" r="3"/>
+    <path d="M3.5 19c0-3.2 2.8-5 5.5-5s5.5 1.8 5.5 5"/>
+    <path d="M16.5 11.5a2.7 2.7 0 1 0 0-5.4"/>
+    <path d="M17.2 14.5c2 0 3.8 1.1 4.8 3"/>
   </>}/>,
 
-  // Single person — larger head ratio
+  // Person profile
   user: (p) => <Icon {...p} paths={<>
-    <circle cx="12" cy="7.5" r="3.5"/>
-    <path d="M4 21c0-4.5 3.6-7 8-7s8 2.5 8 7"/>
+    <circle cx="12" cy="8" r="3.25"/>
+    <path d="M5 19.5c0-3.6 3-5.5 7-5.5s7 1.9 7 5.5"/>
   </>}/>,
 
   // Stacked narrowing bars (pipeline stages)
@@ -58,30 +63,28 @@ const I = {
 
   check: (p) => <Icon {...p} d="M4 13L9.5 18.5L20 6"/>,
 
-  // Rounded square container with check (not circle like Lucide)
+  // Badge check
   checkCircle: (p) => <Icon {...p} paths={<>
-    <rect x="3" y="3" width="18" height="18" rx="5"/>
-    <path d="M8.5 12.5L11.5 15L16 9.5"/>
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M8 12.5l2.6 2.6L16.5 9"/>
   </>}/>,
 
-  // Grid of day dots under header strip
+  // Calendar with simple header
   calendar: (p) => <Icon {...p} paths={<>
-    <rect x="3" y="4" width="18" height="17" rx="2.5"/>
-    <line x1="3" y1="10" x2="21" y2="10"/>
-    <line x1="8" y1="2.5" x2="8" y2="5.5"/>
-    <line x1="16" y1="2.5" x2="16" y2="5.5"/>
-    <circle cx="8" cy="15" r="1" fill="currentColor" stroke="none"/>
-    <circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/>
-    <circle cx="16" cy="15" r="1" fill="currentColor" stroke="none"/>
-    <circle cx="8" cy="19" r="1" fill="currentColor" stroke="none"/>
-    <circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>
+    <path d="M3.5 9.5h17"/>
+    <path d="M8 3.5v3"/>
+    <path d="M16 3.5v3"/>
+    <path d="M8 13h3"/>
+    <path d="M13 13h3"/>
+    <path d="M8 17h3"/>
   </>}/>,
 
-  // Tray with document inside
+  // Inbox tray
   inbox: (p) => <Icon {...p} paths={<>
-    <path d="M22 13.5L18.5 5H5.5L2 13.5"/>
-    <rect x="2" y="13.5" width="20" height="7" rx="2"/>
-    <path d="M7 17h10"/>
+    <path d="M3 12.5L5.5 5h13L21 12.5"/>
+    <path d="M3 12.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5.5"/>
+    <path d="M8 12.5a4 4 0 0 0 8 0"/>
   </>}/>,
 
   /* ── Communication ──────────────────────────────────── */
@@ -108,21 +111,23 @@ const I = {
     <path d="M16 4.5l4-4M20 4.5h-4v4"/>
   </>}/>,
 
-  // Rounded chat bubble with pointer
-  message: (p) => <Icon {...p} d="M4.5 4h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9L4 21.5V5a1 1 0 0 1 .5-1z"/>,
+  // Chat bubble
+  message: (p) => <Icon {...p} paths={<>
+    <path d="M5 5.5h14a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2H11l-5 4v-4H5a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2z"/>
+  </>}/>,
 
   /* ── Security ───────────────────────────────────────── */
 
-  // Pentagon badge with inner check
+  // Shield
   shield: (p) => <Icon {...p} paths={<>
-    <path d="M12 2.5L3.5 6.5V12c0 5 3.7 8.5 8.5 9.5 4.8-1 8.5-4.5 8.5-9.5V6.5L12 2.5Z"/>
-    <path d="M9 12.5l2.5 2.5 4-5"/>
+    <path d="M12 3.5l7 2.8v5.5c0 4.5-2.9 7.6-7 8.7-4.1-1.1-7-4.2-7-8.7V6.3l7-2.8z"/>
+    <path d="M9.4 12.2l1.8 1.9 3.5-4"/>
   </>}/>,
 
-  // Hexagonal bolt (settings/configuration)
+  // Modern gear
   settings: (p) => <Icon {...p} paths={<>
-    <path d="M8.5 3h7L19 7v10l-3.5 4h-7L5 17V7L8.5 3Z"/>
     <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 1 1-4 0v-.1a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.9 1.9 0 0 1-2.7-2.7l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 1 1 0-4h.1a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a2 2 0 1 1 4 0v.1a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.1a2 2 0 1 1 0 4h-.1a1 1 0 0 0-.9.6z"/>
   </>}/>,
 
   // Padlock with keyhole
@@ -135,11 +140,11 @@ const I = {
 
   /* ── Commerce ───────────────────────────────────────── */
 
-  // 3D cube with visible edges
+  // Open cube
   box: (p) => <Icon {...p} paths={<>
-    <path d="M12 3L2 8.5L12 14L22 8.5L12 3Z"/>
-    <path d="M2 8.5V16L12 21.5L22 16V8.5"/>
-    <line x1="12" y1="14" x2="12" y2="21.5"/>
+    <path d="M12 3.5l7.5 4.2L12 12 4.5 7.7 12 3.5z"/>
+    <path d="M4.5 7.7V16.5L12 20.5l7.5-4V7.7"/>
+    <path d="M12 12v8.5"/>
   </>}/>,
 
   // Price tag with punched hole
@@ -155,12 +160,12 @@ const I = {
     <path d="M9.5 11a2.5 2.5 0 0 0 5 0"/>
   </>}/>,
 
-  // Bi-fold wallet with card pocket
+  // Cleaner wallet
   wallet: (p) => <Icon {...p} paths={<>
-    <rect x="2" y="7" width="20" height="13.5" rx="2.5"/>
-    <path d="M7 4.5h10a2 2 0 0 1 2 2V7H5V6.5a2 2 0 0 1 2-2z"/>
-    <rect x="15" y="12.5" width="5.5" height="4" rx="1.5"/>
-    <circle cx="17.75" cy="14.5" r="1" fill="currentColor" stroke="none"/>
+    <path d="M4 7.5a2.5 2.5 0 0 1 2.5-2.5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9z"/>
+    <path d="M4 9h16"/>
+    <path d="M14.5 13.5H20"/>
+    <circle cx="15.5" cy="13.5" r="1" fill="currentColor" stroke="none"/>
   </>}/>,
 
   // Ribbon gift box
@@ -245,10 +250,10 @@ const I = {
     <circle cx="12" cy="17.5" r="0.8" fill="currentColor" stroke="none"/>
   </>}/>,
 
-  // Magnifier — rounder lens, thicker handle
+  // Search
   search: (p) => <Icon {...p} paths={<>
-    <circle cx="11" cy="11" r="7.5"/>
-    <path d="M20.5 20.5L16.5 16.5"/>
+    <circle cx="11" cy="11" r="6.5"/>
+    <path d="M20 20l-4.2-4.2"/>
   </>}/>,
 
   // Plus
@@ -261,32 +266,32 @@ const I = {
     <line x1="3" y1="18" x2="21" y2="18"/>
   </>}/>,
 
-  // Sidebar panel with nav indicators
+  // Sidebar layout
   panelLeft: (p) => <Icon {...p} paths={<>
-    <rect x="3" y="3" width="18" height="18" rx="2.5"/>
-    <line x1="9" y1="3" x2="9" y2="21"/>
-    <line x1="4.5" y1="7.5" x2="7.5" y2="7.5"/>
-    <line x1="4.5" y1="12" x2="7.5" y2="12"/>
-    <line x1="4.5" y1="16.5" x2="7.5" y2="16.5"/>
+    <rect x="3.5" y="4" width="17" height="16" rx="2.5"/>
+    <path d="M9 4v16"/>
+    <path d="M5.5 8h1"/>
+    <path d="M5.5 12h1"/>
+    <path d="M5.5 16h1"/>
   </>}/>,
 
   /* ── Theme ──────────────────────────────────────────── */
 
-  // Sun with 8 tick rays
+  // Soft sun
   sun: (p) => <Icon {...p} paths={<>
-    <circle cx="12" cy="12" r="4.5"/>
-    <line x1="12" y1="2.5" x2="12" y2="5"/>
-    <line x1="12" y1="19" x2="12" y2="21.5"/>
-    <line x1="2.5" y1="12" x2="5" y2="12"/>
-    <line x1="19" y1="12" x2="21.5" y2="12"/>
-    <line x1="5.6" y1="5.6" x2="7.4" y2="7.4"/>
-    <line x1="16.6" y1="16.6" x2="18.4" y2="18.4"/>
-    <line x1="18.4" y1="5.6" x2="16.6" y2="7.4"/>
-    <line x1="7.4" y1="16.6" x2="5.6" y2="18.4"/>
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2.5v2.5"/>
+    <path d="M12 19v2.5"/>
+    <path d="M2.5 12H5"/>
+    <path d="M19 12h2.5"/>
+    <path d="M5.7 5.7l1.8 1.8"/>
+    <path d="M16.5 16.5l1.8 1.8"/>
+    <path d="M18.3 5.7l-1.8 1.8"/>
+    <path d="M7.5 16.5l-1.8 1.8"/>
   </>}/>,
 
-  // Crescent moon
-  moon: (p) => <Icon {...p} d="M20.5 13.5A9 9 0 1 1 10.5 3.5a7 7 0 0 0 10 10z"/>,
+  // Moon
+  moon: (p) => <Icon {...p} d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5z"/>,
 
   // Monitor with screen highlight dot
   monitor: (p) => <Icon {...p} paths={<>
@@ -327,7 +332,7 @@ const I = {
 
   /* ── Contextual ─────────────────────────────────────── */
 
-  // Three filled vertical dots
+  // Three dots
   dots: (p) => <Icon {...p} paths={<>
     <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/>
     <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
@@ -361,20 +366,14 @@ const I = {
     <line x1="3.5" y1="3.5" x2="20.5" y2="3.5"/>
   </>}/>,
 
-  // Pencil with sharp tip
-  edit: (p) => <Icon {...p} paths={<>
-    <path d="M4 20.5h4L20 9l-4.5-4.5L4 16.5z"/>
-    <line x1="15.5" y1="4.5" x2="20" y2="9"/>
-    <line x1="4" y1="20.5" x2="8" y2="20.5"/>
+  // Exact react-icons/fa6 FaPenToSquare
+  edit: (p) => <Icon {...p} viewBox="0 0 512 512" fill="currentColor" stroke="none" paths={<>
+    <path d="M471.6 21.7c-21.9-21.9-57.3-21.9-79.2 0L362.3 51.7l97.9 97.9 30.1-30.1c21.9-21.9 21.9-57.3 0-79.2L471.6 21.7zm-299.2 220c-6.1 6.1-10.8 13.6-13.5 21.9l-29.6 88.8c-2.9 8.6-.6 18.1 5.8 24.6s15.9 8.7 24.6 5.8l88.8-29.6c8.2-2.7 15.7-7.4 21.9-13.5L437.7 172.3 339.7 74.3 172.4 241.7zM96 64C43 64 0 107 0 160L0 416c0 53 43 96 96 96l256 0c53 0 96-43 96-96l0-96c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7-14.3 32-32 32L96 448c-17.7 0-32-14.3-32-32l0-256c0-17.7 14.3-32 32-32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L96 64z"/>
   </>}/>,
 
-  // Bin with lid
-  trash: (p) => <Icon {...p} paths={<>
-    <line x1="3.5" y1="7" x2="20.5" y2="7"/>
-    <path d="M9 7V4.5h6V7"/>
-    <path d="M5.5 7l1 13.5h11l1-13.5"/>
-    <line x1="9.5" y1="11" x2="9.5" y2="17.5"/>
-    <line x1="14.5" y1="11" x2="14.5" y2="17.5"/>
+  // Exact react-icons/fa6 FaTrashCan
+  trash: (p) => <Icon {...p} viewBox="0 0 448 512" fill="currentColor" stroke="none" paths={<>
+    <path d="M135.2 17.7C140.6 6.8 151.7 0 163.8 0L284.2 0c12.1 0 23.2 6.8 28.6 17.7L320 32l96 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L32 96C14.3 96 0 81.7 0 64S14.3 32 32 32l96 0 7.2-14.3zM32 128l384 0 0 320c0 35.3-28.7 64-64 64L96 512c-35.3 0-64-28.7-64-64l0-320zm96 64c-8.8 0-16 7.2-16 16l0 224c0 8.8 7.2 16 16 16s16-7.2 16-16l0-224c0-8.8-7.2-16-16-16zm96 0c-8.8 0-16 7.2-16 16l0 224c0 8.8 7.2 16 16 16s16-7.2 16-16l0-224c0-8.8-7.2-16-16-16zm96 0c-8.8 0-16 7.2-16 16l0 224c0 8.8 7.2 16 16 16s16-7.2 16-16l0-224c0-8.8-7.2-16-16-16z"/>
   </>}/>,
 
   // Copy: two offset rects
@@ -406,16 +405,16 @@ const I = {
     <circle cx="5.5" cy="18" r="1" fill="currentColor" stroke="none"/>
   </>}/>,
 
-  // Bell with badge dot
+  // Bell
   bell: (p) => <Icon {...p} paths={<>
-    <path d="M6 10a6 6 0 0 1 12 0c0 4 2 6 2 6H4s2-2 2-6z"/>
-    <path d="M9.5 19a2.5 2.5 0 0 0 5 0"/>
+    <path d="M6.5 10a5.5 5.5 0 1 1 11 0c0 2.4.7 4.1 2 5.5H4.5c1.3-1.4 2-3.1 2-5.5z"/>
+    <path d="M10 19a2 2 0 0 0 4 0"/>
   </>}/>,
 
-  // Triangle warning for alert (duplicate alias)
+  // Flag
   flag: (p) => <Icon {...p} paths={<>
-    <line x1="5" y1="3" x2="5" y2="21"/>
-    <path d="M5 4.5h13l-3 5 3 5H5"/>
+    <path d="M5 21V4"/>
+    <path d="M5 5h12l-2.5 4 2.5 4H5"/>
   </>}/>,
 
   /* ── Data Visualization ─────────────────────────────── */
@@ -442,6 +441,11 @@ const I = {
   clock: (p) => <Icon {...p} paths={<>
     <circle cx="12" cy="12" r="9.5"/>
     <path d="M12 7v5l3.5 2.5"/>
+  </>}/>,
+
+  // Exact react-icons/fa6 FaHourglassHalf
+  hourglass: (p) => <Icon {...p} viewBox="0 0 384 512" fill="currentColor" stroke="none" paths={<>
+    <path d="M32 0C14.3 0 0 14.3 0 32S14.3 64 32 64l0 11c0 42.4 16.9 83.1 46.9 113.1L146.7 256 78.9 323.9C48.9 353.9 32 394.6 32 437l0 11c-17.7 0-32 14.3-32 32s14.3 32 32 32l32 0 256 0 32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l0-11c0-42.4-16.9-83.1-46.9-113.1L237.3 256l67.9-67.9c30-30 46.9-70.7 46.9-113.1l0-11c17.7 0 32-14.3 32-32s-14.3-32-32-32L320 0 64 0 32 0zM96 75l0-11 192 0 0 11c0 19-5.6 37.4-16 53L112 128c-10.3-15.6-16-34-16-53zm16 309c3.5-5.3 7.6-10.3 12.1-14.9L192 301.3l67.9 67.9c4.6 4.6 8.6 9.6 12.1 14.9L112 384z"/>
   </>}/>,
 
   // Target crosshair (leads/goals)
@@ -482,10 +486,10 @@ const I = {
     <line x1="9" y1="9.5" x2="9" y2="20.5"/>
   </>}/>,
 
-  // Teardrop location pin
+  // Map pin
   mapPin: (p) => <Icon {...p} paths={<>
-    <path d="M12 22S4.5 14.5 4.5 9a7.5 7.5 0 0 1 15 0C19.5 14.5 12 22 12 22z"/>
-    <circle cx="12" cy="9" r="2.5"/>
+    <path d="M12 21s-6.5-5.8-6.5-11.5a6.5 6.5 0 1 1 13 0C18.5 15.2 12 21 12 21z"/>
+    <circle cx="12" cy="9.5" r="2.2"/>
   </>}/>,
 
   // Circular arrows (refresh/sync)
@@ -503,13 +507,16 @@ const I = {
     <path d="M12 7.5v5l3.5 2"/>
   </>}/>,
 
-  // Office building with windows
+  // Office building
   building: (p) => <Icon {...p} paths={<>
-    <rect x="4" y="3" width="16" height="18" rx="1.5"/>
-    <line x1="4" y1="8.5" x2="20" y2="8.5"/>
-    <line x1="4" y1="14" x2="20" y2="14"/>
-    <line x1="12" y1="3" x2="12" y2="21"/>
-    <rect x="9" y="17.5" width="6" height="3.5" rx="1"/>
+    <path d="M5 20V5.5A1.5 1.5 0 0 1 6.5 4h11A1.5 1.5 0 0 1 19 5.5V20"/>
+    <path d="M9 8h.01"/>
+    <path d="M15 8h.01"/>
+    <path d="M9 12h.01"/>
+    <path d="M15 12h.01"/>
+    <path d="M9 16h.01"/>
+    <path d="M15 16h.01"/>
+    <path d="M10 20v-3h4v3"/>
   </>}/>,
 
   // Palette with color dots
@@ -531,18 +538,17 @@ const I = {
     <rect x="14.5" y="4.5" width="4.5" height="15" rx="1.5" fill="currentColor" stroke="none"/>
   </>}/>,
 
-  // Door with exit arrow
+  // Logout
   logout: (p) => <Icon {...p} paths={<>
-    <path d="M14 3h5.5a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H14"/>
-    <line x1="3" y1="12" x2="14.5" y2="12"/>
-    <path d="M10 8l4.5 4-4.5 4"/>
+    <path d="M10 4H6.5A1.5 1.5 0 0 0 5 5.5v13A1.5 1.5 0 0 0 6.5 20H10"/>
+    <path d="M13 8l4 4-4 4"/>
+    <path d="M8.5 12H17"/>
   </>}/>,
 
-  // Eye with pupil
+  // Eye
   eye: (p) => <Icon {...p} paths={<>
-    <path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>
+    <path d="M2.5 12s3.8-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.8 6.5-9.5 6.5S2.5 12 2.5 12z"/>
+    <circle cx="12" cy="12" r="2.7"/>
   </>}/>,
 
   /* ── Special / Brand ────────────────────────────────── */
@@ -575,15 +581,16 @@ const I = {
     <path d="M17 5l2-2M17 5l2 2M17 5l-2-2M17 5l-2 2"/>
   </>}/>,
 
-  // AI robot face
+  // Robot
   robot: (p) => <Icon {...p} paths={<>
-    <rect x="4" y="7.5" width="16" height="12" rx="3.5"/>
-    <path d="M8.5 3.5h7M12 3.5v4"/>
-    <circle cx="9" cy="13.5" r="1.5" fill="currentColor" stroke="none"/>
-    <circle cx="15" cy="13.5" r="1.5" fill="currentColor" stroke="none"/>
-    <path d="M9.5 17.5h5"/>
-    <line x1="2" y1="12.5" x2="2" y2="16"/>
-    <line x1="22" y1="12.5" x2="22" y2="16"/>
+    <rect x="4" y="8" width="16" height="11" rx="3"/>
+    <path d="M9 4h6"/>
+    <path d="M12 4v4"/>
+    <circle cx="9.5" cy="13" r="1.1" fill="currentColor" stroke="none"/>
+    <circle cx="14.5" cy="13" r="1.1" fill="currentColor" stroke="none"/>
+    <path d="M9.5 16h5"/>
+    <path d="M2.5 11.5V15"/>
+    <path d="M21.5 11.5V15"/>
   </>}/>,
 
   // Circle with plus (brand)

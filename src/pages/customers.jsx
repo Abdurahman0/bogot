@@ -7,6 +7,16 @@ const hasCustomerLocation = (customer) => !!customerLocationLabel(customer);
 const customerLocations = (locations) => locations || window.TUMAN_MAHALLA || {};
 const customerDistrictOptions = (locations) => Object.keys(customerLocations(locations));
 const mahallaOptionsFor = (district, locations) => customerLocations(locations)[district] || [];
+const CUSTOMER_STATUS_COLOR_OPTIONS = [
+  "#2563eb",
+  "#7c3aed",
+  "#059669",
+  "#dc2626",
+  "#ea580c",
+  "#0891b2",
+  "#ca8a04",
+  "#64748b",
+];
 const CUSTOMER_STATUS_UZ = {
   new: "Yangi",
   active: "Faol",
@@ -29,6 +39,41 @@ const customerStatusTone = (customer) => {
   if (key.includes("pending") || key.includes("new")) return "amber";
   return "blue";
 };
+const customerStatusColor = (customer) => customer?.statusColor || customer?.color || "";
+function statusColorToSoftBg(color, alpha = 0.14) {
+  const clean = String(color || "").replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(clean)) return null;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+function StatusColorBadge({ label, color, tone = "blue", suffix = null }) {
+  const softBg = statusColorToSoftBg(color);
+  if (softBg && color) {
+    return (
+      <span style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "4px 10px",
+        borderRadius: 999,
+        background: softBg,
+        color,
+        border: `1px solid ${statusColorToSoftBg(color, 0.24)}`,
+        fontSize: 12,
+        fontWeight: 650,
+        lineHeight: 1.4,
+        whiteSpace: "nowrap",
+      }}>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
+        <span>{label}</span>
+        {suffix}
+      </span>
+    );
+  }
+  return <Badge color={tone} size="sm">{label}{suffix}</Badge>;
+}
 
 function CustomersPage() {
   const { data, t, nav, upsert, remove, toast } = useApp();
@@ -40,7 +85,7 @@ function CustomersPage() {
   const [statusModalOpen, setStatusModalOpen] = cuS(false);
   const [editStatus, setEditStatus] = cuS(null);
   const [deleteStatus, setDeleteStatus] = cuS(null);
-  const [statusForm, setStatusForm] = cuS({ name: "", slug: "", isDefault: false, sortOrder: (data.clientStatuses || []).length + 1 });
+  const [statusForm, setStatusForm] = cuS({ name: "", slug: "", color: CUSTOMER_STATUS_COLOR_OPTIONS[0], isDefault: false, sortOrder: (data.clientStatuses || []).length + 1 });
   const [viewCustomer, setViewCustomer] = cuS(null);
   const [editCustomer, setEditCustomer] = cuS(null);
   const [addOpen, setAddOpen] = cuS(false);
@@ -68,7 +113,7 @@ function CustomersPage() {
     { key: "payment", label: "To'lov", render: r => <Badge color={r.paymentType === "credit" ? "amber" : "green"} size="sm">{r.paymentTypeLabel}</Badge> },
     { key: "spent", label: "Tushgan summa", sortVal: r => r.totalSpent, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.totalSpent)}</span> },
     { key: "debt", label: "Qoldiq qarz", sortVal: r => r.debtBalanceUzs, render: r => <Badge color={r.debtBalanceUzs > 0 ? "red" : "green"} size="sm">{fmtShort(r.debtBalanceUzs)}</Badge> },
-    { key: "status", label: "Holat", render: r => <Badge color={customerStatusTone(r)} size="sm">{localizeCustomerStatusName(r.statusName || r.status)}</Badge> },
+    { key: "status", label: "Holat", render: r => <StatusColorBadge color={customerStatusColor(r)} tone={customerStatusTone(r)} label={localizeCustomerStatusName(r.statusName || r.status)} /> },
     { key: "actions", label: "", width: 44, render: r => (
       <div onClick={e => e.stopPropagation()}>
         <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />} items={[
@@ -88,6 +133,7 @@ function CustomersPage() {
     setStatusForm({
       name: "",
       slug: "",
+      color: CUSTOMER_STATUS_COLOR_OPTIONS[0],
       isDefault: false,
       sortOrder: (data.clientStatuses || []).length + 1,
     });
@@ -100,6 +146,7 @@ function CustomersPage() {
       id: status.id,
       name: status.name || "",
       slug: status.slug || "",
+      color: status.color || CUSTOMER_STATUS_COLOR_OPTIONS[0],
       isDefault: !!status.isDefault,
       sortOrder: Number(status.sortOrder || 0),
     });
@@ -114,6 +161,7 @@ function CustomersPage() {
       ...editStatus,
       name: statusForm.name.trim(),
       slug: (statusForm.slug || "").trim(),
+      color: statusForm.color || "",
       isDefault: !!statusForm.isDefault,
       sortOrder: Number(statusForm.sortOrder || 0),
     });
@@ -123,7 +171,7 @@ function CustomersPage() {
   };
 
   const statusColumns = [
-    { key: "name", label: "Holat", sortVal: (row) => row.name, render: (row) => <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Badge color={row.isDefault ? "green" : "blue"} size="sm">{localizeCustomerStatusName(row.name)}</Badge>{row.isDefault && <span className="tg-cell-sub">Asosiy</span>}</div> },
+    { key: "name", label: "Holat", sortVal: (row) => row.name, render: (row) => <div style={{ display: "flex", alignItems: "center", gap: 10 }}><StatusColorBadge color={row.color} tone={row.isDefault ? "green" : "blue"} label={localizeCustomerStatusName(row.name)} />{row.isDefault && <span className="tg-cell-sub">Asosiy</span>}</div> },
     { key: "slug", label: "Slug", sortVal: (row) => row.slug, render: (row) => <span className="tg-cell-sub" style={{ fontFamily: "monospace" }}>{row.slug || "-"}</span> },
     { key: "order", label: "Tartib", sortVal: (row) => Number(row.sortOrder || 0), render: (row) => <span>{row.sortOrder || 0}</span> },
     { key: "customers", label: "Mijozlar", sortVal: (row) => statusUsageCount(row.id), render: (row) => <Badge color="slate" size="sm">{statusUsageCount(row.id)} ta</Badge> },
@@ -309,6 +357,26 @@ function CustomerStatusModal({ open, onClose, onSave, form, setField, defaultCli
           <Field label="Slug"><Input value={form.slug} onChange={e => setField("slug", e.target.value)} placeholder="faol_mijoz" /></Field>
           <Field label="Tartib"><Input type="number" value={form.sortOrder} onChange={e => setField("sortOrder", Number(e.target.value || 0))} /></Field>
         </div>
+        <Field label="Rang">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {CUSTOMER_STATUS_COLOR_OPTIONS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => setField("color", color)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  border: form.color === color ? `2px solid ${color}` : "1px solid var(--border)",
+                  background: color,
+                  boxShadow: form.color === color ? `0 0 0 3px ${statusColorToSoftBg(color, 0.18)}` : "none",
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        </Field>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 650 }}>Asosiy holat</div>
@@ -336,6 +404,7 @@ function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
       </>}>
       <div className="tg-meta">
         <div className="tg-meta-row"><span className="tg-meta-k">Mijoz</span><span className="tg-meta-v">{customer.fullName}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">Holat</span><span className="tg-meta-v"><StatusColorBadge color={customerStatusColor(customer)} tone={customerStatusTone(customer)} label={localizeCustomerStatusName(customer.statusName || customer.status)} /></span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">Telefon</span><span className="tg-meta-v">{customer.phone}</span></div>
         {!!customerTuman(customer) && <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{customerTuman(customer)}</span></div>}
         {!!customerMahalla(customer) && <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{customerMahalla(customer)}</span></div>}
@@ -506,7 +575,7 @@ function CustomerDetailPage({ id }) {
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
           <Avatar name={c.fullName} size={62} />
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}><h2 style={{ margin: 0, fontSize: 21, fontWeight: 720 }}>{c.fullName}</h2><Badge color={customerStatusTone(c)} size="sm">{localizeCustomerStatusName(c.statusName || c.status)}</Badge></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}><h2 style={{ margin: 0, fontSize: 21, fontWeight: 720 }}>{c.fullName}</h2><StatusColorBadge color={customerStatusColor(c)} tone={customerStatusTone(c)} label={localizeCustomerStatusName(c.statusName || c.status)} /></div>
             <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap", color: "var(--text-2)", fontSize: 13 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}><I.phone size={14} />{c.phone}</span>
               {hasCustomerLocation(c) && <span style={{ display: "flex", alignItems: "center", gap: 5 }}><I.mapPin size={14} />{customerLocationLabel(c)}</span>}

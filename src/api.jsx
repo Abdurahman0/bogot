@@ -262,6 +262,7 @@ function mapApiClientStatus(status) {
     id: status.id,
     name: status.name,
     slug: status.slug,
+    color: status.color || "",
     isDefault: !!status.is_default,
     sortOrder: status.sort_order || 0,
   };
@@ -281,6 +282,7 @@ function mapApiClient(client) {
     status: statusName.toLowerCase().includes("inactive") ? "inactive" : "active",
     statusId: client.status || null,
     statusName,
+    statusColor: client.status_color || "",
     district: client.district || "",
     mahalla: client.neighborhood || "",
     address: client.address || "",
@@ -906,6 +908,7 @@ async function apiSaveClientStatus(status) {
   const payload = {
     name: (status.name || "").trim(),
     slug: apiSlugify(status.slug || status.name),
+    color: (status.color || "").trim() || null,
     is_default: !!status.isDefault,
     sort_order: apiParseNumber(status.sortOrder || 0),
   };

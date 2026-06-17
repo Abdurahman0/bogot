@@ -76,7 +76,7 @@ function DashboardPage() {
       date.setDate(start.getDate() + index);
       return {
         key: date.toISOString().slice(0, 10),
-        label: date.toLocaleDateString("uz-UZ", { day: "numeric", month: "short" }),
+        label: window.formatUzDate ? window.formatUzDate(date, { day: "numeric", month: "short" }) : `${date.getDate()}-${date.getMonth() + 1}`,
         value: 0,
       };
     });

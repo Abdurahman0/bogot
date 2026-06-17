@@ -177,7 +177,7 @@ function DateRange({ value, onChange }) {
 
   const isCustom = value && typeof value === "object";
 
-  const fmtDate = (d) => d.toLocaleDateString("ru", { day: "numeric", month: "short" });
+  const fmtDate = (d) => window.formatUzDate ? window.formatUzDate(d, { day: "numeric", month: "short" }) : `${d.getDate()}-${d.getMonth() + 1}`;
   const customLabel = isCustom ? `${fmtDate(value.from)} – ${fmtDate(value.to)}` : null;
 
   return (
@@ -248,11 +248,67 @@ function KpiCard({ label, value, delta, icon, color = "accent", spark, onClick }
 function FilterSelect({ label, icon, options, value, onChange, multi }) {
   const [open, setOpen] = pS(false);
   const ref = React.useRef(null);
+  const menuRef = React.useRef(null);
+  const [menuStyle, setMenuStyle] = pS(null);
+  const hasExplicitAllOption = !multi && options.some((option) => option.value === "all");
+  const updatePosition = React.useCallback(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const menuWidth = 210;
+    const estimatedHeight = Math.min(320, (options.length + (!multi && !hasExplicitAllOption ? 1 : 0)) * 42 + 12);
+    const gap = 6;
+    const viewportPad = 12;
+    const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPad;
+    const spaceAbove = rect.top - gap - viewportPad;
+    const openUp = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+    const left = Math.min(Math.max(viewportPad, rect.right - menuWidth), window.innerWidth - menuWidth - viewportPad);
+    const top = openUp
+      ? Math.max(viewportPad, rect.top - estimatedHeight - gap)
+      : Math.min(rect.bottom + gap, window.innerHeight - estimatedHeight - viewportPad);
+    setMenuStyle({
+      position: "fixed",
+      top,
+      left,
+      width: menuWidth,
+      maxHeight: Math.max(120, window.innerHeight - top - viewportPad),
+      overflowY: "auto",
+      zIndex: 1200,
+    });
+  }, [multi, options.length, hasExplicitAllOption]);
   pE(() => {
     if (!open) return;
-    const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", on); return () => document.removeEventListener("mousedown", on);
-  }, [open]);
+    updatePosition();
+    const on = (e) => {
+      if (ref.current && ref.current.contains(e.target)) return;
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onViewport = () => updatePosition();
+    document.addEventListener("mousedown", on, true);
+    window.addEventListener("resize", onViewport);
+    window.addEventListener("scroll", onViewport, true);
+    return () => {
+      document.removeEventListener("mousedown", on, true);
+      window.removeEventListener("resize", onViewport);
+      window.removeEventListener("scroll", onViewport, true);
+    };
+  }, [open, updatePosition]);
+  pE(() => {
+    if (!open || !menuRef.current || !ref.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const rect = ref.current.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const gap = 6;
+      const viewportPad = 12;
+      const openUp = window.innerHeight - rect.bottom - gap - viewportPad < menuRect.height && rect.top > window.innerHeight - rect.bottom;
+      const left = Math.min(Math.max(viewportPad, rect.right - menuRect.width), window.innerWidth - menuRect.width - viewportPad);
+      const top = openUp
+        ? Math.max(viewportPad, rect.top - menuRect.height - gap)
+        : Math.min(rect.bottom + gap, window.innerHeight - menuRect.height - viewportPad);
+      setMenuStyle((current) => current ? { ...current, top, left, width: menuRect.width, maxHeight: Math.max(120, window.innerHeight - top - viewportPad) } : current);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, multi, options.length]);
   const Ico = icon ? I[icon] : null;
   const count = multi ? value.length : (value && value !== "all" ? 1 : 0);
   const toggle = (v) => {
@@ -264,9 +320,9 @@ function FilterSelect({ label, icon, options, value, onChange, multi }) {
       <button className="tg-btn tg-btn-default tg-btn-sm" data-active={count ? "1" : undefined} onClick={() => setOpen(o => !o)} style={count ? { borderColor: "var(--accent)", color: "var(--accent)" } : {}}>
         {Ico && <Ico size={15} />}{label}{count > 0 && <span className="tg-tab-count" style={{ background: "var(--accent)", color: "#fff" }}>{count}</span>}<I.chevDown size={14} />
       </button>
-      {open && (
-        <div className="tg-dd-menu tg-dd-left pop-in" style={{ width: 210, maxHeight: 320, overflowY: "auto" }}>
-          {!multi && <button className="tg-dd-item" onClick={() => toggle("all")}><span>Barchasi</span>{(value === "all" || !value) && <I.check size={15} style={{ color: "var(--accent)", marginLeft: "auto" }} />}</button>}
+      {open && menuStyle && ReactDOM.createPortal((
+        <div ref={menuRef} className="tg-dd-menu pop-in" style={menuStyle}>
+          {!multi && !hasExplicitAllOption && <button className="tg-dd-item" onClick={() => toggle("all")}><span>Barchasi</span>{(value === "all" || !value) && <I.check size={15} style={{ color: "var(--accent)", marginLeft: "auto" }} />}</button>}
           {options.map(o => {
             const sel = multi ? value.includes(o.value) : value === o.value;
             return (
@@ -278,7 +334,7 @@ function FilterSelect({ label, icon, options, value, onChange, multi }) {
             );
           })}
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }

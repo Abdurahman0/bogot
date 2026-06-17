@@ -3,7 +3,7 @@ const { useState: tkS, useMemo: tkM, useEffect: tkE, useRef: tkR } = React;
 
 const TASK_COLUMN_META = {
   todo: { label: "Navbat", color: "#2563eb", bg: "#eff6ff", icon: "clock" },
-  in_progress: { label: "Jarayonda", color: "#7c3aed", bg: "#f5f3ff", icon: "play" },
+  in_progress: { label: "Jarayonda", color: "#7c3aed", bg: "#f5f3ff", icon: "hourglass" },
   done: { label: "Bajarilgan", color: "#059669", bg: "#ecfdf5", icon: "checkCircle" },
   canceled: { label: "Bekor qilingan", color: "#dc2626", bg: "#fef2f2", icon: "x" },
 };
@@ -19,13 +19,13 @@ const TASK_COLUMN_COLOR_OPTIONS = [
   "#ca8a04",
 ];
 
-function hexToSoftBg(hex) {
+function hexToSoftBg(hex, alpha = 0.12) {
   const clean = String(hex || "").replace("#", "");
   if (!/^[0-9a-f]{6}$/i.test(clean)) return "var(--surface-2)";
   const r = parseInt(clean.slice(0, 2), 16);
   const g = parseInt(clean.slice(2, 4), 16);
   const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, 0.12)`;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function getTaskColumns(data) {
@@ -587,7 +587,17 @@ function TasksPage() {
           const insertIndex = hasDropTarget ? Math.max(0, Math.min(dragState.overIndex ?? items.length, items.length)) : -1;
 
           return (
-            <div key={column.id} className={`pk-col${hasDropTarget ? " pk-col-over" : ""}`} style={{ "--col-color": meta.color }} data-task-column-id={column.id}>
+            <div
+              key={column.id}
+              className={`pk-col${hasDropTarget ? " pk-col-over" : ""}`}
+              style={{
+                "--col-color": meta.color,
+                "--col-soft": hexToSoftBg(meta.color, 0.12),
+                "--col-soft-strong": hexToSoftBg(meta.color, 0.22),
+                "--col-soft-glow": hexToSoftBg(meta.color, 0.3),
+              }}
+              data-task-column-id={column.id}
+            >
               <div className="pk-col-header">
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span className="pk-col-name">{column.name}</span>
@@ -616,7 +626,12 @@ function TasksPage() {
                       data-task-id={task.id}
                       onPointerDown={(event) => handlePointerDown(event, task, column.id, index)}
                       onClick={() => handleCardClick(task)}
-                      style={{ "--idx": index }}
+                      style={{
+                        "--idx": index,
+                        "--task-color": meta.color,
+                        "--task-soft": hexToSoftBg(meta.color, 0.12),
+                        "--task-soft-strong": hexToSoftBg(meta.color, 0.2),
+                      }}
                     >
                       <TaskBoardCard
                         task={task}
@@ -642,8 +657,15 @@ function TasksPage() {
 
       {dragTask && dragState && (
         <div className="pk-drag-layer" style={{ width: dragState.width || 296, transform: `translate3d(${dragState.pointerX - dragState.offsetX}px, ${dragState.pointerY - dragState.offsetY}px, 0)` }}>
-          <div className="pk-card pk-card-floating">
-            <TaskBoardCard task={dragTask} user={userOf(dragTask.assignedUserId)} meta={{ ...(TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo), name: columnsById[dragTask.columnId]?.name || "Vazifa" }} interactive={false} />
+          <div
+            className="pk-card pk-card-floating"
+            style={{
+              "--task-color": columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color,
+              "--task-soft": hexToSoftBg(columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, 0.12),
+              "--task-soft-strong": hexToSoftBg(columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, 0.2),
+            }}
+          >
+            <TaskBoardCard task={dragTask} user={userOf(dragTask.assignedUserId)} meta={{ ...(TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo), name: columnsById[dragTask.columnId]?.name || "Vazifa", color: columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, bg: hexToSoftBg(columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, 0.12) }} interactive={false} />
           </div>
         </div>
       )}

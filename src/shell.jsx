@@ -554,7 +554,7 @@ function timeAgo(iso) {
   if (s < 60) return "hozir"; if (s < 3600) return Math.floor(s / 60) + " daq oldin";
   if (s < 86400) return Math.floor(s / 3600) + " soat oldin";
   if (s < 604800) return Math.floor(s / 86400) + " kun oldin";
-  return d.toLocaleDateString("uz", { day: "numeric", month: "short" });
+  return window.formatUzDate ? window.formatUzDate(d, { day: "numeric", month: "short" }) : `${d.getDate()}-${d.getMonth() + 1}`;
 }
 function fmtDate(iso, withTime) {
   const d = new Date(iso);

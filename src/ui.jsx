@@ -163,6 +163,7 @@ function Field({ label, children, hint, required }) {
 function Input(props) { return <input className="tg-input" {...props} />; }
 function Textarea(props) { return <textarea className="tg-input" rows={3} {...props} />; }
 const DATE_PICKER_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+const DATE_PICKER_MONTHS_SHORT = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"];
 const DATE_PICKER_DAYS = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
 
 function datePickerPad(value) {
@@ -187,10 +188,20 @@ function datePickerToDateTimeValue(date) {
   return `${datePickerToDateValue(date)}T${datePickerPad(date.getHours())}:${datePickerPad(date.getMinutes())}`;
 }
 
+function formatUzDate(date, options = {}) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const monthIndex = date.getMonth();
+  const monthName = options.month === "short" ? DATE_PICKER_MONTHS_SHORT[monthIndex] : DATE_PICKER_MONTHS[monthIndex];
+  if (options.day && options.month && options.year) return `${datePickerPad(date.getDate())} ${monthName} ${date.getFullYear()}`;
+  if (options.day && options.month) return `${date.getDate()} ${monthName}`;
+  if (options.month && options.year) return `${monthName} ${date.getFullYear()}`;
+  return `${datePickerPad(date.getDate())}.${datePickerPad(monthIndex + 1)}.${date.getFullYear()}`;
+}
+
 function datePickerDisplay(value, mode = "date") {
   const parsed = datePickerParse(value, mode);
   if (!parsed) return "";
-  const dateLabel = parsed.toLocaleDateString("uz-UZ", { day: "2-digit", month: "long", year: "numeric" });
+  const dateLabel = formatUzDate(parsed, { day: "2-digit", month: "long", year: "numeric" });
   if (mode !== "datetime") return dateLabel;
   const timeLabel = `${datePickerPad(parsed.getHours())}:${datePickerPad(parsed.getMinutes())}`;
   return `${dateLabel} • ${timeLabel}`;
@@ -842,5 +853,5 @@ Object.assign(window, {
   Card, CardHead, Button, IconButton, Badge, StatusBadge, Avatar, Tabs, Segmented,
   SearchInput, Field, Input, Textarea, DatePickerInput, Select, Toggle, Dropdown, Modal, Drawer,
   ConfirmDialog, EmptyState, SkeletonRows, useLoading, Progress, Delta, ACUnit,
-  ExportDropdown,
+  ExportDropdown, formatUzDate, DATE_PICKER_MONTHS, DATE_PICKER_MONTHS_SHORT,
 });

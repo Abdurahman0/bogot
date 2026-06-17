@@ -17,7 +17,7 @@ function AnalyticsPage() {
   const expenseSeries = anM(() => Array.from({ length: days <= 1 ? 12 : days }, (_, i) => 14 + Math.cos(i * 0.55) * 6), [days]);
   const labels = anM(() => Array.from({ length: days <= 1 ? 12 : days }, (_, i) => {
     const d = new Date(Date.now() - (days - i) * 86400000);
-    return d.toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });
+    return window.formatUzDate ? window.formatUzDate(d, { day: "numeric", month: "short" }) : `${d.getDate()}-${d.getMonth() + 1}`;
   }), [days]);
 
   const bySource = anM(() => {
