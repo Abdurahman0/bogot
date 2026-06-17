@@ -740,12 +740,13 @@ function Delta({ value, suffix = "%" }) {
 
 // ---------- Product illustration ----------
 function ACUnit({ product, size = "md", className = "" }) {
-  const brandColor = BRAND_COLORS[product.brand] || "#6366f1";
-  const powerLabel = product.powerKw ? `${product.powerKw} kW` : product.btu ? `${product.btu / 1000}K` : (product.category || "CRM");
+  const accent = window.productAccentColor ? window.productAccentColor(product) : "var(--accent)";
+  const categoryLabel = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
+  const powerLabel = categoryLabel || "CRM";
   const image = (product.images || []).find(img => img.isPrimary) || (product.images || [])[0];
   return (
-    <div className={"ac-illu ac-" + size + " " + className} style={{ "--brand": brandColor }}>
-      <div className="ac-bg" style={{ background: `radial-gradient(120% 120% at 30% 10%, ${brandColor}22, transparent 60%)` }} />
+    <div className={"ac-illu ac-" + size + " " + className} style={{ "--brand": accent }}>
+      <div className="ac-bg" style={{ background: `radial-gradient(120% 120% at 30% 10%, ${accent}22, transparent 60%)` }} />
       <div className="ac-unit" style={{ background: "linear-gradient(170deg, #ffffff, #e2e8f0)", color: "#0f172a", overflow: "hidden" }}>
         {image && image.url ? (
           <img
@@ -758,8 +759,8 @@ function ACUnit({ product, size = "md", className = "" }) {
             <div className="ac-louvers">
               <span /><span /><span /><span />
             </div>
-            <div className="ac-led" style={{ background: brandColor }} />
-            <div className="ac-brandtag" style={{ color: "#64748b" }}>{product.brand}</div>
+            <div className="ac-led" style={{ background: accent }} />
+            <div className="ac-brandtag" style={{ color: "#64748b" }}>{categoryLabel}</div>
           </>
         )}
       </div>

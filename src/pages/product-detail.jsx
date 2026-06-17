@@ -2,18 +2,24 @@
 const { useState: pdS } = React;
 
 function ProductDetailPage({ id }) {
-  const { data, t, nav, toast, update, upsert, remove } = useApp();
-  const p = data.products.find((item) => item.id === id);
+  const { data, t, nav, toast, upsert, remove } = useApp();
+  const product = data.products.find((item) => item.id === id);
   const [activeImg, setActiveImg] = pdS(0);
-  const [tab, setTab] = pdS("specs");
+  const [tab, setTab] = pdS("details");
   const [editOpen, setEditOpen] = pdS(false);
   const [deleteOpen, setDeleteOpen] = pdS(false);
+  const [categoryManagerOpen, setCategoryManagerOpen] = pdS(false);
 
-  if (!p) return <div className="page"><Card><EmptyState title="Mahsulot topilmadi" action={<Button onClick={() => nav("/products")}>Katalogga</Button>} /></Card></div>;
+  if (!product) {
+    return <div className="page"><Card><EmptyState title="Mahsulot topilmadi" action={<Button onClick={() => nav("/products")}>Katalogga</Button>} /></Card></div>;
+  }
 
-  const similar = data.products.filter((item) => item.category === p.category && item.id !== p.id).slice(0, 4);
-  const discount = p.previousPriceUzs ? Math.round((1 - p.priceUzs / p.previousPriceUzs) * 100) : 0;
-  const productImages = p.images || [];
+  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
+  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
+  const productImages = product.images || [];
+  const similar = data.products
+    .filter((item) => item.categoryId === product.categoryId && item.id !== product.id)
+    .slice(0, 4);
 
   React.useEffect(() => {
     if (!productImages.length) {
@@ -23,98 +29,87 @@ function ProductDetailPage({ id }) {
     if (activeImg > productImages.length - 1) setActiveImg(0);
   }, [activeImg, productImages.length]);
 
-  const setPrimary = (idx) => {
-    if (!productImages.length) return;
-    update("products", (rows) => rows.map((item) => item.id === id ? { ...item, images: item.images.map((image, index) => ({ ...image, isPrimary: index === idx })) } : item));
-    toast("Asosiy rasm yangilandi");
-  };
-
   return (
     <div className="page fade-in">
-      <PageHeader crumbs={[{ label: "Katalog va moliya" }, { label: t("page.products"), to: "/products" }, { label: p.model }]}
-        title={p.model}
+      <PageHeader
+        crumbs={[{ label: "Katalog va moliya" }, { label: t("page.products"), to: "/products" }, { label: name }]}
+        title={name}
         actions={<>
-          <Button variant="default" size="sm" icon={<I.copy size={15} />} onClick={() => toast("Mahsulot nusxasi yaratildi")}>Nusxalash</Button>
+          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={() => setCategoryManagerOpen(true)}>Kategoriyalar</Button>
           <Button variant="default" size="sm" icon={<I.trash size={15} />} onClick={() => setDeleteOpen(true)}>O'chirish</Button>
           <Button variant="primary" size="sm" icon={<I.edit size={15} />} onClick={() => setEditOpen(true)}>Tahrirlash</Button>
-        </>} />
+        </>}
+      />
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Card pad={false}>
             <div style={{ padding: 18 }}>
               <div style={{ position: "relative" }}>
-                <ACUnit product={{ ...p, images: productImages.length ? [productImages[activeImg] || productImages[0]] : [] }} size="lg" />
-                {discount > 0 && <span style={{ position: "absolute", top: 12, right: 12 }}><Badge color="red">-{discount}%</Badge></span>}
+                <ACUnit product={{ ...product, images: productImages.length ? [productImages[activeImg] || productImages[0]] : [] }} size="lg" />
+                <span style={{ position: "absolute", top: 12, left: 12 }}><Badge color="slate">{category}</Badge></span>
               </div>
               <div className="tg-thumbs">
                 {productImages.map((image, index) => (
                   <button key={image.id} className="tg-thumb" data-active={index === activeImg ? "1" : undefined} onClick={() => setActiveImg(index)}>
-                    <ACUnit product={{ ...p, images: [image] }} size="sm" />
+                    <ACUnit product={{ ...product, images: [image] }} size="sm" />
                     {image.isPrimary && <span className="tg-thumb-primary"><I.star size={9} /></span>}
                   </button>
                 ))}
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                <Button variant="default" size="sm" icon={<I.star size={14} />} onClick={() => setPrimary(activeImg)}>Asosiy qilish</Button>
-                <Button variant="default" size="sm" icon={<I.upload size={14} />} onClick={() => setEditOpen(true)}>Rasm qo'shish</Button>
-              </div>
             </div>
           </Card>
-
-          {p.dataReviewStatus !== "verified" && (
-            <Card style={{ borderColor: "var(--amber)" }}>
-              <CardHead title="Tekshiruv eslatmasi" icon={<I.alert size={17} />} color="amber" action={<Badge color={STATUS_COLORS[p.dataReviewStatus]} dot>{REVIEW_UZ[p.dataReviewStatus]}</Badge>} />
-              {p.reviewIssues.map((issue, index) => <div key={index} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text-2)", marginBottom: 8 }}><I.info size={15} style={{ color: "var(--amber)", flexShrink: 0, marginTop: 1 }} />{issue}</div>)}
-            </Card>
-          )}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Card>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontWeight: 700, color: BRAND_COLORS[p.brand] }}>{p.brand}</span>
-              {p.featured && <Badge color="amber" size="sm"><I.star size={11} /> Tavsiya</Badge>}
-              <StatusBadge status={p.status} label={p.status} />
+              <Badge color="slate" size="sm">{category}</Badge>
+              <StatusBadge status="active" label="Faol" />
             </div>
-            <h2 style={{ margin: "0 0 4px", fontSize: 19, fontWeight: 700 }}>{p.category}</h2>
-            <div style={{ color: "var(--text-3)", fontSize: 13 }}>{p.powerKw} kW • {p.phaseCount} faza • {p.mountType}</div>
+            <h2 style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 700 }}>{name}</h2>
+            <div style={{ color: "var(--text-3)", fontSize: 13 }}>Backend mahsulot kartasi</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "16px 0" }}>
-              <span style={{ fontSize: 26, fontWeight: 760 }}>{fmtUZS(p.priceUzs)}</span>
-              {p.previousPriceUzs && <span style={{ fontSize: 15, color: "var(--text-3)", textDecoration: "line-through" }}>{fmtUZS(p.previousPriceUzs)}</span>}
+              <span style={{ fontSize: 26, fontWeight: 760 }}>{fmtUZS(product.priceUzs)}</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-              <StatTile label="Qoldiq" value={p.stockQuantity} color={p.stockQuantity < 5 ? "amber" : "green"} sub="dona" />
-              <StatTile label="Panel soni" value={p.panelCount || "—"} sub="ta" />
-              <StatTile label="Montaj" value={p.installationDays} sub="kun" />
+              <StatTile label="Qoldiq" value={product.stockQuantity} color={product.stockQuantity < 5 ? "amber" : "green"} sub="dona" />
+              <StatTile label="Yaratilgan" value={product.createdAt ? fmtDate(product.createdAt, false) : "—"} />
+              <StatTile label="Yangilangan" value={product.updatedAt ? fmtDate(product.updatedAt, false) : "—"} />
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <Button variant="primary" full icon={<I.users size={16} />} onClick={() => nav("/customers")}>Mijozlarga o'tish</Button>
-              <Button variant="default" icon={<I.wallet size={16} />} onClick={() => nav("/debtors")}>Qarzdorlikka o'tkazish</Button>
+              <Button variant="primary" full icon={<I.box size={16} />} onClick={() => nav("/products")}>Mahsulotlarga o'tish</Button>
             </div>
           </Card>
 
           <Card pad={false}>
             <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border)" }}>
-              <Tabs size="sm" tabs={[{ value: "specs", label: "Spetsifikatsiya" }, { value: "raw", label: "Import tavsifi" }, { value: "review", label: "Tekshiruv" }]} active={tab} onChange={setTab} />
+              <Tabs size="sm" tabs={[{ value: "details", label: "Tafsilotlar" }, { value: "description", label: "Tavsif" }, { value: "images", label: "Rasmlar" }]} active={tab} onChange={setTab} />
             </div>
             <div style={{ padding: 18 }}>
-              {tab === "specs" && (
+              {tab === "details" && (
                 <div className="tg-meta">
-                  <div className="tg-meta-row"><span className="tg-meta-k">Quvvat</span><span className="tg-meta-v">{p.powerKw} kW</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Oylik ishlab chiqarish</span><span className="tg-meta-v">{p.monthlyYieldKwh ? `${p.monthlyYieldKwh} kWh/oy` : "—"}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Inverter</span><span className="tg-meta-v">{p.inverterPowerKw ? `${p.inverterPowerKw} kW` : "—"}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Batareya</span><span className="tg-meta-v">{p.batteryCapacityKwh ? `${p.batteryCapacityKwh} kWh` : "—"}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Faza</span><span className="tg-meta-v">{p.phaseCount}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Kafolat</span><span className="tg-meta-v">{p.warrantyYears} yil</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Payback</span><span className="tg-meta-v">{p.paybackYears} yil</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">Nomi</span><span className="tg-meta-v">{name}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{category}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">Narx</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq</span><span className="tg-meta-v">{product.stockQuantity} dona</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">Yaratilgan</span><span className="tg-meta-v">{product.createdAt ? fmtDate(product.createdAt, true) : "—"}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">Yangilangan</span><span className="tg-meta-v">{product.updatedAt ? fmtDate(product.updatedAt, true) : "—"}</span></div>
                 </div>
               )}
-              {tab === "raw" && <div style={{ padding: 14, background: "var(--surface-2)", borderRadius: 10, fontSize: 13, lineHeight: 1.7, fontFamily: "var(--mono)", color: "var(--text-2)", border: "1px solid var(--border)" }}>{p.rawDescription || p.description || "Tavsif kiritilmagan"}</div>}
-              {tab === "review" && <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <Badge color={STATUS_COLORS[p.dataReviewStatus]} size="sm">{REVIEW_UZ[p.dataReviewStatus]}</Badge>
-                {(p.reviewIssues.length ? p.reviewIssues : ["Mahsulot ma'lumotlari to'liq tasdiqlangan"]).map((issue, index) => <div key={index} style={{ fontSize: 13.5, color: "var(--text-2)" }}>{issue}</div>)}
-              </div>}
+              {tab === "description" && <div style={{ padding: 14, background: "var(--surface-2)", borderRadius: 10, fontSize: 13, lineHeight: 1.7, color: "var(--text-2)", border: "1px solid var(--border)" }}>{product.description || "Tavsif kiritilmagan"}</div>}
+              {tab === "images" && (
+                productImages.length ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {productImages.map((image) => (
+                      <Card key={image.id} style={{ padding: 10 }}>
+                        <div style={{ width: "100%", height: 140 }}><ACUnit product={{ ...product, images: [image] }} /></div>
+                        <div className="tg-cell-sub" style={{ marginTop: 8 }}>{image.alt || "Mahsulot rasmi"}</div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : <EmptyState title="Rasmlar yo'q" />
+              )}
             </div>
           </Card>
         </div>
@@ -123,40 +118,49 @@ function ProductDetailPage({ id }) {
       <div className="grid-2">
         <Panel title="Mahsulot tavsifi" icon="doc" color="blue">
           <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--text-2)" }}>
-            {p.description || p.rawDescription || "Mahsulot uchun tavsif kiritilmagan."}
+            {product.description || "Mahsulot uchun tavsif kiritilmagan."}
           </div>
         </Panel>
-        <Panel title="O'xshash paketlar" subtitle={p.category} icon="layers" color="violet">
+        <Panel title="O'xshash mahsulotlar" subtitle={category} icon="layers" color="violet">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {similar.map((product) => <div key={product.id} style={{ cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }} onClick={() => nav("/products/" + product.id)}>
-              <div style={{ width: 44, height: 36, flexShrink: 0 }}><ACUnit product={product} size="sm" /></div>
-              <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, fontWeight: 600 }}>{product.powerKw} kW</div><div className="tg-cell-sub">{fmtUZS(product.priceUzs)}</div></div>
-            </div>)}
+            {similar.map((row) => (
+              <div key={row.id} style={{ cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }} onClick={() => nav("/products/" + row.id)}>
+                <div style={{ width: 44, height: 36, flexShrink: 0 }}><ACUnit product={row} size="sm" /></div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>{window.productDisplayName ? window.productDisplayName(row) : (row.name || row.model)}</div>
+                  <div className="tg-cell-sub">{fmtUZS(row.priceUzs)}</div>
+                </div>
+              </div>
+            ))}
+            {!similar.length && <EmptyState title="O'xshash mahsulot topilmadi" />}
           </div>
         </Panel>
       </div>
+
       <ProductFormModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        initial={p}
-        onSave={async (product) => {
-          await upsert("products", product);
+        initial={product}
+        onManageCategories={() => setCategoryManagerOpen(true)}
+        onSave={async (nextProduct) => {
+          await upsert("products", nextProduct);
           toast("Mahsulot yangilandi");
           setEditOpen(false);
         }}
       />
+      <ProductCategoriesModal open={categoryManagerOpen} onClose={() => setCategoryManagerOpen(false)} />
       <ConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onConfirm={async () => {
-          await remove("products", p.id);
+          await remove("products", product.id);
           toast("Mahsulot o'chirildi");
           setDeleteOpen(false);
           nav("/products");
         }}
         title="Mahsulotni o'chirish"
-        message={`"${p.model}" mahsulotini o'chirmoqchimisiz?`}
-        details={`SKU: ${p.sku}\nBrend: ${p.brand}\nQuvvat: ${p.powerKw} kW`}
+        message={`"${name}" mahsulotini o'chirmoqchimisiz?`}
+        details={`Kategoriya: ${category}\nNarx: ${fmtUZS(product.priceUzs)}\nQoldiq: ${product.stockQuantity} dona`}
         confirmLabel="O'chirish"
         danger
       />

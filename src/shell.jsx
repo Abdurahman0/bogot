@@ -303,7 +303,20 @@ function CommandPalette({ open, onClose, nav }) {
     if (ql) {
       const custs = data.customers.filter(c => c.fullName.toLowerCase().includes(ql)).slice(0, 3).map(c => ({ type: "Mijoz", label: c.fullName, sub: [c.district, c.mahalla].filter(Boolean).join(" / "), icon: "user", to: "/customers/" + c.id }));
       if (custs.length) groups.push({ title: "Mijozlar", items: custs });
-      const prods = data.products.filter(p => p.model.toLowerCase().includes(ql) || p.brand.toLowerCase().includes(ql)).slice(0, 4).map(p => ({ type: "Mahsulot", label: `${p.brand} ${p.model}`, sub: `${p.powerKw} kW • ${fmtUZS(p.priceUzs)}`, icon: "box", to: "/products/" + p.id }));
+      const prods = data.products
+        .filter((p) => {
+          const name = (window.productDisplayName ? window.productDisplayName(p) : (p.name || p.model || "")).toLowerCase();
+          const category = (window.productDisplayCategory ? window.productDisplayCategory(p) : (p.category || "")).toLowerCase();
+          return name.includes(ql) || category.includes(ql) || String(p.description || "").toLowerCase().includes(ql);
+        })
+        .slice(0, 4)
+        .map((p) => ({
+          type: "Mahsulot",
+          label: window.productDisplayName ? window.productDisplayName(p) : (p.name || p.model || "Mahsulot"),
+          sub: `${window.productDisplayCategory ? window.productDisplayCategory(p) : (p.category || "Kategoriyasiz")} • ${fmtUZS(p.priceUzs)}`,
+          icon: "box",
+          to: "/products/" + p.id,
+        }));
       if (prods.length) groups.push({ title: "Mahsulotlar", items: prods });
       const debtors = data.orders.filter(o => o.id.toLowerCase().includes(ql) || o.customerName.toLowerCase().includes(ql)).slice(0, 3).map(o => ({ type: "Qarzdor", label: o.customerName, sub: fmtUZS(o.remainingDebtUzs), icon: "wallet", to: "/debtors/" + o.id }));
       if (debtors.length) groups.push({ title: "Qarzdorlar", items: debtors });

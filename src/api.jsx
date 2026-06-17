@@ -67,6 +67,7 @@ function apiCreateEmptyData() {
     locations: window.cloneLocationMap ? window.cloneLocationMap() : {},
     clientStatuses: [],
     accountingDays: [],
+    productCategories: [],
     integrationConfigs: [],
     integrationEvents: [],
     aiSettings: [],
@@ -391,6 +392,17 @@ function mapApiTask(task, columnsById = {}) {
   };
 }
 
+function mapApiProductCategory(category) {
+  return {
+    id: category.id,
+    name: category.name || "",
+    code: category.code || "",
+    sortOrder: apiParseNumber(category.sort_order || 0),
+    createdAt: category.created_at || null,
+    updatedAt: category.updated_at || null,
+  };
+}
+
 function mapApiProduct(product) {
   const pictures = (product.pictures || []).map((picture, index) => ({
     id: picture.id || `pic_${product.id}_${index}`,
@@ -398,37 +410,20 @@ function mapApiProduct(product) {
     url: picture.image_url || picture.image || "",
     isPrimary: index === 0,
   }));
+  const categoryId = apiRelationId(product.category);
+  const categoryName = product.category_name || "";
   return {
     id: product.id,
-    sku: product.sku || String(product.id || "").slice(0, 8).toUpperCase(),
-    brand: product.brand || "SolarArmada",
     name: product.name || "",
     model: product.name || "",
-    series: "",
-    category: product.category || "Mahsulot",
-    mountType: "",
+    categoryId,
+    category: categoryName,
+    categoryName,
+    categoryCode: "",
     status: "active",
-    dataReviewStatus: "verified",
-    powerKw: 0,
-    inverterPowerKw: 0,
-    batteryCapacityKwh: 0,
-    panelCount: 0,
-    panelPowerW: 0,
-    monthlyYieldKwh: 0,
-    phaseCount: 1,
-    warrantyYears: 0,
-    installationDays: 0,
-    paybackYears: 0,
     stockQuantity: apiParseNumber(product.amount),
-    reservedQuantity: 0,
-    featured: false,
     priceUzs: apiParseNumber(product.price),
-    previousPriceUzs: null,
-    installationFeeUzs: 0,
     images: pictures,
-    rawDescription: product.description || "",
-    reviewIssues: [],
-    notes: "",
     description: product.description || "",
     createdAt: product.created_at,
     updatedAt: product.updated_at,
@@ -611,6 +606,11 @@ async function apiLoadCollections(keys = [], currentData = {}) {
       data.products = products.map(mapApiProduct);
     })
   );
+  if (wanted.has("productCategories")) jobs.push(
+    apiPaginateAll("/api/products/categories/").catch(() => []).then((productCategories) => {
+      data.productCategories = productCategories.map(mapApiProductCategory);
+    })
+  );
   if (wanted.has("conversations")) jobs.push(
     apiPaginateAll("/api/chats/sessions/").catch(() => []).then((chatSessions) => {
       data.conversations = chatSessions.map(mapApiConversation);
@@ -692,6 +692,7 @@ const API_BOOTSTRAP_KEYS = [
   "accountingDays",
   "payments",
   "products",
+  "productCategories",
   "conversations",
   "audit",
   "integrationConfigs",
@@ -885,6 +886,7 @@ async function apiSaveProduct(product) {
   if (hasFiles) {
     const formData = new FormData();
     formData.append("name", (product.model || product.name || "").trim());
+    formData.append("category", product.categoryId || "");
     formData.append("description", product.description || "");
     formData.append("price", String(apiParseNumber(product.priceUzs || 0)));
     formData.append("amount", String(apiParseNumber(product.stockQuantity || 0)));
@@ -895,6 +897,7 @@ async function apiSaveProduct(product) {
   }
   const payload = {
     name: (product.model || product.name || "").trim(),
+    category: product.categoryId || null,
     description: product.description || "",
     price: String(apiParseNumber(product.priceUzs || 0)),
     amount: apiParseNumber(product.stockQuantity || 0),
@@ -902,6 +905,25 @@ async function apiSaveProduct(product) {
   return isApiUuid(product.id)
     ? apiRequest(`/api/products/${product.id}/`, { method: "PATCH", body: payload })
     : apiRequest("/api/products/", { method: "POST", body: payload });
+}
+
+function apiProductCategoryCode(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_-]+/g, "")
+    .replace(/^_+|_+$/g, "") || "product_category";
+}
+
+async function apiSaveProductCategory(category) {
+  const payload = {
+    name: (category.name || "").trim(),
+    code: apiProductCategoryCode(category.code || category.name),
+    sort_order: apiParseNumber(category.sortOrder || 0),
+  };
+  return isApiUuid(category.id)
+    ? apiRequest(`/api/products/categories/${category.id}/`, { method: "PATCH", body: payload })
+    : apiRequest("/api/products/categories/", { method: "POST", body: payload });
 }
 
 async function apiSaveClientStatus(status) {
@@ -1023,6 +1045,7 @@ Object.assign(window, {
   apiMoveTask,
   apiSaveAccountingEntry,
   apiSaveProduct,
+  apiSaveProductCategory,
   apiSaveClientStatus,
   apiSaveAiSetting,
   apiSaveIntegrationConfig,

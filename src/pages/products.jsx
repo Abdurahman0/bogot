@@ -1,45 +1,63 @@
 /* pages/products.jsx */
 const { useState: prS, useMemo: prM } = React;
 
-const REVIEW_UZ = { verified: "Tasdiqlangan", "needs-review": "Tekshirish kerak", incomplete: "To'liqsiz" };
 const makeProductImage = (image = {}, index = 0) => ({
   id: image.id || `img_${Date.now()}_${index}`,
   url: image.url || "",
   alt: image.alt || "",
   isPrimary: !!image.isPrimary,
 });
+
 const normalizeProductImages = (images = []) => {
   const base = (images || []).map((image, index) => makeProductImage(image, index));
   const ensured = base.length ? base : [makeProductImage({ isPrimary: true }, 0)];
-  const primaryIndex = ensured.findIndex(image => image.isPrimary);
+  const primaryIndex = ensured.findIndex((image) => image.isPrimary);
   return ensured.map((image, index) => ({ ...image, isPrimary: primaryIndex === -1 ? index === 0 : index === primaryIndex }));
 };
-window.REVIEW_UZ = REVIEW_UZ;
 
-function ProductCard({ product: p, compact, onClick }) {
-  const { nav } = useApp();
-  const discount = p.previousPriceUzs ? Math.round((1 - p.priceUzs / p.previousPriceUzs) * 100) : 0;
+function productCategoryCodeify(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_-]+/g, "")
+    .replace(/^_+|_+$/g, "") || "product_category";
+}
+
+function productDescriptionPreview(value) {
+  const text = String(value || "").trim();
+  if (!text) return "Tavsif kiritilmagan";
+  return text.length > 108 ? `${text.slice(0, 105)}...` : text;
+}
+
+function productDateLabel(value) {
+  if (!value) return "—";
+  return fmtDate(value, true);
+}
+
+function ProductCard({ product, onClick }) {
+  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
+  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
+  const stockColor = product.stockQuantity === 0 ? "red" : product.stockQuantity < 5 ? "amber" : "green";
+
   return (
-    <Card hover pad={false} onClick={onClick || (() => nav("/products/" + p.id))}>
+    <Card hover pad={false} onClick={onClick}>
       <div style={{ position: "relative" }}>
-        <ACUnit product={p} />
-        {p.featured && <span style={{ position: "absolute", top: 10, left: 10 }}><Badge color="amber" size="sm"><I.star size={11} /> Tavsiya</Badge></span>}
-        {discount > 0 && <span style={{ position: "absolute", top: 10, right: 10 }}><Badge color="red" size="sm">-{discount}%</Badge></span>}
+        <ACUnit product={product} />
+        <span style={{ position: "absolute", top: 10, left: 10 }}>
+          <Badge color="slate" size="sm">{category}</Badge>
+        </span>
       </div>
       <div style={{ padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: BRAND_COLORS[p.brand] }}>{p.brand}</span>
-          <Badge color={STATUS_COLORS[p.dataReviewStatus]} size="sm">{REVIEW_UZ[p.dataReviewStatus]}</Badge>
+        <div style={{ fontWeight: 700, lineHeight: 1.35 }}>{name}</div>
+        <div style={{ marginTop: 7, fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.55 }}>
+          {productDescriptionPreview(product.description)}
         </div>
-        <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 4, lineHeight: 1.3 }}>{p.model}</div>
-        <div style={{ fontSize: 12, color: "var(--text-3)", margin: "6px 0 10px" }}>{p.category} • {p.powerKw} kW • {p.phaseCount} faza</div>
-        {!compact && <div style={{ marginBottom: 12 }}><FeatureChips product={p} max={3} /></div>}
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8, marginTop: 14 }}>
           <div>
-            <div style={{ fontWeight: 720, fontSize: 15 }}>{fmtUZS(p.priceUzs)}</div>
-            {p.previousPriceUzs && <div style={{ fontSize: 11.5, color: "var(--text-3)", textDecoration: "line-through" }}>{fmtUZS(p.previousPriceUzs)}</div>}
+            <div style={{ fontWeight: 760, fontSize: 15 }}>{fmtUZS(product.priceUzs)}</div>
+            <div className="tg-cell-sub">Yangilangan: {productDateLabel(product.updatedAt)}</div>
           </div>
-          <Badge color={p.stockQuantity === 0 ? "red" : p.stockQuantity < 5 ? "amber" : "green"} size="sm">{p.stockQuantity} dona</Badge>
+          <Badge color={stockColor} size="sm">{product.stockQuantity} dona</Badge>
         </div>
       </div>
     </Card>
@@ -48,90 +66,127 @@ function ProductCard({ product: p, compact, onClick }) {
 window.ProductCard = ProductCard;
 
 function ProductsPage() {
-  const { data, t, nav, toast, role, upsert, remove } = useApp();
+  const { data, t, toast, upsert, remove } = useApp();
   const loading = useLoading(320);
   const [view, setView] = prS("table");
   const [q, setQ] = prS("");
-  const [fBrand, setFBrand] = prS([]);
   const [fCategory, setFCategory] = prS([]);
-  const [fReview, setFReview] = prS([]);
   const [fStock, setFStock] = prS("all");
-  const [reviewOpen, setReviewOpen] = prS(false);
   const [createOpen, setCreateOpen] = prS(false);
+  const [categoryManagerOpen, setCategoryManagerOpen] = prS(false);
   const [viewProduct, setViewProduct] = prS(null);
   const [editProduct, setEditProduct] = prS(null);
   const [deleteProduct, setDeleteProduct] = prS(null);
 
-  const categories = [...new Set(data.products.map(p => p.category))];
-  const filtered = prM(() => data.products.filter(p => {
-    const s = q.toLowerCase();
-    if (q && !p.model.toLowerCase().includes(s) && !p.brand.toLowerCase().includes(s) && !p.sku.toLowerCase().includes(s)) return false;
-    if (fBrand.length && !fBrand.includes(p.brand)) return false;
-    if (fCategory.length && !fCategory.includes(p.category)) return false;
-    if (fReview.length && !fReview.includes(p.dataReviewStatus)) return false;
-    if (fStock === "in" && p.stockQuantity === 0) return false;
-    if (fStock === "low" && p.stockQuantity > 4) return false;
-    if (fStock === "out" && p.stockQuantity > 0) return false;
-    return true;
-  }), [data.products, q, fBrand, fCategory, fReview, fStock]);
+  const categoryOptions = prM(() => (data.productCategories || [])
+    .slice()
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name, "uz"))
+    .map((category) => ({ value: category.id, label: category.name })), [data.productCategories]);
 
-  const needReview = data.products.filter(p => p.dataReviewStatus !== "verified");
+  const filtered = prM(() => data.products.filter((product) => {
+    const name = (window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "")).toLowerCase();
+    const category = (window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "")).toLowerCase();
+    const description = String(product.description || "").toLowerCase();
+    const search = q.toLowerCase().trim();
+    if (search && !name.includes(search) && !category.includes(search) && !description.includes(search)) return false;
+    if (fCategory.length && !fCategory.includes(product.categoryId)) return false;
+    if (fStock === "in" && product.stockQuantity === 0) return false;
+    if (fStock === "low" && (product.stockQuantity === 0 || product.stockQuantity > 4)) return false;
+    if (fStock === "out" && product.stockQuantity > 0) return false;
+    return true;
+  }), [data.products, q, fCategory, fStock]);
+
   const columns = [
-    { key: "name", label: "Mahsulot", sortVal: r => r.brand + r.model, render: r => (
-      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-        <div style={{ width: 46, height: 38, flexShrink: 0 }}><ACUnit product={r} size="sm" /></div>
-        <div><div className="tg-cell-strong">{r.model}</div><div className="tg-cell-sub">{r.sku}</div></div>
-      </div>
-    ) },
-    { key: "brand", label: "Brend", sortVal: r => r.brand, render: r => <span style={{ fontWeight: 600, color: BRAND_COLORS[r.brand] }}>{r.brand}</span> },
-    { key: "category", label: "Kategoriya", render: r => <Badge color="slate" size="sm">{r.category}</Badge> },
-    { key: "power", label: "Quvvat", sortVal: r => r.powerKw, render: r => <span>{r.powerKw} kW</span> },
-    { key: "yield", label: "Ishlab chiqarish", sortVal: r => r.monthlyYieldKwh, render: r => <span className="tg-cell-sub">{r.monthlyYieldKwh ? `${r.monthlyYieldKwh} kWh/oy` : "—"}</span> },
-    { key: "price", label: "Narx", sortVal: r => r.priceUzs, render: r => <div><div style={{ fontWeight: 650 }}>{fmtUZS(r.priceUzs)}</div>{r.previousPriceUzs && <div style={{ fontSize: 11, textDecoration: "line-through", color: "var(--text-3)" }}>{fmtUZS(r.previousPriceUzs)}</div>}</div> },
-    { key: "stock", label: "Qoldiq", sortVal: r => r.stockQuantity, render: r => <Badge color={r.stockQuantity === 0 ? "red" : r.stockQuantity < 5 ? "amber" : "green"} size="sm">{r.stockQuantity}</Badge> },
-    { key: "review", label: "Tekshirish", render: r => <Badge color={STATUS_COLORS[r.dataReviewStatus]} size="sm" dot>{REVIEW_UZ[r.dataReviewStatus]}</Badge> },
-    { key: "actions", label: "", width: 44, render: r => (
-      <div onClick={e => e.stopPropagation()}>
-        <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />} items={[
-          { label: "Ko'rish", icon: <I.eye size={16} />, onClick: () => setViewProduct(r) },
-          { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditProduct(r) },
-          { divider: true },
-          { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteProduct(r) },
-        ]} />
-      </div>
-    ) },
+    {
+      key: "name",
+      label: "Mahsulot",
+      sortVal: (row) => window.productDisplayName ? window.productDisplayName(row) : (row.name || row.model || ""),
+      render: (row) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+          <div style={{ width: 46, height: 38, flexShrink: 0 }}><ACUnit product={row} size="sm" /></div>
+          <div>
+            <div className="tg-cell-strong">{window.productDisplayName ? window.productDisplayName(row) : (row.name || row.model)}</div>
+            <div className="tg-cell-sub">{productDescriptionPreview(row.description)}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "category",
+      label: "Kategoriya",
+      sortVal: (row) => window.productDisplayCategory ? window.productDisplayCategory(row) : (row.category || ""),
+      render: (row) => <Badge color="slate" size="sm">{window.productDisplayCategory ? window.productDisplayCategory(row) : (row.category || "Kategoriyasiz")}</Badge>,
+    },
+    {
+      key: "price",
+      label: "Narx",
+      sortVal: (row) => row.priceUzs,
+      render: (row) => <span style={{ fontWeight: 700 }}>{fmtUZS(row.priceUzs)}</span>,
+    },
+    {
+      key: "stock",
+      label: "Qoldiq",
+      sortVal: (row) => row.stockQuantity,
+      render: (row) => <Badge color={row.stockQuantity === 0 ? "red" : row.stockQuantity < 5 ? "amber" : "green"} size="sm">{row.stockQuantity}</Badge>,
+    },
+    {
+      key: "updatedAt",
+      label: "Yangilangan",
+      sortVal: (row) => row.updatedAt || row.createdAt || "",
+      render: (row) => <span className="tg-cell-sub">{productDateLabel(row.updatedAt || row.createdAt)}</span>,
+    },
+    {
+      key: "actions",
+      label: "",
+      width: 44,
+      render: (row) => (
+        <div onClick={(event) => event.stopPropagation()}>
+          <Dropdown
+            align="right"
+            trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />}
+            items={[
+              { label: "Ko'rish", icon: <I.eye size={16} />, onClick: () => setViewProduct(row) },
+              { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditProduct(row) },
+              { divider: true },
+              { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteProduct(row) },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
     <div className="page fade-in">
-      <PageHeader title={t("page.products")} desc={`${data.products.length} ta CRM mahsulotlari • ${needReview.length} ta tekshiruv kutmoqda`} crumbs={[{ label: "Katalog va moliya" }, { label: t("page.products") }]}
+      <PageHeader
+        title={t("page.products")}
+        desc={`${data.products.length} ta backend mahsuloti • ${(data.productCategories || []).length} ta kategoriya`}
+        crumbs={[{ label: "Katalog va moliya" }, { label: t("page.products") }]}
         actions={<>
+          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={() => setCategoryManagerOpen(true)}>Kategoriyalar</Button>
           <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi mahsulot</Button>
-          {role === "admin" && <Button variant="default" size="sm" icon={<I.alert size={15} />} onClick={() => setReviewOpen(true)}>Tekshiruv navbati</Button>}
-          <Button variant="default" size="sm" icon={<I.upload size={15} />} onClick={() => toast("Import oynasi tayyor emas, demo ma'lumot ishlatilmoqda")}>Import</Button>
           <Segmented value={view} onChange={setView} options={[{ value: "table", label: "Jadval", icon: <I.list size={14} /> }, { value: "grid", label: "Kartalar", icon: <I.grid size={14} /> }]} />
-        </>} />
+        </>}
+      />
 
       <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Model, SKU, brend..." width={260} />
-        <FilterSelect label="Brend" icon="tag" multi value={fBrand} onChange={setFBrand} options={BRANDS.map(b => ({ value: b, label: b }))} />
-        <FilterSelect label="Kategoriya" icon="layers" multi value={fCategory} onChange={setFCategory} options={categories.map(c => ({ value: c, label: c }))} />
-        <FilterSelect label="Tekshiruv" icon="alert" multi value={fReview} onChange={setFReview} options={Object.keys(REVIEW_UZ).map(k => ({ value: k, label: REVIEW_UZ[k] }))} />
+        <SearchInput value={q} onChange={setQ} placeholder="Mahsulot nomi, kategoriya, tavsif..." width={280} />
+        <FilterSelect label="Kategoriya" icon="layers" multi value={fCategory} onChange={setFCategory} options={categoryOptions} />
         <FilterSelect label="Qoldiq" icon="box" value={fStock} onChange={setFStock} options={[{ value: "all", label: "Barchasi" }, { value: "in", label: "Mavjud" }, { value: "low", label: "Kam qolgan" }, { value: "out", label: "Tugagan" }]} />
         <div className="toolbar-spacer" />
         <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{filtered.length} natija</span>
       </div>
 
-      {loading ? <SkeletonRows rows={10} cols={7} /> : (
+      {loading ? <SkeletonRows rows={10} cols={5} /> : (
         view === "table"
-          ? <Card pad={false}><DataTable columns={columns} rows={filtered} onRowClick={r => setViewProduct(r)} pageSize={12} defaultSort={{ key: "power", dir: "asc" }} /></Card>
-          : <div className="grid-3">{filtered.map(p => <ProductCard key={p.id} product={p} />)}</div>
+          ? <Card pad={false}><DataTable columns={columns} rows={filtered} onRowClick={(row) => setViewProduct(row)} pageSize={12} defaultSort={{ key: "updatedAt", dir: "desc" }} /></Card>
+          : <div className="grid-3">{filtered.map((product) => <ProductCard key={product.id} product={product} onClick={() => setViewProduct(product)} />)}</div>
       )}
 
-      <ReviewQueueModal open={reviewOpen} onClose={() => setReviewOpen(false)} products={needReview} />
       <ProductFormModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+        onManageCategories={() => setCategoryManagerOpen(true)}
         onSave={async (product) => {
           await upsert("products", product);
           toast("Mahsulot yaratildi");
@@ -149,6 +204,7 @@ function ProductsPage() {
         open={!!editProduct}
         onClose={() => setEditProduct(null)}
         initial={editProduct}
+        onManageCategories={() => setCategoryManagerOpen(true)}
         onSave={async (product) => {
           await upsert("products", product);
           toast("Mahsulot yangilandi");
@@ -164,11 +220,12 @@ function ProductsPage() {
           setDeleteProduct(null);
         }}
         title="Mahsulotni o'chirish"
-        message={`"${deleteProduct?.model || ""}" mahsulotini o'chirmoqchimisiz?`}
-        details={deleteProduct ? `SKU: ${deleteProduct.sku}\nBrend: ${deleteProduct.brand}\nQuvvat: ${deleteProduct.powerKw} kW` : ""}
+        message={`"${window.productDisplayName ? window.productDisplayName(deleteProduct || {}) : (deleteProduct?.name || deleteProduct?.model || "")}" mahsulotini o'chirmoqchimisiz?`}
+        details={deleteProduct ? `Kategoriya: ${window.productDisplayCategory ? window.productDisplayCategory(deleteProduct) : (deleteProduct.category || "Kategoriyasiz")}\nNarx: ${fmtUZS(deleteProduct.priceUzs)}\nQoldiq: ${deleteProduct.stockQuantity} dona` : ""}
         confirmLabel="O'chirish"
         danger
       />
+      <ProductCategoriesModal open={categoryManagerOpen} onClose={() => setCategoryManagerOpen(false)} />
     </div>
   );
 }
@@ -176,131 +233,149 @@ window.ProductsPage = ProductsPage;
 
 function ProductViewModal({ open, onClose, onEdit, onDelete, product }) {
   if (!product) return null;
+  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
+  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
   return (
-    <Modal open={open} onClose={onClose} title="Mahsulot ma'lumotlari" icon={<I.box size={18} />} width={620}
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Mahsulot ma'lumotlari"
+      icon={<I.box size={18} />}
+      width={620}
       footer={<>
         <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>Tahrirlash</Button>
         <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>O'chirish</Button>
         <Button variant="primary" onClick={onClose}>Yopish</Button>
-      </>}>
-        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 18 }}>
-          <div style={{ width: 160, height: 130 }}><ACUnit product={product} /></div>
+      </>}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 18 }}>
+        <div style={{ width: 160, height: 130 }}><ACUnit product={product} /></div>
         <div className="tg-meta">
-          <div className="tg-meta-row"><span className="tg-meta-k">Model</span><span className="tg-meta-v">{product.model}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">SKU</span><span className="tg-meta-v">{product.sku}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Brend</span><span className="tg-meta-v">{product.brand}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{product.category}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Quvvat</span><span className="tg-meta-v">{product.powerKw} kW</span></div>
+          <div className="tg-meta-row"><span className="tg-meta-k">Nomi</span><span className="tg-meta-v">{name}</span></div>
+          <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{category}</span></div>
           <div className="tg-meta-row"><span className="tg-meta-k">Narx</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
           <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq</span><span className="tg-meta-v">{product.stockQuantity} dona</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Tekshiruv</span><span className="tg-meta-v">{REVIEW_UZ[product.dataReviewStatus]}</span></div>
+          <div className="tg-meta-row"><span className="tg-meta-k">Yaratilgan</span><span className="tg-meta-v">{productDateLabel(product.createdAt)}</span></div>
+          <div className="tg-meta-row"><span className="tg-meta-k">Yangilangan</span><span className="tg-meta-v">{productDateLabel(product.updatedAt)}</span></div>
         </div>
       </div>
-      {(product.description || product.rawDescription) && (
-        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>Tavsif</div>
-          <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{product.description || product.rawDescription}</div>
-        </div>
-      )}
+      <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>Tavsif</div>
+        <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{product.description || "Tavsif kiritilmagan"}</div>
+      </div>
     </Modal>
   );
 }
 
-function ProductFormModal({ open, onClose, onSave, initial }) {
+function ProductFormModal({ open, onClose, onSave, initial, onManageCategories }) {
+  const { data, toast } = useApp();
+  const categoryOptions = prM(() => (data.productCategories || [])
+    .slice()
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name, "uz"))
+    .map((category) => ({ value: category.id, label: category.name })), [data.productCategories]);
+
   const blank = {
-    model: "",
-    sku: "",
-    brand: BRANDS[0],
-    category: "",
-    powerKw: 0,
-    monthlyYieldKwh: 0,
+    name: "",
+    categoryId: "",
     priceUzs: 0,
     stockQuantity: 0,
-    dataReviewStatus: "verified",
     description: "",
     images: normalizeProductImages(),
     pictureFiles: [],
   };
-  const [form, setForm] = prS(initial || blank);
+
+  const [form, setForm] = prS(blank);
+
   React.useEffect(() => {
-    setForm(initial ? { ...initial, description: initial.description || initial.rawDescription || "", images: normalizeProductImages(initial.images), pictureFiles: [] } : blank);
+    if (!open) return;
+    setForm(initial ? {
+      ...blank,
+      ...initial,
+      name: initial.name || initial.model || "",
+      description: initial.description || "",
+      categoryId: initial.categoryId || "",
+      images: normalizeProductImages(initial.images),
+      pictureFiles: [],
+    } : blank);
   }, [initial, open]);
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const setImage = (index, patch) => setForm(f => ({
-    ...f,
-    images: normalizeProductImages((f.images || []).map((image, imageIndex) => imageIndex === index ? { ...image, ...patch } : image)),
+
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const setImage = (index, patch) => setForm((current) => ({
+    ...current,
+    images: normalizeProductImages((current.images || []).map((image, imageIndex) => imageIndex === index ? { ...image, ...patch } : image)),
   }));
-  const setPrimaryImage = (index) => setForm(f => ({
-    ...f,
-    images: normalizeProductImages((f.images || []).map((image, imageIndex) => ({ ...image, isPrimary: imageIndex === index }))),
+  const setPrimaryImage = (index) => setForm((current) => ({
+    ...current,
+    images: normalizeProductImages((current.images || []).map((image, imageIndex) => ({ ...image, isPrimary: imageIndex === index }))),
   }));
-  const addImage = () => setForm(f => ({
-    ...f,
-    images: normalizeProductImages([...(f.images || []), makeProductImage({}, (f.images || []).length)]),
+  const addImage = () => setForm((current) => ({
+    ...current,
+    images: normalizeProductImages([...(current.images || []), makeProductImage({}, (current.images || []).length)]),
   }));
-  const removeImage = (index) => setForm(f => ({
-    ...f,
-    images: normalizeProductImages((f.images || []).filter((_, imageIndex) => imageIndex !== index)),
+  const removeImage = (index) => setForm((current) => ({
+    ...current,
+    images: normalizeProductImages((current.images || []).filter((_, imageIndex) => imageIndex !== index)),
   }));
+
+  const selectedCategory = (data.productCategories || []).find((category) => category.id === form.categoryId) || null;
+
   return (
-    <Modal open={open} onClose={onClose} title={initial ? "Mahsulotni tahrirlash" : "Yangi mahsulot"} icon={initial ? <I.edit size={18} /> : <I.plus size={18} />} width={560}
-      footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={async () => {
-        const powerKw = +form.powerKw || 0;
-        const monthlyYieldKwh = +form.monthlyYieldKwh || 0;
-        const priceUzs = +form.priceUzs || 0;
-        const stockQuantity = +form.stockQuantity || 0;
-        const description = (form.description || "").trim();
-        const images = normalizeProductImages(form.images);
-        const payload = {
-          ...form,
-          id: form.id || `P${Date.now()}`,
-          name: form.model,
-          powerKw,
-          monthlyYieldKwh,
-          priceUzs,
-          stockQuantity,
-          phaseCount: form.phaseCount || (powerKw >= 20 ? 3 : 1),
-          inverterPowerKw: form.inverterPowerKw ?? powerKw,
-          batteryCapacityKwh: form.batteryCapacityKwh ?? 0,
-          panelCount: form.panelCount ?? 0,
-          panelPowerW: form.panelPowerW ?? 0,
-          warrantyYears: form.warrantyYears ?? 10,
-          installationDays: form.installationDays ?? 3,
-          paybackYears: form.paybackYears ?? 4,
-          previousPriceUzs: form.previousPriceUzs ?? null,
-          installationFeeUzs: form.installationFeeUzs ?? 0,
-          reservedQuantity: form.reservedQuantity ?? 0,
-          featured: form.featured ?? false,
-          mountType: form.mountType || "",
-          series: form.series || "",
-          status: form.status || "active",
-          images,
-          reviewIssues: form.reviewIssues || [],
-          notes: form.notes || "",
-          description,
-          rawDescription: description,
-          pictureFiles: form.pictureFiles || [],
-          updatedAt: new Date().toISOString(),
-          createdAt: form.createdAt || new Date().toISOString(),
-        };
-        await onSave(payload);
-      }}>{initial ? "Saqlash" : "Yaratish"}</Button></>}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={initial ? "Mahsulotni tahrirlash" : "Yangi mahsulot"}
+      icon={initial ? <I.edit size={18} /> : <I.plus size={18} />}
+      width={580}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
+        <Button
+          variant="primary"
+          onClick={async () => {
+            const name = String(form.name || "").trim();
+            if (!name) {
+              toast("Mahsulot nomini kiriting", "error");
+              return;
+            }
+            const payload = {
+              ...form,
+              id: form.id || `P${Date.now()}`,
+              name,
+              model: name,
+              categoryId: selectedCategory?.id || form.categoryId || null,
+              category: selectedCategory?.name || "",
+              categoryName: selectedCategory?.name || "",
+              categoryCode: selectedCategory?.code || "",
+              priceUzs: apiParseNumber(form.priceUzs || 0),
+              stockQuantity: apiParseNumber(form.stockQuantity || 0),
+              description: String(form.description || "").trim(),
+              images: normalizeProductImages(form.images),
+              pictureFiles: form.pictureFiles || [],
+              updatedAt: new Date().toISOString(),
+              createdAt: form.createdAt || new Date().toISOString(),
+            };
+            await onSave(payload);
+          }}
+        >
+          {initial ? "Saqlash" : "Yaratish"}
+        </Button>
+      </>}
+    >
       <div style={{ display: "grid", gap: 14 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Model"><Input value={form.model} onChange={e => set("model", e.target.value)} /></Field>
-          <Field label="SKU"><Input value={form.sku} onChange={e => set("sku", e.target.value)} /></Field>
+        <Field label="Mahsulot nomi" required><Input value={form.name} onChange={(event) => set("name", event.target.value)} /></Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
+          <Field label="Kategoriya">
+            <Select
+              value={form.categoryId}
+              onChange={(value) => set("categoryId", value)}
+              options={[{ value: "", label: "Tanlanmagan" }, ...categoryOptions]}
+              placeholder="Kategoriyani tanlang"
+            />
+          </Field>
+          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={onManageCategories}>Boshqarish</Button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Brend"><Select value={form.brand} onChange={v => set("brand", v)} options={BRANDS.map(v => ({ value: v, label: v }))} /></Field>
-          <Field label="Kategoriya"><Input value={form.category} onChange={e => set("category", e.target.value)} /></Field>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Quvvat (kW)"><Input type="number" value={form.powerKw} onChange={e => set("powerKw", e.target.value)} /></Field>
-          <Field label="Ishlab chiqarish (kWh/oy)"><Input type="number" value={form.monthlyYieldKwh || 0} onChange={e => set("monthlyYieldKwh", e.target.value)} /></Field>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Narx"><Input type="number" value={form.priceUzs} onChange={e => set("priceUzs", e.target.value)} /></Field>
-          <Field label="Qoldiq"><Input type="number" value={form.stockQuantity} onChange={e => set("stockQuantity", e.target.value)} /></Field>
+          <Field label="Narx"><Input type="number" value={form.priceUzs} onChange={(event) => set("priceUzs", event.target.value)} /></Field>
+          <Field label="Qoldiq"><Input type="number" value={form.stockQuantity} onChange={(event) => set("stockQuantity", event.target.value)} /></Field>
         </div>
         <Field label="Rasmlar">
           <div style={{ display: "grid", gap: 10 }}>
@@ -311,7 +386,7 @@ function ProductFormModal({ open, onClose, onSave, initial }) {
                   accept="image/*"
                   multiple
                   className="tg-input"
-                  onChange={(e) => set("pictureFiles", Array.from(e.target.files || []))}
+                  onChange={(event) => set("pictureFiles", Array.from(event.target.files || []))}
                 />
               </Field>
               {(form.pictureFiles || []).length > 0 && (
@@ -322,8 +397,8 @@ function ProductFormModal({ open, onClose, onSave, initial }) {
               <Card key={image.id || index} style={{ padding: 12 }}>
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <Field label="Rasm URL"><Input value={image.url || ""} onChange={e => setImage(index, { url: e.target.value })} placeholder="https://..." /></Field>
-                    <Field label="Rasm nomi"><Input value={image.alt || ""} onChange={e => setImage(index, { alt: e.target.value })} placeholder="Mahsulot rasmi" /></Field>
+                    <Field label="Rasm URL"><Input value={image.url || ""} onChange={(event) => setImage(index, { url: event.target.value })} placeholder="https://..." /></Field>
+                    <Field label="Rasm nomi"><Input value={image.alt || ""} onChange={(event) => setImage(index, { alt: event.target.value })} placeholder="Mahsulot rasmi" /></Field>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -341,30 +416,173 @@ function ProductFormModal({ open, onClose, onSave, initial }) {
             <Button variant="default" size="sm" icon={<I.plus size={14} />} onClick={addImage}>Yana rasm qo'shish</Button>
           </div>
         </Field>
-        <Field label="Tavsif"><Textarea rows={5} value={form.description || ""} onChange={e => set("description", e.target.value)} placeholder="Mahsulot tavsifi, komplektatsiya va foydali izohlar..." /></Field>
-        <Field label="Tekshiruv holati"><Select value={form.dataReviewStatus} onChange={v => set("dataReviewStatus", v)} options={Object.keys(REVIEW_UZ).map(v => ({ value: v, label: REVIEW_UZ[v] }))} /></Field>
+        <Field label="Tavsif"><Textarea rows={5} value={form.description || ""} onChange={(event) => set("description", event.target.value)} placeholder="Mahsulot tavsifi..." /></Field>
       </div>
     </Modal>
   );
 }
 window.ProductFormModal = ProductFormModal;
 
-function ReviewQueueModal({ open, onClose, products }) {
-  const { update, toast } = useApp();
+function ProductCategoryFormModal({ open, onClose, initial, onSave, count }) {
+  const blank = { name: "", code: "", sortOrder: count + 1 };
+  const [form, setForm] = prS(blank);
+  const [codeTouched, setCodeTouched] = prS(false);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (initial) {
+      setForm({
+        id: initial.id,
+        name: initial.name || "",
+        code: initial.code || "",
+        sortOrder: initial.sortOrder || count + 1,
+      });
+      setCodeTouched(true);
+      return;
+    }
+    setForm({ ...blank, sortOrder: count + 1 });
+    setCodeTouched(false);
+  }, [open, initial, count]);
+
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
   return (
-    <Modal open={open} onClose={onClose} title="Mahsulot tekshiruv navbati" icon={<I.alert size={18} />} width={640}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {products.slice(0, 14).map(p => (
-          <div key={p.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-soft)" }}>
-            <div style={{ width: 42, height: 42 }}><ACUnit product={p} size="sm" /></div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{p.model}</div>
-              <div className="tg-cell-sub">{p.reviewIssues.join(", ") || "Yengil tekshiruv talab qilinadi"}</div>
-            </div>
-            <Button variant="soft" size="sm" onClick={() => { update("products", ps => ps.map(x => x.id === p.id ? { ...x, dataReviewStatus: "verified", reviewIssues: [] } : x)); toast("Tasdiqlandi: " + p.model); }}>Tasdiqlash</Button>
-          </div>
-        ))}
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={initial ? "Kategoriyani tahrirlash" : "Yangi kategoriya"}
+      icon={initial ? <I.edit size={18} /> : <I.plus size={18} />}
+      width={460}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
+        <Button
+          variant="primary"
+          onClick={() => onSave({
+            ...form,
+            name: String(form.name || "").trim(),
+            code: productCategoryCodeify(form.code || form.name),
+            sortOrder: apiParseNumber(form.sortOrder || 0),
+          })}
+        >
+          {initial ? "Saqlash" : "Yaratish"}
+        </Button>
+      </>}
+    >
+      <div style={{ display: "grid", gap: 14 }}>
+        <Field label="Nomi" required>
+          <Input
+            value={form.name}
+            onChange={(event) => {
+              const nextName = event.target.value;
+              set("name", nextName);
+              if (!codeTouched) set("code", productCategoryCodeify(nextName));
+            }}
+          />
+        </Field>
+        <Field label="Code" hint="Bo'sh joylar avtomatik `_` ga o'zgaradi.">
+          <Input
+            value={form.code}
+            onChange={(event) => {
+              setCodeTouched(true);
+              set("code", productCategoryCodeify(event.target.value));
+            }}
+          />
+        </Field>
+        <Field label="Tartib">
+          <Input type="number" value={form.sortOrder} onChange={(event) => set("sortOrder", event.target.value)} />
+        </Field>
       </div>
+    </Modal>
+  );
+}
+
+function ProductCategoriesModal({ open, onClose }) {
+  const { data, upsert, remove, toast } = useApp();
+  const [createOpen, setCreateOpen] = prS(false);
+  const [editCategory, setEditCategory] = prS(null);
+  const [deleteCategory, setDeleteCategory] = prS(null);
+
+  const categories = prM(() => (data.productCategories || [])
+    .slice()
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name, "uz")), [data.productCategories]);
+
+  const saveCategory = async (category) => {
+    if (!category.name) {
+      toast("Kategoriya nomini kiriting", "error");
+      return;
+    }
+    await upsert("productCategories", category);
+    toast(editCategory ? "Kategoriya yangilandi" : "Kategoriya yaratildi");
+    setCreateOpen(false);
+    setEditCategory(null);
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Mahsulot kategoriyalari"
+      icon={<I.layers size={18} />}
+      width={640}
+      footer={<>
+        <Button variant="default" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi kategoriya</Button>
+        <Button variant="primary" onClick={onClose}>Yopish</Button>
+      </>}
+    >
+      {categories.length ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {categories.map((category) => (
+            <Card key={category.id} style={{ padding: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
+                <span style={{ width: 12, height: 12, borderRadius: 999, background: window.accentColorFromText ? window.accentColorFromText(category.name) : "var(--accent)", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="tg-cell-strong">{category.name}</div>
+                  <div className="tg-cell-sub">Code: {category.code || "—"} • Tartib: {category.sortOrder || 0}</div>
+                </div>
+                <Dropdown
+                  align="right"
+                  trigger={<IconButton icon={<I.dots size={16} />} label="Kategoriya amallari" />}
+                  items={[
+                    { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditCategory(category) },
+                    { divider: true },
+                    { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteCategory(category) },
+                  ]}
+                />
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="Kategoriyalar topilmadi" message="Mahsulotlar uchun avval kategoriya yarating." action={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi kategoriya</Button>} />
+      )}
+
+      <ProductCategoryFormModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSave={saveCategory}
+        count={categories.length}
+      />
+      <ProductCategoryFormModal
+        open={!!editCategory}
+        onClose={() => setEditCategory(null)}
+        initial={editCategory}
+        onSave={saveCategory}
+        count={categories.length}
+      />
+      <ConfirmDialog
+        open={!!deleteCategory}
+        onClose={() => setDeleteCategory(null)}
+        onConfirm={async () => {
+          await remove("productCategories", deleteCategory.id);
+          toast("Kategoriya o'chirildi");
+          setDeleteCategory(null);
+        }}
+        title="Kategoriyani o'chirish"
+        message={`"${deleteCategory?.name || ""}" kategoriyasini o'chirmoqchimisiz?`}
+        details={deleteCategory ? `Code: ${deleteCategory.code || "—"}\nTartib: ${deleteCategory.sortOrder || 0}` : ""}
+        confirmLabel="O'chirish"
+        danger
+      />
     </Modal>
   );
 }

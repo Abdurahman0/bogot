@@ -2,7 +2,7 @@
 const { createContext, useContext, useState, useEffect, useCallback, useRef } = React;
 
 const PREF_KEY = "tg_crm_prefs_v2";
-const REMOTE_COLLECTIONS = new Set(["users", "customers", "orders", "tasks", "taskColumns", "payments", "products", "clientStatuses", "aiSettings", "integrationConfigs"]);
+const REMOTE_COLLECTIONS = new Set(["users", "customers", "orders", "tasks", "taskColumns", "payments", "products", "productCategories", "clientStatuses", "aiSettings", "integrationConfigs"]);
 
 function loadPrefs() {
   try {
@@ -86,7 +86,7 @@ function routeCollectionKeys(route) {
     case "inbox":
       return [...BASE_COLLECTIONS, "conversations", "customers"];
     case "products":
-      return [...BASE_COLLECTIONS, "products"];
+      return [...BASE_COLLECTIONS, "products", "productCategories"];
     case "debtors":
     case "orders":
       return [...BASE_COLLECTIONS, "orders", "customers"];
@@ -316,6 +316,10 @@ function AppProvider({ children }) {
       await apiSaveProduct(item);
       await refreshCollections(["products"], ["dashboardOverview"]);
     }
+    if (key === "productCategories") {
+      await apiSaveProductCategory(item);
+      await refreshCollections(["productCategories"], ["products"]);
+    }
     if (key === "clientStatuses") {
       await apiSaveClientStatus(item);
       await refreshCollections(["clientStatuses"]);
@@ -364,6 +368,10 @@ function AppProvider({ children }) {
     if (key === "products") {
       await apiDelete(`/api/products/${id}/`);
       await refreshCollections(["products"], ["dashboardOverview"]);
+    }
+    if (key === "productCategories") {
+      await apiDelete(`/api/products/categories/${id}/`);
+      await refreshCollections(["productCategories"], ["products"]);
     }
     if (key === "clientStatuses") {
       await apiDelete(`/api/clients/statuses/${id}/`);

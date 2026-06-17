@@ -11,22 +11,33 @@ window.fmtShort = fmtShort;
 const TUMAN_MAHALLA = {};
 
 const DISTRICTS = Object.keys(TUMAN_MAHALLA);
-const BRANDS = ["Jinko", "Trina Solar", "JA Solar", "Longi", "Huawei", "Growatt", "Deye", "Canadian Solar"];
-const BRAND_COLORS = {
-  "Jinko": "#2563eb",
-  "Trina Solar": "#0f766e",
-  "JA Solar": "#9333ea",
-  "Longi": "#ea580c",
-  "Huawei": "#dc2626",
-  "Growatt": "#16a34a",
-  "Deye": "#0891b2",
-  "Canadian Solar": "#d97706",
-};
-
 function cloneLocationMap(source = TUMAN_MAHALLA) {
   return Object.fromEntries(
     Object.entries(source || {}).map(([district, mahallas]) => [district, [...mahallas]])
   );
+}
+
+function productDisplayName(product = {}) {
+  return String(product.name || product.model || "Mahsulot").trim() || "Mahsulot";
+}
+
+function productDisplayCategory(product = {}) {
+  return String(product.categoryName || product.category || "").trim() || "Kategoriyasiz";
+}
+
+function accentColorFromText(value) {
+  const text = String(value || "").trim();
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(index);
+    hash |= 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue} 72% 48%)`;
+}
+
+function productAccentColor(product = {}) {
+  return accentColorFromText(productDisplayCategory(product) || productDisplayName(product));
 }
 
 const PIPELINE_STAGES = ["greeted", "need_identified", "info_collected", "ready_to_order", "completed", "cancelled"];
@@ -51,9 +62,11 @@ function username() {
 
 window.DISTRICTS = DISTRICTS;
 window.TUMAN_MAHALLA = TUMAN_MAHALLA;
-window.BRANDS = BRANDS;
-window.BRAND_COLORS = BRAND_COLORS;
 window.cloneLocationMap = cloneLocationMap;
+window.productDisplayName = productDisplayName;
+window.productDisplayCategory = productDisplayCategory;
+window.accentColorFromText = accentColorFromText;
+window.productAccentColor = productAccentColor;
 window.PIPELINE_STAGES = PIPELINE_STAGES;
 window.PIPELINE_STAGE_UZ = PIPELINE_STAGE_UZ;
 window.OP_STATUSES = OP_STATUSES;
