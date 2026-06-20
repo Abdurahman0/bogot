@@ -73,7 +73,7 @@ function Router() {
     return (
       <div className="app-shell">
         <Sidebar route={route} nav={nav} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-        <div className="main-col" style={{ marginRight: custOpen ? 320 : 0, transition: "margin-right .26s var(--ease)" }}>
+        <div className="main-col">
           <Header route={route} nav={nav} onMenu={() => setMobileOpen(true)} onCmdK={() => setCmdOpen(true)} custOpen={custOpen} onCustToggle={() => setCustOpen(o => !o)} onCustClose={() => setCustOpen(false)} />
           <div className="content">
             <div className="page">
@@ -116,7 +116,7 @@ function Router() {
   return (
     <div className="app-shell">
       <Sidebar route={route} nav={nav} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      <div className="main-col" style={{ marginRight: custOpen ? 320 : 0, transition: "margin-right .26s var(--ease)" }}>
+      <div className="main-col">
         <Header route={route} nav={nav} onMenu={() => setMobileOpen(true)} onCmdK={() => setCmdOpen(true)} custOpen={custOpen} onCustToggle={() => setCustOpen(o => !o)} onCustClose={() => setCustOpen(false)} />
         <div className="content" key={main}>{page}</div>
       </div>

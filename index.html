@@ -3,61 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bogot Armada NRG CRM — Cognilabs</title>
+  <title>Bogot Armada NRG CRM - Cognilabs</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="components.css" />
-  <link rel="stylesheet" href="shell.css" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/components.css" />
+  <link rel="stylesheet" href="/shell.css" />
 </head>
 <body>
   <div id="root"></div>
-
-  <!-- React 18 + Babel standalone -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
-  <script src="env.js"></script>
-
-  <!-- Core layer (order matters: i18n → icons → data → store → ui → charts → table) -->
-  <script type="text/babel" src="src/i18n.jsx"></script>
-  <script type="text/babel" src="src/icons.jsx"></script>
-  <script type="text/babel" src="src/data.jsx"></script>
-  <script type="text/babel" src="src/api.jsx"></script>
-  <script type="text/babel" src="src/store.jsx"></script>
-  <script type="text/babel" src="src/ui.jsx"></script>
-  <script type="text/babel" src="src/charts.jsx"></script>
-  <script type="text/babel" src="src/table.jsx"></script>
-  <script type="text/babel" src="src/shell.jsx"></script>
-
-  <!-- Page helpers (common must come before all pages) -->
-  <script type="text/babel" src="src/pages/common.jsx"></script>
-
-  <!-- CRM pages -->
-  <script type="text/babel" src="src/pages/dashboard.jsx"></script>
-  <script type="text/babel" src="src/pages/leads.jsx"></script>
-  <script type="text/babel" src="src/pages/lead-detail.jsx"></script>
-  <script type="text/babel" src="src/pages/pipeline.jsx"></script>
-  <script type="text/babel" src="src/pages/customers.jsx"></script>
-  <script type="text/babel" src="src/pages/tasks.jsx"></script>
-
-  <!-- Commerce pages -->
-  <script type="text/babel" src="src/pages/products.jsx"></script>
-  <script type="text/babel" src="src/pages/product-detail.jsx"></script>
-  <script type="text/babel" src="src/pages/commerce.jsx"></script>
-
-  <!-- Channel pages -->
-  <script type="text/babel" src="src/pages/inbox.jsx"></script>
-  <script type="text/babel" src="src/pages/channels.jsx"></script>
-
-  <!-- Analytics is intentionally disabled for the current CRM scope -->
-  <!-- <script type="text/babel" src="src/pages/analytics.jsx"></script> -->
-
-  <!-- System / settings -->
-  <script type="text/babel" src="src/pages/system.jsx"></script>
-
-  <!-- Router (must be last) -->
-  <script type="text/babel" src="src/app.jsx"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>

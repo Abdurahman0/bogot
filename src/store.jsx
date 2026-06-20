@@ -134,6 +134,7 @@ function AppProvider({ children }) {
   const dataRef = useRef(data);
   const chatWsRef = useRef(null);
   const loadedCollectionsRef = useRef(new Set());
+  const loginRouteLoadHandledRef = useRef(false);
 
   useEffect(() => {
     dataRef.current = data;
@@ -230,8 +231,12 @@ function AppProvider({ children }) {
 
   useEffect(() => {
     if (!authed) return undefined;
+    if (loginRouteLoadHandledRef.current) {
+      loginRouteLoadHandledRef.current = false;
+      return undefined;
+    }
     const syncRouteCollections = () => {
-      loadCollections(routeCollectionKeys(readRoute()), { silent: true }).catch((error) => {
+      loadCollections(routeCollectionKeys(readRoute()), { silent: true, force: true }).catch((error) => {
         if ((error.message || "").toLowerCase().includes("token")) logout();
       });
     };
@@ -253,6 +258,7 @@ function AppProvider({ children }) {
       if (!access) throw new Error("Access token qaytmadi");
       apiSaveSession({ access, refresh, user: result?.user || null });
       loadedCollectionsRef.current = new Set();
+      loginRouteLoadHandledRef.current = true;
       setAuthed(true);
       const remote = await loadCollections(routeCollectionKeys(readRoute()), { silent: true, force: true });
       setRole(remote.authUser?.role || apiUiRole(result?.user?.role || "operator"));

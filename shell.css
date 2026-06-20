@@ -25,9 +25,11 @@
 
 /* ---- Header ---- */
 .tg-header { height: var(--header-h); flex-shrink: 0; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 80%, transparent); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; gap: 16px; position: sticky; top: 0; z-index: 60; }
+.tg-header > div { min-width: 0; }
 .tg-cmdk-trigger { display: flex; align-items: center; gap: 9px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; height: 38px; color: var(--text-3); font-size: 13.5px; min-width: 240px; transition: border-color .15s; }
 .tg-cmdk-trigger:hover { border-color: var(--text-3); }
 @media (max-width: 720px){ .tg-cmdk-trigger { min-width: 0; } .tg-cmdk-trigger span:not(.tg-kbd) { display: none; } }
+@media (max-width: 640px){ .tg-header { padding: 0 12px; gap: 8px; } }
 
 .tg-account-btn { display: flex; align-items: center; gap: 9px; background: transparent; border: 1px solid transparent; border-radius: 11px; padding: 4px 8px 4px 4px; transition: background .15s; }
 .tg-account-btn:hover { background: var(--surface-2); }
@@ -88,6 +90,7 @@
 .tg-login-form h2 { font-size: 26px; font-weight: 740; letter-spacing: -.02em; margin: 0 0 8px; }
 .tg-login-note { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; margin: 0 0 24px; }
 @media (max-width: 900px){ .tg-login { grid-template-columns: 1fr; } .tg-login-art { display: none; } }
+@media (max-width: 560px){ .tg-login-form { padding: 28px 18px; } }
 
 /* ---- responsive sidebar ---- */
 @media (max-width: 1024px){

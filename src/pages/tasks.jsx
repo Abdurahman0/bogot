@@ -399,11 +399,16 @@ function TasksPage() {
   }), [sourceTasks]);
 
   const dragTask = tkM(() => dragState ? sourceTasks.find((task) => task.id === dragState.id) || null : null, [sourceTasks, dragState]);
+  const remoteTaskSignature = tkM(() => taskBoardSignature(data.tasks || [], columns), [data.tasks, columns]);
+  const optimisticSignature = tkM(() => optimisticTasks ? taskBoardSignature(optimisticTasks, columns) : "", [optimisticTasks, columns]);
   const userOf = (id) => assignees.find((user) => user.id === id) || data.users.find((user) => user.id === id);
 
   tkE(() => {
-    if (!moving) setOptimisticTasks(null);
-  }, [data.tasks, moving]);
+    if (!optimisticTasks || moving) return;
+    if (remoteTaskSignature && remoteTaskSignature === optimisticSignature) {
+      setOptimisticTasks(null);
+    }
+  }, [moving, optimisticTasks, optimisticSignature, remoteTaskSignature]);
 
   tkE(() => {
     if (!dragState) return undefined;
@@ -458,9 +463,10 @@ function TasksPage() {
     const onPointerUp = async () => {
       pendingRef.current = null;
       if (!dragState) return;
-      const nextColumnId = dragState.overColumnId || dragState.fromColumnId;
-      const nextIndex = dragState.overIndex == null ? 0 : dragState.overIndex;
-      const optimistic = moveTaskInList(sourceTasks, dragState.id, columns, nextColumnId, nextIndex);
+      const activeDrag = dragState;
+      const nextColumnId = activeDrag.overColumnId || activeDrag.fromColumnId;
+      const nextIndex = activeDrag.overIndex == null ? 0 : activeDrag.overIndex;
+      const optimistic = moveTaskInList(sourceTasks, activeDrag.id, columns, nextColumnId, nextIndex);
       const currentSignature = taskBoardSignature(sourceTasks, columns);
       const nextSignature = optimistic ? taskBoardSignature(optimistic, columns) : currentSignature;
       if (!optimistic || currentSignature === nextSignature) {
@@ -468,11 +474,11 @@ function TasksPage() {
         window.setTimeout(() => { suppressClickRef.current = false; }, 0);
         return;
       }
-      if (optimistic) setOptimisticTasks(optimistic);
-      setDragState(null);
       setMoving(true);
+      setOptimisticTasks(optimistic);
+      setDragState(null);
       try {
-        await moveTask(dragState.id, nextColumnId, nextIndex);
+        await moveTask(activeDrag.id, nextColumnId, nextIndex);
       } catch (error) {
         setOptimisticTasks(null);
         toast(error.message || "Vazifa ko'chirilmadi", "error");
