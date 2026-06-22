@@ -1,16 +1,13 @@
 /* pages/commerce.jsx - debtors and accounting */
-const { useState: coS, useMemo: coM } = React;
+const { useState: coS, useMemo: coM, useEffect: coE } = React;
 const debtNum = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
-const orderLocations = (locations) => locations || {};
-const orderDistrictOptions = (locations) => Object.keys(orderLocations(locations));
 const orderTuman = (order) => order?.district || "";
 const orderMahalla = (order) => order?.mahalla || "";
 const orderLocationLabel = (order) => [orderTuman(order), orderMahalla(order)].filter(Boolean).join(" / ");
 const hasOrderLocation = (order) => !!orderLocationLabel(order);
-const debtorMahallasFor = (district, locations) => orderLocations(locations)[district] || [];
 const ACCOUNTING_CATEGORY_OPTIONS = [
   { value: "cash_income", label: "Naqd kirim" },
   { value: "card_income", label: "Karta kirimi" },
@@ -91,10 +88,28 @@ function OrdersPage() {
   const loading = useLoading(320);
   const [q, setQ] = coS("");
   const [statusTab, setStatusTab] = coS("all");
+  const [districtFilter, setDistrictFilter] = coS("all");
+  const [mahallaFilter, setMahallaFilter] = coS("all");
   const [createOpen, setCreateOpen] = coS(false);
   const [editOrder, setEditOrder] = coS(null);
   const [deleteOrder, setDeleteOrder] = coS(null);
-  const districts = orderDistrictOptions(data.locations);
+  const districts = coM(() => [...new Set(data.orders.map((order) => orderTuman(order)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "uz")), [data.orders]);
+  const districtOptions = coM(() => districts.map((district) => ({ value: district, label: district })), [districts]);
+  const mahallaOptions = coM(() => {
+    const source = districtFilter === "all"
+      ? data.orders
+      : data.orders.filter((order) => orderTuman(order) === districtFilter);
+    return [...new Set(source.map((order) => orderMahalla(order)).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "uz"))
+      .map((mahalla) => ({ value: mahalla, label: mahalla }));
+  }, [data.orders, districtFilter]);
+  const showGrouped = statusTab === "all";
+
+  coE(() => {
+    if (mahallaFilter !== "all" && !mahallaOptions.some((option) => option.value === mahallaFilter)) {
+      setMahallaFilter("all");
+    }
+  }, [districtFilter, mahallaFilter, mahallaOptions]);
 
   const filtered = coM(() => data.orders.filter(o => {
     const query = q.toLowerCase();
@@ -102,8 +117,10 @@ function OrdersPage() {
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
     if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
+    if (showGrouped && districtFilter !== "all" && orderTuman(o) !== districtFilter) return false;
+    if (showGrouped && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
     return true;
-  }), [data.orders, q, statusTab]);
+  }), [data.orders, q, statusTab, showGrouped, districtFilter, mahallaFilter]);
 
   const grouped = coM(() => {
     const map = new Map();
@@ -170,6 +187,8 @@ function OrdersPage() {
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Mijoz, ID, tuman yoki mahalla..." width={260} />
+        {showGrouped && <FilterSelect label="Tuman" icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
+        {showGrouped && <FilterSelect label="Mahalla" icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
         <div className="toolbar-spacer" />
         <ExportDropdown label="Hisobot" size="sm" filename="qarzdorlar" rows={filtered} mapper={o => ({
           ID: o.id,
@@ -188,6 +207,10 @@ function OrdersPage() {
         </div>
       ) : filtered.length === 0 ? (
         <Card><EmptyState icon={<I.wallet size={26} />} title="Qarzdorlar topilmadi" /></Card>
+      ) : !showGrouped ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {filtered.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {grouped.located.map(group => (

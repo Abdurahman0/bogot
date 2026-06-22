@@ -612,9 +612,14 @@ function Dropdown({ trigger, items, align = "right", width = 200, direction = "d
 function Modal({ open, onClose, title, children, footer, width = 540, icon }) {
   uE(() => {
     if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const on = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", on);
-    return () => document.removeEventListener("keydown", on);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", on);
+    };
   }, [open, onClose]);
   if (!open) return null;
   return (
@@ -659,29 +664,41 @@ function Drawer({ open, onClose, title, children, footer, width = 460, side = "r
 
 // ---------- ConfirmDialog ----------
 function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel = "Tasdiqlash", danger, details }) {
+  uE(() => {
+    if (!open) return;
+    const on = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", on);
+    return () => document.removeEventListener("keydown", on);
+  }, [open, onClose]);
+  if (!open) return null;
   return (
-    <Modal open={open} onClose={onClose} title={title} width={420} icon={<I.alert size={18} style={{ color: danger ? "var(--red)" : "var(--amber)" }} />}
-      footer={<>
-        <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
-        <Button variant={danger ? "danger" : "primary"} onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
-      </>}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ padding: "14px 16px", borderRadius: 14, border: `1px solid ${danger ? "rgba(239,68,68,.22)" : "rgba(245,158,11,.22)"}`, background: danger ? "var(--red-bg)" : "var(--amber-bg)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <span className="tg-card-icon" style={{ width: 30, height: 30, color: danger ? "var(--red)" : "var(--amber)", background: "#fff" }}>
-              <I.alert size={16} />
-            </span>
-            <strong style={{ fontSize: 13.5 }}>{danger ? "Amal qaytarib bo'lmaydi" : "Tasdiqlash talab qilinadi"}</strong>
+    <div className="tg-confirm-overlay" onMouseDown={onClose}>
+      <section className="tg-confirm-dialog pop-in" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="tg-card-icon" style={{ width: 34, height: 34, color: danger ? "var(--red)" : "var(--amber)", background: danger ? "var(--red-bg)" : "var(--amber-bg)" }}>
+                <I.alert size={17} />
+              </span>
+              <div style={{ fontSize: 11, fontWeight: 760, letterSpacing: ".14em", textTransform: "uppercase", color: danger ? "var(--red)" : "var(--amber)" }}>
+                {danger ? "Ogohlantirish" : "Tasdiqlash"}
+              </div>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-.03em" }}>{title}</div>
+            <p style={{ color: "var(--text-2)", margin: 0, lineHeight: 1.65 }}>{message}</p>
           </div>
-          <p style={{ color: "var(--text-2)", margin: 0, lineHeight: 1.6 }}>{message}</p>
+          {details && (
+            <div style={{ padding: "12px 14px", borderRadius: 16, background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+              <div className="tg-cell-sub" style={{ whiteSpace: "pre-line", lineHeight: 1.6 }}>{details}</div>
+            </div>
+          )}
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10 }}>
+            <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
+            <Button variant={danger ? "danger" : "primary"} onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
+          </div>
         </div>
-        {details && (
-          <div style={{ padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-            <div className="tg-cell-sub" style={{ whiteSpace: "pre-line", lineHeight: 1.6 }}>{details}</div>
-          </div>
-        )}
-      </div>
-    </Modal>
+      </section>
+    </div>
   );
 }
 

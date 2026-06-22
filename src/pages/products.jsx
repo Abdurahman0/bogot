@@ -1,5 +1,5 @@
 /* pages/products.jsx */
-const { useState: prS, useMemo: prM } = React;
+const { useState: prS, useMemo: prM, useEffect: prE } = React;
 
 const makeProductImage = (image = {}, index = 0) => ({
   id: image.id || `img_${Date.now()}_${index}`,
@@ -68,20 +68,32 @@ window.ProductCard = ProductCard;
 function ProductsPage() {
   const { data, t, toast, upsert, remove } = useApp();
   const loading = useLoading(320);
+  const [section, setSection] = prS("products");
   const [view, setView] = prS("table");
   const [q, setQ] = prS("");
   const [fCategory, setFCategory] = prS([]);
   const [fStock, setFStock] = prS("all");
   const [createOpen, setCreateOpen] = prS(false);
-  const [categoryManagerOpen, setCategoryManagerOpen] = prS(false);
+  const [createCategoryOpen, setCreateCategoryOpen] = prS(false);
   const [viewProduct, setViewProduct] = prS(null);
   const [editProduct, setEditProduct] = prS(null);
   const [deleteProduct, setDeleteProduct] = prS(null);
+  const [editCategory, setEditCategory] = prS(null);
+  const [deleteCategory, setDeleteCategory] = prS(null);
 
   const categoryOptions = prM(() => (data.productCategories || [])
     .slice()
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name, "uz"))
     .map((category) => ({ value: category.id, label: category.name })), [data.productCategories]);
+  const categories = prM(() => (data.productCategories || [])
+    .slice()
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name, "uz")), [data.productCategories]);
+
+  prE(() => {
+    setQ("");
+    setFCategory([]);
+    setFStock("all");
+  }, [section]);
 
   const filtered = prM(() => data.products.filter((product) => {
     const name = (window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "")).toLowerCase();
@@ -95,6 +107,12 @@ function ProductsPage() {
     if (fStock === "out" && product.stockQuantity > 0) return false;
     return true;
   }), [data.products, q, fCategory, fStock]);
+  const filteredCategories = prM(() => categories.filter((category) => {
+    const search = q.toLowerCase().trim();
+    if (!search) return true;
+    return [category.name, category.code, String(category.sortOrder || "")]
+      .some((value) => String(value || "").toLowerCase().includes(search));
+  }), [categories, q]);
 
   const columns = [
     {
@@ -155,6 +173,63 @@ function ProductsPage() {
       ),
     },
   ];
+  const categoryColumns = [
+    {
+      key: "name",
+      label: "Kategoriya",
+      sortVal: (row) => row.name,
+      render: (row) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 12, height: 12, borderRadius: 999, background: window.accentColorFromText ? window.accentColorFromText(row.name) : "var(--accent)", flexShrink: 0 }} />
+          <div>
+            <div className="tg-cell-strong">{row.name}</div>
+            <div className="tg-cell-sub">Code: {row.code || "—"}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "sortOrder",
+      label: "Tartib",
+      sortVal: (row) => Number(row.sortOrder || 0),
+      render: (row) => <span>{row.sortOrder || 0}</span>,
+    },
+    {
+      key: "products",
+      label: "Mahsulotlar",
+      sortVal: (row) => data.products.filter((product) => product.categoryId === row.id).length,
+      render: (row) => <Badge color="slate" size="sm">{data.products.filter((product) => product.categoryId === row.id).length} ta</Badge>,
+    },
+    {
+      key: "actions",
+      label: "",
+      width: 44,
+      render: (row) => (
+        <div onClick={(event) => event.stopPropagation()}>
+          <Dropdown
+            align="right"
+            trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />}
+            items={[
+              { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditCategory(row) },
+              { divider: true },
+              { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteCategory(row) },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  const saveCategory = async (category) => {
+    if (!category.name) {
+      toast("Kategoriya nomini kiriting", "error");
+      return;
+    }
+    await upsert("productCategories", category);
+    toast(editCategory ? "Kategoriya yangilandi" : "Kategoriya yaratildi");
+    setCreateCategoryOpen(false);
+    setEditCategory(null);
+  };
 
   return (
     <div className="page fade-in">
@@ -163,30 +238,41 @@ function ProductsPage() {
         desc={`${data.products.length} ta backend mahsuloti • ${(data.productCategories || []).length} ta kategoriya`}
         crumbs={[{ label: "Katalog va moliya" }, { label: t("page.products") }]}
         actions={<>
-          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={() => setCategoryManagerOpen(true)}>Kategoriyalar</Button>
-          <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi mahsulot</Button>
-          <Segmented value={view} onChange={setView} options={[{ value: "table", label: "Jadval", icon: <I.list size={14} /> }, { value: "grid", label: "Kartalar", icon: <I.grid size={14} /> }]} />
+          <div className="tg-chips">
+            <Button variant={section === "products" ? "primary" : "ghost"} size="sm" icon={<I.box size={15} />} onClick={() => setSection("products")}>Products</Button>
+            <Button variant={section === "categories" ? "primary" : "ghost"} size="sm" icon={<I.layers size={15} />} onClick={() => setSection("categories")}>Categories</Button>
+          </div>
+          {section === "products" ? (
+            <>
+              <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi mahsulot</Button>
+              <Segmented value={view} onChange={setView} options={[{ value: "table", label: "Jadval", icon: <I.list size={14} /> }, { value: "grid", label: "Kartalar", icon: <I.grid size={14} /> }]} />
+            </>
+          ) : (
+            <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateCategoryOpen(true)}>Yangi kategoriya</Button>
+          )}
         </>}
       />
 
       <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Mahsulot nomi, kategoriya, tavsif..." width={280} />
-        <FilterSelect label="Kategoriya" icon="layers" multi value={fCategory} onChange={setFCategory} options={categoryOptions} />
-        <FilterSelect label="Qoldiq" icon="box" value={fStock} onChange={setFStock} options={[{ value: "all", label: "Barchasi" }, { value: "in", label: "Mavjud" }, { value: "low", label: "Kam qolgan" }, { value: "out", label: "Tugagan" }]} />
+        <SearchInput value={q} onChange={setQ} placeholder={section === "products" ? "Mahsulot nomi, kategoriya, tavsif..." : "Kategoriya nomi yoki code..."} width={280} />
+        {section === "products" && <FilterSelect label="Kategoriya" icon="layers" multi value={fCategory} onChange={setFCategory} options={categoryOptions} />}
+        {section === "products" && <FilterSelect label="Qoldiq" icon="box" value={fStock} onChange={setFStock} options={[{ value: "all", label: "Barchasi" }, { value: "in", label: "Mavjud" }, { value: "low", label: "Kam qolgan" }, { value: "out", label: "Tugagan" }]} />}
         <div className="toolbar-spacer" />
-        <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{filtered.length} natija</span>
+        <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{section === "products" ? filtered.length : filteredCategories.length} natija</span>
       </div>
 
-      {loading ? <SkeletonRows rows={10} cols={5} /> : (
+      {loading ? <SkeletonRows rows={10} cols={5} /> : section === "products" ? (
         view === "table"
           ? <Card pad={false}><DataTable columns={columns} rows={filtered} onRowClick={(row) => setViewProduct(row)} pageSize={12} defaultSort={{ key: "updatedAt", dir: "desc" }} /></Card>
           : <div className="grid-3">{filtered.map((product) => <ProductCard key={product.id} product={product} onClick={() => setViewProduct(product)} />)}</div>
+      ) : (
+        <Card pad={false}><DataTable columns={categoryColumns} rows={filteredCategories} onRowClick={(row) => setEditCategory(row)} pageSize={12} defaultSort={{ key: "sortOrder", dir: "asc" }} /></Card>
       )}
 
       <ProductFormModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onManageCategories={() => setCategoryManagerOpen(true)}
+        onManageCategories={() => { setSection("categories"); setCreateCategoryOpen(true); }}
         onSave={async (product) => {
           await upsert("products", product);
           toast("Mahsulot yaratildi");
@@ -204,7 +290,7 @@ function ProductsPage() {
         open={!!editProduct}
         onClose={() => setEditProduct(null)}
         initial={editProduct}
-        onManageCategories={() => setCategoryManagerOpen(true)}
+        onManageCategories={() => { setSection("categories"); setCreateCategoryOpen(true); }}
         onSave={async (product) => {
           await upsert("products", product);
           toast("Mahsulot yangilandi");
@@ -225,7 +311,33 @@ function ProductsPage() {
         confirmLabel="O'chirish"
         danger
       />
-      <ProductCategoriesModal open={categoryManagerOpen} onClose={() => setCategoryManagerOpen(false)} />
+      <ProductCategoryFormModal
+        open={createCategoryOpen}
+        onClose={() => setCreateCategoryOpen(false)}
+        onSave={saveCategory}
+        count={categories.length}
+      />
+      <ProductCategoryFormModal
+        open={!!editCategory}
+        onClose={() => setEditCategory(null)}
+        initial={editCategory}
+        onSave={saveCategory}
+        count={categories.length}
+      />
+      <ConfirmDialog
+        open={!!deleteCategory}
+        onClose={() => setDeleteCategory(null)}
+        onConfirm={async () => {
+          await remove("productCategories", deleteCategory.id);
+          toast("Kategoriya o'chirildi");
+          setDeleteCategory(null);
+        }}
+        title="Kategoriyani o'chirish"
+        message={`"${deleteCategory?.name || ""}" kategoriyasini o'chirmoqchimisiz?`}
+        details={deleteCategory ? `Code: ${deleteCategory.code || "—"}\nTartib: ${deleteCategory.sortOrder || 0}` : ""}
+        confirmLabel="O'chirish"
+        danger
+      />
     </div>
   );
 }

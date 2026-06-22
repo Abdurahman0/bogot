@@ -34,11 +34,14 @@ function InboxPage() {
     return list;
   }, [data.conversations, tab, q]);
 
-  const active = ibM(() => data.conversations.find((conversation) => conversation.id === activeId) || convs[0] || null, [data.conversations, activeId, convs]);
+  const active = ibM(() => convs.find((conversation) => conversation.id === activeId) || null, [convs, activeId]);
   const activeCustomer = ibM(() => active ? data.customers.find((customer) => customer.id === active.clientId) || null : null, [active, data.customers]);
   const activeUser = ibM(() => active ? data.users.find((user) => user.id === active.assignedUserId) : null, [active, data.users]);
 
-  ibE(() => { if (convs[0] && !activeId) setActiveId(convs[0].id); }, [convs, activeId]);
+  ibE(() => {
+    if (!activeId) return;
+    if (!convs.some((conversation) => conversation.id === activeId)) setActiveId(null);
+  }, [convs, activeId]);
   ibE(() => { if (msgEndRef.current) msgEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [active?.messages?.length]);
   ibE(() => {
     if (!active?.id) return;
@@ -163,7 +166,6 @@ function InboxPage() {
             </div>
 
             <div className="tg-inbox-composer">
-              <IconButton icon={<I.image size={17} />} label="Fayl" />
               <textarea value={msgText} onChange={(event) => setMsgText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendMsg(); } }} placeholder="Xabar yozing..." className="tg-input" rows={2} style={{ flex: 1, resize: "none" }} />
               <Button variant="primary" size="sm" icon={<I.send size={15} />} onClick={sendMsg} disabled={!msgText.trim() || busy}>{busy ? "Yuborilmoqda..." : "Yuborish"}</Button>
             </div>

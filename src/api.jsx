@@ -457,10 +457,15 @@ function mapApiAccountingEntry(entry, daysById = {}) {
 
 function mapApiMessage(message, fallbackTitle = "") {
   if (!message) return null;
-  const direction = message.direction || message.sender_type || message.role || message.from;
+  const senderType = String(message.sender_type || message.actor_type || message.author_type || message.role || message.from || "").trim().toLowerCase();
+  const direction = String(message.direction || "").trim().toLowerCase();
+  const outgoing = new Set(["outgoing", "out", "operator", "admin", "manager", "human", "agent", "staff", "system"]);
+  const customer = new Set(["incoming", "in", "customer", "client", "lead", "visitor"]);
+  const ai = new Set(["ai", "assistant", "bot"]);
   let from = "customer";
-  if (direction === "outgoing" || direction === "operator") from = "operator";
-  if (direction === "ai" || direction === "assistant" || message.is_ai) from = "ai";
+  if (message.is_ai || ai.has(senderType) || ai.has(direction)) from = "ai";
+  else if (outgoing.has(senderType) || outgoing.has(direction) || message.is_outgoing || message.is_from_me) from = "operator";
+  else if (customer.has(senderType) || customer.has(direction)) from = "customer";
   return {
     id: message.id || `msg_${message.created_at || Date.now()}`,
     from,
