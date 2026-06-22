@@ -33,6 +33,11 @@ const localizeCustomerStatusName = (value) => {
   if (!text) return "Belgilanmagan";
   return CUSTOMER_STATUS_UZ[text.toLowerCase()] || text;
 };
+const customerTextValue = (value, fallback = "Kiritilmagan") => {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+};
+const customerSourceLabel = (source) => SOURCE_UZ[source] || customerTextValue(source);
 const customerStatusTone = (customer) => {
   const key = String(customer?.statusName || customer?.status || "").toLowerCase();
   if (key.includes("inactive") || key.includes("lost") || key.includes("closed")) return "red";
@@ -394,25 +399,101 @@ function CustomerStatusModal({ open, onClose, onSave, form, setField, defaultCli
 }
 
 function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
+  const { data } = useApp();
   if (!customer) return null;
+  const product = (data.products || []).find((row) => row.id === customer.productId);
+  const productLabel = product?.model || product?.name || product?.title || customer.productId || "";
   return (
-    <Modal open={open} onClose={onClose} title="Mijoz ma'lumotlari" icon={<I.users size={18} />} width={520}
+    <Modal open={open} onClose={onClose} title="Mijoz ma'lumotlari" icon={<I.users size={18} />} width={760}
       footer={<>
         <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>Tahrirlash</Button>
         <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>O'chirish</Button>
         <Button variant="primary" onClick={onClose}>Yopish</Button>
       </>}>
-      <div className="tg-meta">
-        <div className="tg-meta-row"><span className="tg-meta-k">Mijoz</span><span className="tg-meta-v">{customer.fullName}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Holat</span><span className="tg-meta-v"><StatusColorBadge color={customerStatusColor(customer)} tone={customerStatusTone(customer)} label={localizeCustomerStatusName(customer.statusName || customer.status)} /></span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Telefon</span><span className="tg-meta-v">{customer.phone}</span></div>
-        {!!customerTuman(customer) && <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{customerTuman(customer)}</span></div>}
-        {!!customerMahalla(customer) && <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{customerMahalla(customer)}</span></div>}
-        <div className="tg-meta-row"><span className="tg-meta-k">Manzil</span><span className="tg-meta-v">{customer.address}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Tizim</span><span className="tg-meta-v">{customer.currentSystemKw} kW</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">To'lov turi</span><span className="tg-meta-v">{customer.paymentTypeLabel}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Tushgan summa</span><span className="tg-meta-v">{fmtUZS(customer.totalSpent)}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq qarz</span><span className="tg-meta-v">{fmtUZS(customer.debtBalanceUzs)}</span></div>
+      <div className="tg-customer-view-shell">
+        <section className="tg-customer-view-hero">
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <Avatar name={customer.fullName} size={52} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-.03em" }}>{customer.fullName}</h4>
+                <StatusColorBadge color={customerStatusColor(customer)} tone={customerStatusTone(customer)} label={localizeCustomerStatusName(customer.statusName || customer.status)} />
+              </div>
+              <div className="tg-customer-view-pills">
+                <span className="tg-customer-view-pill"><SourceIcon source={customer.source} />{customerSourceLabel(customer.source)}</span>
+                <span className="tg-customer-view-pill"><I.box size={14} />{customerTextValue(productLabel, "Mahsulot tanlanmagan")}</span>
+                <span className="tg-customer-view-pill"><I.phone size={14} />{customerTextValue(customer.phone)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="tg-customer-view-kpis">
+            <div className="tg-customer-view-kpi"><span>Tushgan summa</span><strong>{fmtUZS(customer.totalSpent)}</strong></div>
+            <div className="tg-customer-view-kpi"><span>Qoldiq qarz</span><strong>{fmtUZS(customer.debtBalanceUzs)}</strong></div>
+            <div className="tg-customer-view-kpi"><span>So'ralgan quvvat</span><strong>{customer.currentSystemKw || 0} kW</strong></div>
+          </div>
+        </section>
+
+        <div className="tg-customer-view-grid">
+          <section className="tg-customer-view-card">
+            <div className="tg-customer-view-card-title">Asosiy ma'lumotlar</div>
+            <div className="tg-customer-view-meta">
+              <div className="tg-customer-view-row"><span>Telefon</span><strong>{customerTextValue(customer.phone)}</strong></div>
+              <div className="tg-customer-view-row"><span>Manba</span><strong>{customerSourceLabel(customer.source)}</strong></div>
+              <div className="tg-customer-view-row"><span>Mahsulot</span><strong>{customerTextValue(productLabel, "Tanlanmagan")}</strong></div>
+              <div className="tg-customer-view-row"><span>Holat</span><strong>{localizeCustomerStatusName(customer.statusName || customer.status)}</strong></div>
+              <div className="tg-customer-view-row"><span>Yaratilgan</span><strong>{customer.createdAt ? fmtDate(customer.createdAt, true) : "Kiritilmagan"}</strong></div>
+              <div className="tg-customer-view-row"><span>Yangilangan</span><strong>{customer.updatedAt ? fmtDate(customer.updatedAt, true) : "Kiritilmagan"}</strong></div>
+            </div>
+          </section>
+
+          <section className="tg-customer-view-card">
+            <div className="tg-customer-view-card-title">Hudud va loyiha</div>
+            <div className="tg-customer-view-meta">
+              <div className="tg-customer-view-row"><span>Tuman</span><strong>{customerTextValue(customerTuman(customer))}</strong></div>
+              <div className="tg-customer-view-row"><span>Mahalla</span><strong>{customerTextValue(customerMahalla(customer))}</strong></div>
+              <div className="tg-customer-view-row"><span>Manzil</span><strong>{customerTextValue(customer.address)}</strong></div>
+              <div className="tg-customer-view-row"><span>So'ralgan quvvat</span><strong>{customer.currentSystemKw || 0} kW</strong></div>
+              <div className="tg-customer-view-row"><span>Yillik iste'mol</span><strong>{customerTextValue(customer.annualConsumptionKwh, "Kiritilmagan")}</strong></div>
+              <div className="tg-customer-view-row"><span>Taxminiy subsidiya kW</span><strong>{customerTextValue(customer.estimatedSubsidyKw, "Kiritilmagan")}</strong></div>
+            </div>
+          </section>
+
+          <section className="tg-customer-view-card">
+            <div className="tg-customer-view-card-title">Moliyaviy ma'lumotlar</div>
+            <div className="tg-customer-view-meta">
+              <div className="tg-customer-view-row"><span>To'lov turi</span><strong>{customerTextValue(customer.paymentTypeLabel)}</strong></div>
+              <div className="tg-customer-view-row"><span>Depozit</span><strong>{fmtUZS(customer.totalSpent)}</strong></div>
+              <div className="tg-customer-view-row"><span>Subsidiya</span><strong>{fmtUZS(customer.debtBalanceUzs)}</strong></div>
+              <div className="tg-customer-view-row"><span>Shartnoma ID</span><strong>{customerTextValue(customer.contractId)}</strong></div>
+              <div className="tg-customer-view-row"><span>Karta raqami</span><strong>{customerTextValue(customer.cardNumber)}</strong></div>
+              <div className="tg-customer-view-row"><span>Bank filiali kodi</span><strong>{customerTextValue(customer.bankBranchCode)}</strong></div>
+              <div className="tg-customer-view-row"><span>Hisob raqami</span><strong>{customerTextValue(customer.bankAccountNumber)}</strong></div>
+            </div>
+          </section>
+
+          <section className="tg-customer-view-card">
+            <div className="tg-customer-view-card-title">Rasmiy va audit ma'lumotlari</div>
+            <div className="tg-customer-view-meta">
+              <div className="tg-customer-view-row"><span>PNFL</span><strong>{customerTextValue(customer.pnfl)}</strong></div>
+              <div className="tg-customer-view-row"><span>Kadastr</span><strong>{customerTextValue(customer.cadastre)}</strong></div>
+              <div className="tg-customer-view-row"><span>Auditor kompaniya</span><strong>{customerTextValue(customer.auditorCompanyName)}</strong></div>
+              <div className="tg-customer-view-row"><span>Auditor telefoni</span><strong>{customerTextValue(customer.auditorCompanyPhone)}</strong></div>
+              <div className="tg-customer-view-row"><span>Hokim yordamchisi</span><strong>{customerTextValue(customer.hokimHelperName)}</strong></div>
+              <div className="tg-customer-view-row"><span>Yordamchi telefoni</span><strong>{customerTextValue(customer.hokimHelperPhone)}</strong></div>
+            </div>
+          </section>
+        </div>
+
+        <div className="tg-customer-view-grid">
+          <section className="tg-customer-view-card">
+            <div className="tg-customer-view-card-title">AI xulosa</div>
+            <div className="tg-customer-view-note">{customer.aiXulosa || "Kiritilmagan"}</div>
+          </section>
+          <section className="tg-customer-view-card">
+            <div className="tg-customer-view-card-title">Eslatma</div>
+            <div className="tg-customer-view-note">{customer.notes || "Qo'shimcha eslatma yo'q."}</div>
+          </section>
+        </div>
       </div>
     </Modal>
   );
@@ -422,19 +503,39 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
   const { data } = useApp();
   const districts = customerDistrictOptions(locations);
   const statusOptions = (data.clientStatuses || []).map((status) => ({ value: status.id, label: localizeCustomerStatusName(status.name) }));
+  const sourceOptions = Array.from(new Set([...(window.SOURCES || []), initial?.source || "manual"].filter(Boolean))).map((source) => ({ value: source, label: customerSourceLabel(source) }));
+  const productOptions = [{ value: "", label: "Tanlanmagan" }, ...(data.products || []).map((product) => ({ value: product.id, label: product.model || product.name || product.title || product.id }))];
+  if (initial?.productId && !productOptions.some((option) => option.value === initial.productId)) {
+    productOptions.push({ value: initial.productId, label: initial.productId });
+  }
   const defaultStatus = (data.clientStatuses || []).find((status) => status.isDefault) || data.clientStatuses?.[0] || null;
   const blank = {
     fullName: "",
     phone: "+998 ",
+    source: "manual",
+    productId: "",
     district: "",
     mahalla: "",
     address: "",
     currentSystemKw: 10,
+    annualConsumptionKwh: "",
+    estimatedSubsidyKw: "",
     paymentType: "cash",
     statusId: defaultStatus?.id || null,
     statusName: defaultStatus?.name || "",
     totalSpent: 0,
     debtBalanceUzs: 0,
+    contractId: "",
+    pnfl: "",
+    password: "",
+    cadastre: "",
+    auditorCompanyName: "",
+    auditorCompanyPhone: "",
+    hokimHelperName: "",
+    hokimHelperPhone: "",
+    cardNumber: "",
+    bankBranchCode: "",
+    bankAccountNumber: "",
     notes: "",
   };
   const normalizeLocation = (item) => {
@@ -477,78 +578,131 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
     });
   };
   return (
-    <Modal open={open} onClose={onClose} title={initial ? "Mijozni tahrirlash" : "Yangi mijoz"} icon={<I.user size={18} />} width={540}
+    <Modal open={open} onClose={onClose} title={initial ? "Mijozni tahrirlash" : "Yangi mijoz"} icon={<I.user size={18} />} width={820}
       footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={save}>Saqlash</Button></>}>
-      <div style={{ display: "grid", gap: 14 }}>
-        <Field label="To'liq ism" required><Input value={form.fullName} onChange={e => set("fullName", e.target.value)} /></Field>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Telefon"><Input value={form.phone} onChange={e => set("phone", e.target.value)} /></Field>
-          <Field label="Tuman"><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder="Masalan, Bog'ot" /></Field>
-        </div>
-        <Field label="Mahalla"><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder="Masalan, Yangiobod" /></Field>
-        {!!districts.length && (
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud tumanlar</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {districts.slice(0, 10).map((district) => (
-                <button
-                  key={district}
-                  type="button"
-                  onClick={() => set("district", district)}
-                  style={{
-                    border: "1px solid var(--border)",
-                    background: form.district === district ? "var(--accent-soft)" : "var(--surface-2)",
-                    color: form.district === district ? "var(--accent)" : "var(--text-2)",
-                    borderRadius: 999,
-                    padding: "6px 10px",
-                    fontSize: 12.5,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {district}
-                </button>
-              ))}
+      <div className="tg-customer-form-shell">
+        <section className="tg-customer-form-card">
+          <div className="tg-customer-form-head">
+            <div className="tg-customer-form-title">Asosiy ma'lumotlar</div>
+            <div className="tg-customer-form-sub">Backenddagi asosiy client maydonlari</div>
+          </div>
+          <div className="tg-customer-form-grid tg-customer-form-grid-2">
+            <Field label="To'liq ism" required><Input value={form.fullName} onChange={e => set("fullName", e.target.value)} /></Field>
+            <Field label="Telefon"><Input value={form.phone} onChange={e => set("phone", e.target.value)} /></Field>
+            <Field label="Holat"><Select value={form.statusId || ""} onChange={v => set("statusId", v)} options={statusOptions.map((status) => ({ value: status.value, label: status.label }))} /></Field>
+            <Field label="Manba"><Select value={form.source || "manual"} onChange={v => set("source", v)} options={sourceOptions} /></Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Field label="Mahsulot"><Select value={form.productId || ""} onChange={v => set("productId", v)} options={productOptions} /></Field>
             </div>
           </div>
-        )}
-        {!!form.district && !!mahallaOptionsFor(form.district, locations).length && (
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud mahallalar</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {mahallaOptionsFor(form.district, locations).slice(0, 12).map((mahalla) => (
-                <button
-                  key={mahalla}
-                  type="button"
-                  onClick={() => set("mahalla", mahalla)}
-                  style={{
-                    border: "1px solid var(--border)",
-                    background: form.mahalla === mahalla ? "var(--accent-soft)" : "var(--surface-2)",
-                    color: form.mahalla === mahalla ? "var(--accent)" : "var(--text-2)",
-                    borderRadius: 999,
-                    padding: "6px 10px",
-                    fontSize: 12.5,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {mahalla}
-                </button>
-              ))}
-            </div>
+        </section>
+
+        <section className="tg-customer-form-card">
+          <div className="tg-customer-form-head">
+            <div className="tg-customer-form-title">Hudud va loyiha</div>
+            <div className="tg-customer-form-sub">Manzil, quvvat va subsidiya bilan bog'liq maydonlar</div>
           </div>
-        )}
-        <Field label="Manzil"><Input value={form.address} onChange={e => set("address", e.target.value)} /></Field>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Tizim quvvati (kW)"><Input type="number" value={form.currentSystemKw} onChange={e => set("currentSystemKw", e.target.value)} /></Field>
-          <Field label="To'lov turi"><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={PAYMENT_TYPES.map(v => ({ value: v, label: PAYMENT_TYPE_UZ[v] }))} /></Field>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Tushgan summa"><Input type="number" value={form.totalSpent} onChange={e => set("totalSpent", e.target.value)} /></Field>
-          <Field label="Qoldiq qarz"><Input type="number" value={form.debtBalanceUzs} onChange={e => set("debtBalanceUzs", e.target.value)} /></Field>
-        </div>
-        <Field label="Holat"><Select value={form.statusId || ""} onChange={v => set("statusId", v)} options={statusOptions.map((status) => ({ value: status.value, label: status.label }))} /></Field>
-        <Field label="Eslatma"><Textarea rows={3} value={form.notes} onChange={e => set("notes", e.target.value)} /></Field>
+          <div className="tg-customer-form-grid tg-customer-form-grid-2">
+            <Field label="Tuman"><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder="Masalan, Bog'ot" /></Field>
+            <Field label="Mahalla"><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder="Masalan, Yangiobod" /></Field>
+            <div style={{ gridColumn: "1 / -1" }}><Field label="Manzil"><Input value={form.address} onChange={e => set("address", e.target.value)} /></Field></div>
+            <Field label="Tizim quvvati (kW)"><Input type="number" value={form.currentSystemKw} onChange={e => set("currentSystemKw", e.target.value)} /></Field>
+            <Field label="Yillik iste'mol (kWh)"><Input type="number" value={form.annualConsumptionKwh} onChange={e => set("annualConsumptionKwh", e.target.value)} /></Field>
+            <Field label="Taxminiy subsidiya kW"><Input type="number" value={form.estimatedSubsidyKw} onChange={e => set("estimatedSubsidyKw", e.target.value)} /></Field>
+          </div>
+          {!!districts.length && (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud tumanlar</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {districts.slice(0, 10).map((district) => (
+                  <button
+                    key={district}
+                    type="button"
+                    onClick={() => set("district", district)}
+                    style={{
+                      border: "1px solid var(--border)",
+                      background: form.district === district ? "var(--accent-soft)" : "var(--surface-2)",
+                      color: form.district === district ? "var(--accent)" : "var(--text-2)",
+                      borderRadius: 999,
+                      padding: "6px 10px",
+                      fontSize: 12.5,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {district}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {!!form.district && !!mahallaOptionsFor(form.district, locations).length && (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud mahallalar</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {mahallaOptionsFor(form.district, locations).slice(0, 12).map((mahalla) => (
+                  <button
+                    key={mahalla}
+                    type="button"
+                    onClick={() => set("mahalla", mahalla)}
+                    style={{
+                      border: "1px solid var(--border)",
+                      background: form.mahalla === mahalla ? "var(--accent-soft)" : "var(--surface-2)",
+                      color: form.mahalla === mahalla ? "var(--accent)" : "var(--text-2)",
+                      borderRadius: 999,
+                      padding: "6px 10px",
+                      fontSize: 12.5,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {mahalla}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="tg-customer-form-card">
+          <div className="tg-customer-form-head">
+            <div className="tg-customer-form-title">Moliyaviy ma'lumotlar</div>
+            <div className="tg-customer-form-sub">To'lov, depozit, subsidiya va bank ma'lumotlari</div>
+          </div>
+          <div className="tg-customer-form-grid tg-customer-form-grid-2">
+            <Field label="To'lov turi"><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={PAYMENT_TYPES.map(v => ({ value: v, label: PAYMENT_TYPE_UZ[v] }))} /></Field>
+            <Field label="Shartnoma ID"><Input value={form.contractId} onChange={e => set("contractId", e.target.value)} /></Field>
+            <Field label="Tushgan summa"><Input type="number" value={form.totalSpent} onChange={e => set("totalSpent", e.target.value)} /></Field>
+            <Field label="Qoldiq qarz"><Input type="number" value={form.debtBalanceUzs} onChange={e => set("debtBalanceUzs", e.target.value)} /></Field>
+            <Field label="Karta raqami"><Input value={form.cardNumber} onChange={e => set("cardNumber", e.target.value)} /></Field>
+            <Field label="Bank filiali kodi"><Input value={form.bankBranchCode} onChange={e => set("bankBranchCode", e.target.value)} /></Field>
+            <div style={{ gridColumn: "1 / -1" }}><Field label="Hisob raqami"><Input value={form.bankAccountNumber} onChange={e => set("bankAccountNumber", e.target.value)} /></Field></div>
+          </div>
+        </section>
+
+        <section className="tg-customer-form-card">
+          <div className="tg-customer-form-head">
+            <div className="tg-customer-form-title">Rasmiy va audit ma'lumotlari</div>
+            <div className="tg-customer-form-sub">Shaxsiy identifikatsiya va audit bloklari</div>
+          </div>
+          <div className="tg-customer-form-grid tg-customer-form-grid-2">
+            <Field label="PNFL"><Input value={form.pnfl} onChange={e => set("pnfl", e.target.value)} /></Field>
+            <Field label="Parol"><Input value={form.password} onChange={e => set("password", e.target.value)} /></Field>
+            <Field label="Kadastr"><Input value={form.cadastre} onChange={e => set("cadastre", e.target.value)} /></Field>
+            <Field label="Auditor kompaniya"><Input value={form.auditorCompanyName} onChange={e => set("auditorCompanyName", e.target.value)} /></Field>
+            <Field label="Auditor telefoni"><Input value={form.auditorCompanyPhone} onChange={e => set("auditorCompanyPhone", e.target.value)} /></Field>
+            <Field label="Hokim yordamchisi"><Input value={form.hokimHelperName} onChange={e => set("hokimHelperName", e.target.value)} /></Field>
+            <Field label="Yordamchi telefoni"><Input value={form.hokimHelperPhone} onChange={e => set("hokimHelperPhone", e.target.value)} /></Field>
+          </div>
+        </section>
+
+        <section className="tg-customer-form-card">
+          <div className="tg-customer-form-head">
+            <div className="tg-customer-form-title">Izoh</div>
+            <div className="tg-customer-form-sub">Faqat operator yozadigan eslatmalar</div>
+          </div>
+          <Field label="Eslatma"><Textarea rows={4} value={form.notes} onChange={e => set("notes", e.target.value)} /></Field>
+        </section>
       </div>
     </Modal>
   );

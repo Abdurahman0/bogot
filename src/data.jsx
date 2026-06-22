@@ -52,7 +52,7 @@ const PIPELINE_STAGE_UZ = {
 const OP_STATUSES = ["contacted", "sold", "rejected"];
 const OP_STATUS_UZ = { contacted: "Aloqada", sold: "Sotildi", rejected: "Yo'qotildi" };
 const SOURCES = ["instagram", "telegram", "phone", "manual"];
-const SOURCE_UZ = { instagram: "Instagram", telegram: "Telegram Web App", phone: "Telefon", manual: "Qo'lda" };
+const SOURCE_UZ = { instagram: "Instagram", telegram: "Telegram", phone: "Telefon", manual: "Qo'lda" };
 const PAYMENT_TYPES = ["cash", "credit"];
 const PAYMENT_TYPE_UZ = { cash: "Naqd", credit: "Kredit" };
 

@@ -147,14 +147,20 @@ function Sparkline({ data, height = 34, color = "var(--accent)", fill = true }) 
 // ---------- Donut ----------
 function Donut({ data, size = 180, thickness = 26, centerLabel, centerValue }) {
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
-  const r = (size - thickness) / 2, cx = size / 2, cy = size / 2, C = 2 * Math.PI * r;
+  const hoverThickness = thickness + 4;
+  const hoverPad = Math.ceil((hoverThickness - thickness) / 2) + 4;
+  const svgSize = size + hoverPad * 2;
+  const r = (size - hoverThickness) / 2;
+  const cx = svgSize / 2;
+  const cy = svgSize / 2;
+  const C = 2 * Math.PI * r;
   let offset = 0;
   const [hover, setHover] = cS(null);
   const [mounted, setMounted] = cS(false);
   cE(() => { const id = requestAnimationFrame(() => setTimeout(() => setMounted(true), 30)); return () => cancelAnimationFrame(id); }, []);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap", justifyContent: "center" }}>
-      <svg width={size} height={size} style={{ flexShrink: 0 }}>
+      <svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`} style={{ flexShrink: 0, overflow: "visible" }}>
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--surface-3)" strokeWidth={thickness} />
         {data.map((d, i) => {
           const frac = d.value / total;

@@ -22,6 +22,16 @@ function dashboardEntries(rows, labelKey = "label", valueKey = "value") {
   return [];
 }
 
+function dashboardStatusFallback(customers = []) {
+  const counts = {};
+  customers.forEach((customer) => {
+    const key = String(customer?.statusName || customer?.status || "").trim();
+    if (!key) return;
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return Object.entries(counts).map(([label, value]) => ({ label, value }));
+}
+
 function DashboardPage() {
   const { data, t, role, nav, theme } = useApp();
   const isLight = resolveLight(theme);
@@ -51,12 +61,13 @@ function DashboardPage() {
 
   const statusData = pM(() => {
     const rows = dashboardEntries(clientSummary.by_status, "status_name", "count");
-    return rows.map((row, index) => ({
+    const resolvedRows = rows.length && rows.some((row) => row.value > 0) ? rows : dashboardStatusFallback(data.customers);
+    return resolvedRows.map((row, index) => ({
       label: dashboardStatusLabel(row.label),
       value: row.value,
       color: ["#2563eb", "#7c3aed", "#0f766e", "#f59e0b", "#dc2626", "#64748b"][index % 6],
     }));
-  }, [clientSummary.by_status]);
+  }, [clientSummary.by_status, data.customers]);
 
   const debtorTypeData = pM(() => {
     const rows = dashboardEntries(debtorSummary.by_type, "debtor_type", "count");

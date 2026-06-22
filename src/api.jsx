@@ -269,6 +269,19 @@ function mapApiClientStatus(status) {
   };
 }
 
+function apiClientVisualStatus(statusName, fallback) {
+  const raw = String(statusName || fallback || "").trim().toLowerCase();
+  if (!raw) return "active";
+  if (raw.includes("inactive")) return "inactive";
+  if (raw.includes("pending")) return "pending";
+  if (raw.includes("new")) return "pending";
+  if (raw.includes("lost")) return "cancelled";
+  if (raw.includes("closed")) return "closed";
+  if (raw.includes("contacted")) return "contacted";
+  if (raw.includes("confirmed")) return "verified";
+  return "active";
+}
+
 function mapApiClient(client) {
   const deposit = apiParseNumber(client.deposit_amount);
   const subsidy = apiParseNumber(client.subsidy_amount);
@@ -279,15 +292,18 @@ function mapApiClient(client) {
     id: client.id,
     fullName: client.full_name || "",
     phone: client.phone || "",
-    source: "manual",
-    status: statusName.toLowerCase().includes("inactive") ? "inactive" : "active",
+    source: client.source || "manual",
+    status: apiClientVisualStatus(statusName, client.status),
     statusId: client.status || null,
     statusName,
     statusColor: client.status_color || "",
+    productId: apiRelationId(client.product) || client.product || "",
     district: client.district || "",
     mahalla: client.neighborhood || "",
     address: client.address || "",
     currentSystemKw: requestedKw,
+    annualConsumptionKwh: client.annual_consumption_kwh == null ? "" : String(client.annual_consumption_kwh),
+    estimatedSubsidyKw: client.estimated_subsidy_kw == null ? "" : String(client.estimated_subsidy_kw),
     paymentType,
     paymentTypeLabel: PAYMENT_TYPE_UZ[paymentType] || paymentType,
     ordersCount: 0,
@@ -302,9 +318,11 @@ function mapApiClient(client) {
     lifetimeValue: deposit + subsidy,
     satisfaction: 0,
     productInterests: [],
+    aiXulosa: client.ai_xulosa || "",
     notes: client.notes || "",
     tags: [],
     createdAt: client.created_at,
+    updatedAt: client.updated_at || client.created_at || null,
     contractId: client.contract_id || "",
     pnfl: client.pnfl || "",
     password: client.password || "",
@@ -757,7 +775,11 @@ async function apiSaveClient(customer, data) {
     address: (customer.address || "").trim(),
     district: (customer.district || "").trim(),
     neighborhood: (customer.mahalla || "").trim(),
+    source: customer.source || "manual",
+    product: customer.productId || null,
     requested_kw: String(apiParseNumber(customer.currentSystemKw || 0)),
+    annual_consumption_kwh: customer.annualConsumptionKwh === "" ? null : String(apiParseNumber(customer.annualConsumptionKwh || 0)),
+    estimated_subsidy_kw: customer.estimatedSubsidyKw === "" ? null : String(apiParseNumber(customer.estimatedSubsidyKw || 0)),
     payment_type: customer.paymentType === "credit" ? "credit" : "cash",
     notes: customer.notes || "",
     status: clientStatusIdForSave(customer, data),
