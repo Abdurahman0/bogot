@@ -4,10 +4,13 @@ const debtNum = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
+const orderLocations = (locations) => locations || {};
+const orderDistrictOptions = (locations) => Object.keys(orderLocations(locations));
 const orderTuman = (order) => order?.district || "";
 const orderMahalla = (order) => order?.mahalla || "";
 const orderLocationLabel = (order) => [orderTuman(order), orderMahalla(order)].filter(Boolean).join(" / ");
 const hasOrderLocation = (order) => !!orderLocationLabel(order);
+const debtorMahallasFor = (district, locations) => orderLocations(locations)[district] || [];
 const ACCOUNTING_CATEGORY_OPTIONS = [
   { value: "cash_income", label: "Naqd kirim" },
   { value: "card_income", label: "Karta kirimi" },
