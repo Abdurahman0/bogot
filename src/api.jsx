@@ -996,6 +996,10 @@ async function apiSendChatMessage(sessionId, content) {
   });
 }
 
+async function apiDeleteChatSession(sessionId) {
+  await apiDelete(`/api/chats/sessions/${sessionId}/`);
+}
+
 async function apiSetChatMode(sessionId, mode) {
   if (mode === "ai") {
     await apiRequest(`/api/chats/sessions/${sessionId}/resume-ai/`, { method: "POST", body: {} });
@@ -1058,6 +1062,7 @@ Object.assign(window, {
   apiLoadChatMessages,
   apiLoadChatSession,
   apiSendChatMessage,
+  apiDeleteChatSession,
   apiSetChatMode,
   apiMarkChatRead,
   apiMarkNotificationRead,

@@ -17,12 +17,14 @@ const CH_ICON = { instagram: "instagram", telegram: "send", phone: "phone", manu
 const CH_COLOR = { instagram: "pink", telegram: "blue", phone: "green", manual: "slate" };
 
 function InboxPage() {
-  const { data, toast, ensureConversationMessages, sendConversationMessage, setConversationMode } = useApp();
+  const { data, toast, ensureConversationMessages, sendConversationMessage, deleteConversation, setConversationMode } = useApp();
   const [tab, setTab] = ibS("all");
   const [activeId, setActiveId] = ibS(null);
   const [q, setQ] = ibS("");
   const [msgText, setMsgText] = ibS("");
   const [busy, setBusy] = ibS(false);
+  const [deleteBusy, setDeleteBusy] = ibS(false);
+  const [deleteTarget, setDeleteTarget] = ibS(null);
   const msgEndRef = ibR(null);
 
   const convs = ibM(() => {
@@ -76,6 +78,14 @@ function InboxPage() {
       setBusy(false);
     }
   };
+
+  const chatActions = active ? [
+    active.aiMode !== "operator" ? { label: "AI ni to'xtatish", icon: <I.pause size={16} />, onClick: () => setAiMode("operator") } : null,
+    active.aiMode !== "ai" ? { label: "AI ni yoqish", icon: <I.robot size={16} />, onClick: () => setAiMode("ai") } : null,
+    active.aiMode !== "handoff" ? { label: "Operatorga o'tkazish", icon: <I.arrowRight size={16} />, onClick: () => setAiMode("handoff") } : null,
+    { divider: true },
+    { label: "Chatni o'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteTarget(active) },
+  ].filter(Boolean) : [];
 
   return (
     <div style={{ height: "calc(100vh - var(--header-h))", display: "flex", flexDirection: "column" }}>
@@ -136,7 +146,10 @@ function InboxPage() {
                   </div>
                 </div>
               </div>
-              <Segmented value={active.aiMode || "ai"} onChange={setAiMode} options={[{ value: "ai", label: "AI", icon: <I.robot size={14} /> }, { value: "operator", label: "Operator", icon: <I.user size={14} /> }, { value: "handoff", label: "O'tkazish", icon: <I.arrowRight size={14} /> }]} disabled={busy} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Segmented value={active.aiMode || "ai"} onChange={setAiMode} options={[{ value: "ai", label: "AI", icon: <I.robot size={14} /> }, { value: "operator", label: "Stop AI", icon: <I.pause size={14} /> }, { value: "handoff", label: "O'tkazish", icon: <I.arrowRight size={14} /> }]} disabled={busy} />
+                <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label="Chat amallari" />} items={chatActions} />
+              </div>
             </div>
 
             <div className="tg-inbox-msg-list">
@@ -216,6 +229,29 @@ function InboxPage() {
           ) : <div style={{ padding: 16 }}><EmptyState icon={<I.user size={22} />} title="Mijoz topilmadi" message="Bu suhbat hali CRM mijoz kartasi bilan bog'lanmagan" /></div>}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => { if (!deleteBusy) setDeleteTarget(null); }}
+        onConfirm={async () => {
+          if (!deleteTarget?.id) return;
+          setDeleteBusy(true);
+          try {
+            await deleteConversation(deleteTarget.id);
+            if (activeId === deleteTarget.id) setActiveId(null);
+            toast("Chat o'chirildi");
+            setDeleteTarget(null);
+          } catch (error) {
+            toast(error.message || "Chat o'chirilmadi", "error");
+          } finally {
+            setDeleteBusy(false);
+          }
+        }}
+        title="Chatni o'chirish"
+        message={`"${deleteTarget?.name || ""}" chatini o'chirmoqchimisiz?`}
+        details={deleteTarget ? `Kanal: ${deleteTarget.channel || "-"}\nHolat: ${deleteTarget.status || "open"}\nPlatform user: ${deleteTarget.platformUserId || "-"}` : ""}
+        confirmLabel={deleteBusy ? "O'chirilmoqda..." : "O'chirish"}
+        danger
+      />
     </div>
   );
 }

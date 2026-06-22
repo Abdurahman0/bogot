@@ -452,6 +452,14 @@ function AppProvider({ children }) {
     await markConversationRead(sessionId);
   }, [ensureConversationMessages, markConversationRead]);
 
+  const deleteConversation = useCallback(async (sessionId) => {
+    await apiDeleteChatSession(sessionId);
+    setData((current) => ({
+      ...current,
+      conversations: (current.conversations || []).filter((row) => row.id !== sessionId),
+    }));
+  }, []);
+
   const setConversationMode = useCallback(async (sessionId, mode) => {
     await apiSetChatMode(sessionId, mode);
     await refreshConversation(sessionId);
@@ -548,7 +556,7 @@ function AppProvider({ children }) {
     layout, setLayout, container, setContainer, direction, setDirection,
     sidebarCollapsed, setSidebarCollapsed, role, setRole, authed, setAuthed,
     dataLoading, data, setData, update, upsert, remove, resetData, reloadData: () => loadCollections(routeCollectionKeys(readRoute()), { force: true }),
-    login, logout, ensureConversationMessages, sendConversationMessage, setConversationMode, markConversationRead,
+    login, logout, ensureConversationMessages, sendConversationMessage, deleteConversation, setConversationMode, markConversationRead,
     moveTask, markNotificationRead, markAllNotificationsRead, clearNotifications,
     t, toast, toasts, dismissToast, nav,
   };
