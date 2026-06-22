@@ -52,17 +52,15 @@ function Router() {
   if (!authed) return <Login />;
   if (dataLoading && !data.authUser && data.users.length === 0) {
     return (
-      <div className="tg-login">
-        <div className="tg-login-form" style={{ justifyContent: "center" }}>
-          <Card style={{ maxWidth: 420, width: "100%" }}>
-            <div style={{ display: "grid", gap: 12, textAlign: "center" }}>
-              <div style={{ display: "flex", justifyContent: "center" }}><I.refresh size={24} className="spin" /></div>
-              <strong>CRM ma'lumotlari yuklanmoqda</strong>
-              <div style={{ fontSize: 13, color: "var(--text-3)" }}>Backend bilan ulanish tekshirilmoqda.</div>
-            </div>
-          </Card>
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "var(--bg)" }}>
+        <Card style={{ maxWidth: 420, width: "100%" }}>
+          <div style={{ display: "grid", gap: 12, textAlign: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center" }}><I.refresh size={24} className="spin" /></div>
+            <strong>CRM ma'lumotlari yuklanmoqda</strong>
+            <div style={{ fontSize: 13, color: "var(--text-3)" }}>Backend bilan ulanish tekshirilmoqda.</div>
+          </div>
+        </Card>
         </div>
-      </div>
     );
   }
 

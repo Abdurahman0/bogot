@@ -106,7 +106,8 @@ function OrdersPage() {
       .sort((a, b) => a.localeCompare(b, "uz"))
       .map((mahalla) => ({ value: mahalla, label: mahalla }));
   }, [data.orders, districtFilter]);
-  const showGrouped = statusTab === "all";
+  const showLocationFilters = statusTab === "all";
+  const showGrouped = showLocationFilters && districtFilter === "all" && mahallaFilter === "all";
 
   coE(() => {
     if (mahallaFilter !== "all" && !mahallaOptions.some((option) => option.value === mahallaFilter)) {
@@ -190,8 +191,8 @@ function OrdersPage() {
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Mijoz, ID, tuman yoki mahalla..." width={260} />
-        {showGrouped && <FilterSelect label="Tuman" icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
-        {showGrouped && <FilterSelect label="Mahalla" icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
+        {showLocationFilters && <FilterSelect label="Tuman" icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
+        {showLocationFilters && <FilterSelect label="Mahalla" icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
         <div className="toolbar-spacer" />
         <ExportDropdown label="Hisobot" size="sm" filename="qarzdorlar" rows={filtered} mapper={o => ({
           ID: o.id,
@@ -211,9 +212,21 @@ function OrdersPage() {
       ) : filtered.length === 0 ? (
         <Card><EmptyState icon={<I.wallet size={26} />} title="Qarzdorlar topilmadi" /></Card>
       ) : !showGrouped ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {filtered.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
-        </div>
+        <Card pad={false}>
+          <DataTable
+            columns={[
+              { key: "name", label: "Mijoz", sortVal: (row) => row.customerName, render: (row) => <div><div className="tg-cell-strong">{row.customerName}</div><div className="tg-cell-sub">{row.phone || row.id}</div></div> },
+              { key: "district", label: "Tuman", sortVal: (row) => orderTuman(row), render: (row) => orderTuman(row) || <span className="tg-cell-sub">—</span> },
+              { key: "mahalla", label: "Mahalla", sortVal: (row) => orderMahalla(row), render: (row) => orderMahalla(row) || <span className="tg-cell-sub">—</span> },
+              { key: "debt", label: "Qoldiq", sortVal: (row) => debtNum(row.remainingDebtUzs), render: (row) => <span style={{ fontWeight: 700 }}>{fmtUZS(debtNum(row.remainingDebtUzs))}</span> },
+              { key: "overdue", label: "Muddati o'tgan", sortVal: (row) => debtNum(row.overdueAmountUzs), render: (row) => <Badge color={debtNum(row.overdueAmountUzs) > 0 ? "red" : "slate"} size="sm">{fmtUZS(debtNum(row.overdueAmountUzs))}</Badge> },
+            ]}
+            rows={filtered}
+            onRowClick={(row) => nav("/debtors/" + row.id)}
+            pageSize={12}
+            defaultSort={{ key: "debt", dir: "desc" }}
+          />
+        </Card>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {grouped.located.map(group => (

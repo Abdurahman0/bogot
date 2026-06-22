@@ -15,6 +15,11 @@ const AI_MODE_UZ = { ai: "AI faol", operator: "Operator nazorati", handoff: "Ope
 const AI_MODE_COLORS = { ai: "violet", operator: "blue", handoff: "amber" };
 const CH_ICON = { instagram: "instagram", telegram: "send", phone: "phone", manual: "edit" };
 const CH_COLOR = { instagram: "pink", telegram: "blue", phone: "green", manual: "slate" };
+const inboxPauseDefault = () => {
+  const target = new Date(Date.now() + 30 * 60 * 1000);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`;
+};
 
 function InboxPage() {
   const { data, toast, ensureConversationMessages, sendConversationMessage, deleteConversation, setConversationMode } = useApp();
@@ -25,6 +30,9 @@ function InboxPage() {
   const [busy, setBusy] = ibS(false);
   const [deleteBusy, setDeleteBusy] = ibS(false);
   const [deleteTarget, setDeleteTarget] = ibS(null);
+  const [pauseOpen, setPauseOpen] = ibS(false);
+  const [pauseValue, setPauseValue] = ibS(inboxPauseDefault());
+  const [pauseBusy, setPauseBusy] = ibS(false);
   const msgEndRef = ibR(null);
 
   const convs = ibM(() => {
@@ -66,11 +74,11 @@ function InboxPage() {
     }
   };
 
-  const setAiMode = async (mode) => {
+  const setAiMode = async (mode, options = {}) => {
     if (!active) return;
     setBusy(true);
     try {
-      await setConversationMode(active.id, mode);
+      await setConversationMode(active.id, mode, options);
       toast(AI_MODE_UZ[mode]);
     } catch (error) {
       toast(error.message || "Rejim yangilanmadi", "error");
@@ -78,14 +86,39 @@ function InboxPage() {
       setBusy(false);
     }
   };
+  const aiPaused = active ? active.aiMode !== "ai" : false;
+  const pauseUntilLabel = active?.rawSession?.ai_paused_until ? fmtDate(active.rawSession.ai_paused_until, true) : "";
 
-  const chatActions = active ? [
-    active.aiMode !== "operator" ? { label: "AI ni to'xtatish", icon: <I.pause size={16} />, onClick: () => setAiMode("operator") } : null,
-    active.aiMode !== "ai" ? { label: "AI ni yoqish", icon: <I.robot size={16} />, onClick: () => setAiMode("ai") } : null,
-    active.aiMode !== "handoff" ? { label: "Operatorga o'tkazish", icon: <I.arrowRight size={16} />, onClick: () => setAiMode("handoff") } : null,
-    { divider: true },
-    { label: "Chatni o'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteTarget(active) },
-  ].filter(Boolean) : [];
+  const openPauseEditor = () => {
+    setPauseValue(inboxPauseDefault());
+    setPauseOpen(true);
+  };
+
+  const quickPause = (minutes) => {
+    const target = new Date(Date.now() + minutes * 60 * 1000);
+    const pad = (value) => String(value).padStart(2, "0");
+    setPauseValue(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`);
+  };
+
+  const submitPause = async () => {
+    if (!active) return;
+    const target = pauseValue ? new Date(pauseValue) : null;
+    if (!target || Number.isNaN(target.getTime())) {
+      toast("Vaqtni tanlang", "error");
+      return;
+    }
+    if (target.getTime() <= Date.now()) {
+      toast("Kelajak vaqtini tanlang", "error");
+      return;
+    }
+    setPauseBusy(true);
+    try {
+      await setAiMode("operator", { pausedUntil: target.toISOString() });
+      setPauseOpen(false);
+    } finally {
+      setPauseBusy(false);
+    }
+  };
 
   return (
     <div style={{ height: "calc(100vh - var(--header-h))", display: "flex", flexDirection: "column" }}>
@@ -147,10 +180,19 @@ function InboxPage() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Segmented value={active.aiMode || "ai"} onChange={setAiMode} options={[{ value: "ai", label: "AI", icon: <I.robot size={14} /> }, { value: "operator", label: "Stop AI", icon: <I.pause size={14} /> }, { value: "handoff", label: "O'tkazish", icon: <I.arrowRight size={14} /> }]} disabled={busy} />
-                <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label="Chat amallari" />} items={chatActions} />
+                {aiPaused ? (
+                  <Button variant="default" size="sm" icon={<I.play size={14} />} onClick={() => setAiMode("ai")} disabled={busy}>Resume AI</Button>
+                ) : (
+                  <Button variant="default" size="sm" icon={<I.pause size={14} />} onClick={openPauseEditor} disabled={busy}>Stop AI</Button>
+                )}
+                <Button variant="danger" size="sm" icon={<I.trash size={14} />} onClick={() => setDeleteTarget(active)} disabled={busy || deleteBusy}>Delete</Button>
               </div>
             </div>
+            {aiPaused && pauseUntilLabel ? (
+              <div style={{ padding: "8px 18px", borderBottom: "1px solid var(--border-soft)", background: "var(--surface)" }}>
+                <div style={{ fontSize: 12, color: "var(--amber)", fontWeight: 600 }}>AI paused until: {pauseUntilLabel}</div>
+              </div>
+            ) : null}
 
             <div className="tg-inbox-msg-list">
               {(active.messages || []).map((msg, index) => {
@@ -252,6 +294,28 @@ function InboxPage() {
         confirmLabel={deleteBusy ? "O'chirilmoqda..." : "O'chirish"}
         danger
       />
+      <Modal
+        open={pauseOpen}
+        onClose={() => { if (!pauseBusy) setPauseOpen(false); }}
+        title="AI ni to'xtatish"
+        icon={<I.pause size={18} />}
+        width={440}
+        footer={<>
+          <Button variant="ghost" onClick={() => setPauseOpen(false)} disabled={pauseBusy}>Bekor</Button>
+          <Button variant="primary" onClick={submitPause} disabled={pauseBusy}>{pauseBusy ? "Saqlanmoqda..." : "To'xtatish"}</Button>
+        </>}
+      >
+        <div style={{ display: "grid", gap: 14 }}>
+          <Field label="AI qachongacha to'xtasin">
+            <DatePickerInput value={pauseValue} onChange={setPauseValue} mode="datetime" />
+          </Field>
+          <div className="tg-chips" style={{ gap: 8 }}>
+            {[15, 30, 60, 120].map((minutes) => (
+              <Button key={minutes} variant="ghost" size="sm" onClick={() => quickPause(minutes)}>{minutes} daqiqa</Button>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

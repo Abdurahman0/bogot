@@ -1000,7 +1000,7 @@ async function apiDeleteChatSession(sessionId) {
   await apiDelete(`/api/chats/sessions/${sessionId}/`);
 }
 
-async function apiSetChatMode(sessionId, mode) {
+async function apiSetChatMode(sessionId, mode, options = {}) {
   if (mode === "ai") {
     await apiRequest(`/api/chats/sessions/${sessionId}/resume-ai/`, { method: "POST", body: {} });
     return;
@@ -1009,7 +1009,7 @@ async function apiSetChatMode(sessionId, mode) {
     await apiRequest(`/api/chats/sessions/${sessionId}/request-operator/`, { method: "POST", body: {} });
     return;
   }
-  const pausedUntil = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+  const pausedUntil = options.pausedUntil || new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
   await apiRequest(`/api/chats/sessions/${sessionId}/pause-ai/`, {
     method: "POST",
     body: { paused_until: pausedUntil, reason: "manual_pause" },

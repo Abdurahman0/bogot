@@ -52,7 +52,7 @@ function DashboardPage() {
   const statusData = pM(() => {
     const rows = dashboardEntries(clientSummary.by_status, "status_name", "count");
     return rows.map((row, index) => ({
-      label: row.label,
+      label: dashboardStatusLabel(row.label),
       value: row.value,
       color: ["#2563eb", "#7c3aed", "#0f766e", "#f59e0b", "#dc2626", "#64748b"][index % 6],
     }));
@@ -63,6 +63,7 @@ function DashboardPage() {
     return rows.map((row) => ({
       label: row.label === "solar_panel" ? "Quyosh panel" : row.label === "moto_business" ? "Eski biznes" : row.label,
       value: row.value,
+      color: row.label === "solar_panel" ? "#2563eb" : row.label === "moto_business" ? "#f59e0b" : "#06b6d4",
     }));
   }, [debtorSummary.by_type]);
 
@@ -153,13 +154,13 @@ function DashboardPage() {
           {loading ? <div className="skeleton" style={{ height: 220 }} /> : <AreaChart series={finance.series} labels={finance.labels} height={230} format={(value) => `${value} mln`} />}
         </Panel>
         <Panel title="Mijoz holatlari" subtitle="Backend statuslari bo'yicha taqsimot" icon="users" color="violet">
-          {loading ? <div className="skeleton" style={{ height: 220 }} /> : statusData.length ? <TreemapChart data={statusData} height={230} /> : <EmptyState icon={<I.users size={22} />} title="Statuslar topilmadi" />}
+          {loading ? <div className="skeleton" style={{ height: 220 }} /> : statusData.length ? <Donut data={statusData} size={180} centerLabel="Holatlar" /> : <EmptyState icon={<I.users size={22} />} title="Statuslar topilmadi" />}
         </Panel>
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
         <Panel title="Qarzdor turlari" subtitle="Backend debtor type kesimi" icon="layers" color="cyan">
-          {debtorTypeData.length ? <BarChart data={debtorTypeData} height={220} format={(value) => value} /> : <EmptyState icon={<I.wallet size={22} />} title="Qarzdor turlari yo'q" />}
+          {debtorTypeData.length ? <Donut data={debtorTypeData} size={180} centerLabel="Turlar" /> : <EmptyState icon={<I.wallet size={22} />} title="Qarzdor turlari yo'q" />}
         </Panel>
         <Panel title="Bugungi hisobot kuni" subtitle="Accounting day overview" icon="calendar" color="amber">
           {accountingDay ? (

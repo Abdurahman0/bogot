@@ -460,8 +460,8 @@ function AppProvider({ children }) {
     }));
   }, []);
 
-  const setConversationMode = useCallback(async (sessionId, mode) => {
-    await apiSetChatMode(sessionId, mode);
+  const setConversationMode = useCallback(async (sessionId, mode, options = {}) => {
+    await apiSetChatMode(sessionId, mode, options);
     await refreshConversation(sessionId);
   }, [refreshConversation]);
 
