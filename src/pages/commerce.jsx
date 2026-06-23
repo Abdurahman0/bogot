@@ -107,7 +107,9 @@ function OrdersPage() {
       .map((mahalla) => ({ value: mahalla, label: mahalla }));
   }, [data.orders, districtFilter]);
   const showLocationFilters = statusTab === "all";
-  const showGrouped = showLocationFilters && districtFilter === "all" && mahallaFilter === "all";
+  const showFullGrouped = showLocationFilters && districtFilter === "all" && mahallaFilter === "all";
+  const showDistrictGrouped = showLocationFilters && districtFilter !== "all" && mahallaFilter === "all";
+  const showFlatList = !showLocationFilters || mahallaFilter !== "all";
 
   coE(() => {
     if (mahallaFilter !== "all" && !mahallaOptions.some((option) => option.value === mahallaFilter)) {
@@ -121,10 +123,10 @@ function OrdersPage() {
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
     if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
-    if (showGrouped && districtFilter !== "all" && orderTuman(o) !== districtFilter) return false;
-    if (showGrouped && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
+    if (showLocationFilters && districtFilter !== "all" && orderTuman(o) !== districtFilter) return false;
+    if (showLocationFilters && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
     return true;
-  }), [data.orders, q, statusTab, showGrouped, districtFilter, mahallaFilter]);
+  }), [data.orders, q, statusTab, showLocationFilters, districtFilter, mahallaFilter]);
 
   const grouped = coM(() => {
     const map = new Map();
@@ -159,7 +161,10 @@ function OrdersPage() {
         return {
           district,
           mahallas,
-          orders: mahallas.flatMap(group => group.orders),
+          orders: mahallas.flatMap(group => group.orders).sort((a, b) =>
+            orderMahalla(a).localeCompare(orderMahalla(b), "uz") ||
+            a.customerName.localeCompare(b.customerName, "uz")
+          ),
           totalDebt: mahallas.reduce((sum, group) => sum + group.totalDebt, 0),
           overdueDebt: mahallas.reduce((sum, group) => sum + group.overdueDebt, 0),
         };
@@ -211,7 +216,7 @@ function OrdersPage() {
         </div>
       ) : filtered.length === 0 ? (
         <Card><EmptyState icon={<I.wallet size={26} />} title="Qarzdorlar topilmadi" /></Card>
-      ) : !showGrouped ? (
+      ) : showFlatList ? (
         <Card pad={false}>
           <DataTable
             columns={[
@@ -227,6 +232,33 @@ function OrdersPage() {
             defaultSort={{ key: "debt", dir: "desc" }}
           />
         </Card>
+      ) : showDistrictGrouped ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          {grouped.located.map(group => (
+            <Card key={group.district} style={{ padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="tg-card-icon" style={{ color: "var(--blue)", background: "var(--blue-bg)" }}><I.mapPin size={15} /></span>
+                    <div style={{ fontSize: 16, fontWeight: 760 }}>{group.district}</div>
+                    <Badge color="slate" size="sm">{group.orders.length} ta</Badge>
+                  </div>
+                  <div className="tg-cell-sub" style={{ marginTop: 4 }}>
+                    Qoldiq: {fmtUZS(group.totalDebt)}{group.overdueDebt > 0 ? ` • Muddati o'tgan: ${fmtUZS(group.overdueDebt)}` : ""}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {group.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+              </div>
+            </Card>
+          ))}
+          {!!grouped.ungrouped.length && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+            </div>
+          )}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {grouped.located.map(group => (

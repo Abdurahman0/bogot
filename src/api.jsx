@@ -173,6 +173,13 @@ function apiErrorMessage(payload, fallback = "So'rov bajarilmadi") {
   return fallback;
 }
 
+function apiAuthError(message = "Sessiya tugagan", status = 401) {
+  const error = new Error(message);
+  error.isAuthError = true;
+  error.status = status;
+  return error;
+}
+
 async function apiSafeJson(response) {
   const text = await response.text();
   if (!text) return null;
@@ -190,9 +197,9 @@ async function apiRefreshToken(refresh) {
     body: JSON.stringify({ refresh }),
   });
   const payload = await apiSafeJson(response);
-  if (!response.ok) throw new Error(apiErrorMessage(payload, "Sessiyani yangilab bo'lmadi"));
+  if (!response.ok) throw apiAuthError(apiErrorMessage(payload, "Sessiyani yangilab bo'lmadi"), response.status);
   const nextAccess = payload?.data?.access || payload?.access;
-  if (!nextAccess) throw new Error("Yangi access token qaytmadi");
+  if (!nextAccess) throw apiAuthError("Yangi access token qaytmadi", response.status || 401);
   const next = { ...apiLoadSession(), access: nextAccess };
   apiSaveSession(next);
   return next;
@@ -226,6 +233,11 @@ async function apiRequest(path, options = {}) {
       apiClearSession();
       throw e;
     }
+  }
+
+  if (response.status === 401 && auth) {
+    const payload = await apiSafeJson(response);
+    throw apiAuthError(apiErrorMessage(payload, "Sessiya tugagan"), response.status);
   }
 
   if (response.status === 204) return null;
@@ -527,10 +539,11 @@ function mapApiMessage(message, fallbackTitle = "") {
 
 function mapApiConversation(session) {
   const latest = mapApiMessage(session.latest_message, session.title || "Yangi suhbat");
+  const preferredName = session.display_name || session.client_name || session.client?.full_name || session.title || session.platform_user_id || "Suhbat";
   return {
     id: session.id,
     leadId: null,
-    name: session.title || session.client?.full_name || session.client_name || session.platform_user_id || "Suhbat",
+    name: preferredName,
     channel: session.platform || "manual",
     messages: latest ? [latest] : [],
     unread: session.unread_count || 0,
@@ -598,7 +611,10 @@ async function apiLoadCollections(keys = [], currentData = {}) {
   const jobs = [];
 
   if (wanted.has("authUser")) jobs.push(
-    apiRequest("/api/auth/me/").catch(() => null).then((me) => {
+    apiRequest("/api/auth/me/").catch((error) => {
+      if (error?.isAuthError) throw error;
+      return null;
+    }).then((me) => {
       data.authUser = me ? mapApiUser(apiUnwrap(me)) : null;
     })
   );

@@ -237,7 +237,7 @@ function AppProvider({ children }) {
     }
     const syncRouteCollections = () => {
       loadCollections(routeCollectionKeys(readRoute()), { silent: true, force: true }).catch((error) => {
-        if ((error.message || "").toLowerCase().includes("token")) logout();
+        if (error?.isAuthError || (error.message || "").toLowerCase().includes("token")) logout();
       });
     };
     syncRouteCollections();
