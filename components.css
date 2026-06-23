@@ -488,6 +488,111 @@
 .ac-sm .ac-btu { font-size: 8px; padding: 1px 5px; }
 .ac-lg .ac-unit { height: 26%; }
 
+/* ---- Product photos ---- */
+.product-photo {
+  width: 100%;
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 88%, #fff);
+  padding: 0;
+  flex-shrink: 0;
+}
+button.product-photo {
+  cursor: zoom-in;
+}
+.product-photo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-position: center;
+  background: var(--surface);
+}
+.product-photo[data-empty="1"] {
+  border: 0;
+}
+.product-photo-table {
+  width: 54px;
+  height: 44px;
+  border-radius: 8px;
+}
+.product-photo-thumb {
+  width: 72px;
+  height: 58px;
+  border-radius: 8px;
+}
+.product-photo-card {
+  aspect-ratio: 16/10;
+  border-radius: 12px 12px 0 0;
+  border-width: 0 0 1px;
+}
+.product-photo-view {
+  height: 180px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+.product-photo-hero {
+  height: min(52vh, 460px);
+  min-height: 320px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+.product-photo-gallery {
+  height: 180px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.product-preview-grid,
+.tg-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.tg-thumb {
+  position: relative;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+.tg-thumb[data-active="1"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .16);
+}
+.tg-thumb-primary {
+  position: absolute;
+  right: -5px;
+  top: -5px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+.product-lightbox {
+  display: grid;
+  place-items: center;
+  min-height: min(72vh, 720px);
+  background: #050814;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.product-lightbox img {
+  max-width: 100%;
+  max-height: min(72vh, 720px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
 /* kbd */
 .tg-kbd { display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); font-size: 11px; font-weight: 600; color: var(--text-2); font-family: var(--mono); }
 

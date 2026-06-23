@@ -92,6 +92,26 @@ function apiParseNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function apiMediaUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const apiUrl = new URL(API_BASE, window.location.origin);
+    const mediaUrl = raw.startsWith("//")
+      ? new URL(`${apiUrl.protocol}${raw}`)
+      : new URL(raw, apiUrl);
+
+    if (mediaUrl.protocol === "http:" && apiUrl.protocol === "https:" && mediaUrl.host === apiUrl.host) {
+      mediaUrl.protocol = "https:";
+    }
+
+    return mediaUrl.href;
+  } catch (e) {
+    return raw;
+  }
+}
+
 function apiDateOnly(value) {
   if (!value) return new Date().toISOString().slice(0, 10);
   return String(value).slice(0, 10);
@@ -422,12 +442,25 @@ function mapApiProductCategory(category) {
 }
 
 function mapApiProduct(product) {
-  const pictures = (product.pictures || []).map((picture, index) => ({
-    id: picture.id || `pic_${product.id}_${index}`,
-    alt: product.name || `Rasm ${index + 1}`,
-    url: picture.image_url || picture.image || "",
-    isPrimary: index === 0,
-  }));
+  const rawPictures = [
+    ...(product.pictures || []),
+    ...(product.images || []),
+    ...(product.product_pictures || []),
+  ];
+  ["image_url", "image", "picture", "photo", "thumbnail"].forEach((key) => {
+    if (product[key]) rawPictures.push({ id: `${product.id}_${key}`, [key]: product[key] });
+  });
+
+  const pictures = rawPictures
+    .slice()
+    .sort((a, b) => apiParseNumber(a.sort_order || 0) - apiParseNumber(b.sort_order || 0))
+    .map((picture, index) => ({
+      id: picture.id || `pic_${product.id}_${index}`,
+      alt: product.name || `Rasm ${index + 1}`,
+      url: apiMediaUrl(picture.url || picture.image_url || picture.image || picture.picture || picture.photo || picture.thumbnail),
+      isPrimary: index === 0,
+    }))
+    .filter((picture) => picture.url);
   const categoryId = apiRelationId(product.category);
   const categoryName = product.category_name || "";
   return {
@@ -1058,6 +1091,7 @@ Object.assign(window, {
   API_BASE,
   SESSION_KEY,
   isApiUuid,
+  apiMediaUrl,
   apiUiRole,
   apiLoadSession,
   apiSaveSession,

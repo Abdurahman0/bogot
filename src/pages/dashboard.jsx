@@ -249,7 +249,7 @@ function DashboardPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {bestProducts.map((product) => (
               <div key={product.id} style={{ display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }} onClick={() => nav("/products/" + product.id)}>
-                <div style={{ width: 42, height: 42, flexShrink: 0 }}><ACUnit product={product} size="sm" /></div>
+                <ProductPhoto product={product} size="table" />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{product.model}</div>
                   <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>{fmtUZS(product.priceUzs)}</div>

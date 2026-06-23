@@ -42,7 +42,7 @@ function ProductCard({ product, onClick }) {
   return (
     <Card hover pad={false} onClick={onClick}>
       <div style={{ position: "relative" }}>
-        <ACUnit product={product} />
+        <ProductPhoto product={product} size="card" />
         <span style={{ position: "absolute", top: 10, left: 10 }}>
           <Badge color="slate" size="sm">{category}</Badge>
         </span>
@@ -121,7 +121,7 @@ function ProductsPage() {
       sortVal: (row) => window.productDisplayName ? window.productDisplayName(row) : (row.name || row.model || ""),
       render: (row) => (
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <div style={{ width: 46, height: 38, flexShrink: 0 }}><ACUnit product={row} size="sm" /></div>
+          <ProductPhoto product={row} size="table" />
           <div>
             <div className="tg-cell-strong">{window.productDisplayName ? window.productDisplayName(row) : (row.name || row.model)}</div>
             <div className="tg-cell-sub">{productDescriptionPreview(row.description)}</div>
@@ -344,38 +344,50 @@ function ProductsPage() {
 window.ProductsPage = ProductsPage;
 
 function ProductViewModal({ open, onClose, onEdit, onDelete, product }) {
+  const [previewImage, setPreviewImage] = prS(null);
   if (!product) return null;
   const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
   const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
+  const images = productImages(product);
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Mahsulot ma'lumotlari"
-      icon={<I.box size={18} />}
-      width={620}
-      footer={<>
-        <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>Tahrirlash</Button>
-        <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>O'chirish</Button>
-        <Button variant="primary" onClick={onClose}>Yopish</Button>
-      </>}
-    >
-      <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 18 }}>
-        <div style={{ width: 160, height: 130 }}><ACUnit product={product} /></div>
-        <div className="tg-meta">
-          <div className="tg-meta-row"><span className="tg-meta-k">Nomi</span><span className="tg-meta-v">{name}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{category}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Narx</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq</span><span className="tg-meta-v">{product.stockQuantity} dona</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Yaratilgan</span><span className="tg-meta-v">{productDateLabel(product.createdAt)}</span></div>
-          <div className="tg-meta-row"><span className="tg-meta-k">Yangilangan</span><span className="tg-meta-v">{productDateLabel(product.updatedAt)}</span></div>
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="Mahsulot ma'lumotlari"
+        icon={<I.box size={18} />}
+        width={760}
+        footer={<>
+          <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>Tahrirlash</Button>
+          <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>O'chirish</Button>
+          <Button variant="primary" onClick={onClose}>Yopish</Button>
+        </>}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 18 }}>
+          <ProductPhoto product={product} size="view" fit="contain" onClick={() => images[0] && setPreviewImage(images[0])} />
+          <div className="tg-meta">
+            <div className="tg-meta-row"><span className="tg-meta-k">Nomi</span><span className="tg-meta-v">{name}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{category}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">Narx</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq</span><span className="tg-meta-v">{product.stockQuantity} dona</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">Yaratilgan</span><span className="tg-meta-v">{productDateLabel(product.createdAt)}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">Yangilangan</span><span className="tg-meta-v">{productDateLabel(product.updatedAt)}</span></div>
+          </div>
         </div>
-      </div>
-      <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>Tavsif</div>
-        <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{product.description || "Tavsif kiritilmagan"}</div>
-      </div>
-    </Modal>
+        {images.length > 1 && (
+          <div className="product-preview-grid">
+            {images.map((image) => (
+              <ProductPhoto key={image.id} product={product} image={image} size="thumb" fit="cover" onClick={() => setPreviewImage(image)} />
+            ))}
+          </div>
+        )}
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>Tavsif</div>
+          <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{product.description || "Tavsif kiritilmagan"}</div>
+        </div>
+      </Modal>
+      <ProductImageModal open={!!previewImage} onClose={() => setPreviewImage(null)} product={product} image={previewImage} />
+    </>
   );
 }
 
@@ -514,7 +526,7 @@ function ProductFormModal({ open, onClose, onSave, initial, onManageCategories }
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 64, height: 52 }}><ACUnit product={{ ...form, images: [image] }} size="sm" /></div>
+                      <div style={{ width: 64, height: 52 }}><ProductPhoto product={form} image={image} size="thumb" /></div>
                       <span className="tg-cell-sub">{image.isPrimary ? "Asosiy rasm" : "Qo'shimcha rasm"}</span>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>

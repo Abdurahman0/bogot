@@ -95,7 +95,7 @@ function AnalyticsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {topProducts.slice(0, 5).map(({ p, sales }) => (
               <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => nav("/products/" + p.id)}>
-                <div style={{ width: 40, height: 40 }}><ACUnit product={p} size="sm" /></div>
+                <ProductPhoto product={p} size="table" />
                 <div style={{ flex: 1 }}>
                   <div className="tg-cell-strong">{p.model}</div>
                   <div className="tg-cell-sub">{p.powerKw} kW</div>

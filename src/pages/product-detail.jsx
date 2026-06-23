@@ -9,6 +9,7 @@ function ProductDetailPage({ id }) {
   const [editOpen, setEditOpen] = pdS(false);
   const [deleteOpen, setDeleteOpen] = pdS(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = pdS(false);
+  const [previewImage, setPreviewImage] = pdS(null);
 
   if (!product) {
     return <div className="page"><Card><EmptyState title="Mahsulot topilmadi" action={<Button onClick={() => nav("/products")}>Katalogga</Button>} /></Card></div>;
@@ -16,18 +17,18 @@ function ProductDetailPage({ id }) {
 
   const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
   const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
-  const productImages = product.images || [];
+  const galleryImages = productImages(product);
   const similar = data.products
     .filter((item) => item.categoryId === product.categoryId && item.id !== product.id)
     .slice(0, 4);
 
   React.useEffect(() => {
-    if (!productImages.length) {
+    if (!galleryImages.length) {
       setActiveImg(0);
       return;
     }
-    if (activeImg > productImages.length - 1) setActiveImg(0);
-  }, [activeImg, productImages.length]);
+    if (activeImg > galleryImages.length - 1) setActiveImg(0);
+  }, [activeImg, galleryImages.length]);
 
   return (
     <div className="page fade-in">
@@ -46,13 +47,13 @@ function ProductDetailPage({ id }) {
           <Card pad={false}>
             <div style={{ padding: 18 }}>
               <div style={{ position: "relative" }}>
-                <ACUnit product={{ ...product, images: productImages.length ? [productImages[activeImg] || productImages[0]] : [] }} size="lg" />
+                <ProductPhoto product={product} image={galleryImages[activeImg] || galleryImages[0]} size="hero" fit="contain" onClick={() => galleryImages[activeImg] && setPreviewImage(galleryImages[activeImg])} />
                 <span style={{ position: "absolute", top: 12, left: 12 }}><Badge color="slate">{category}</Badge></span>
               </div>
               <div className="tg-thumbs">
-                {productImages.map((image, index) => (
+                {galleryImages.map((image, index) => (
                   <button key={image.id} className="tg-thumb" data-active={index === activeImg ? "1" : undefined} onClick={() => setActiveImg(index)}>
-                    <ACUnit product={{ ...product, images: [image] }} size="sm" />
+                    <ProductPhoto product={product} image={image} size="thumb" />
                     {image.isPrimary && <span className="tg-thumb-primary"><I.star size={9} /></span>}
                   </button>
                 ))}
@@ -99,11 +100,11 @@ function ProductDetailPage({ id }) {
               )}
               {tab === "description" && <div style={{ padding: 14, background: "var(--surface-2)", borderRadius: 10, fontSize: 13, lineHeight: 1.7, color: "var(--text-2)", border: "1px solid var(--border)" }}>{product.description || "Tavsif kiritilmagan"}</div>}
               {tab === "images" && (
-                productImages.length ? (
+                galleryImages.length ? (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {productImages.map((image) => (
+                    {galleryImages.map((image) => (
                       <Card key={image.id} style={{ padding: 10 }}>
-                        <div style={{ width: "100%", height: 140 }}><ACUnit product={{ ...product, images: [image] }} /></div>
+                        <ProductPhoto product={product} image={image} size="gallery" fit="contain" onClick={() => setPreviewImage(image)} />
                         <div className="tg-cell-sub" style={{ marginTop: 8 }}>{image.alt || "Mahsulot rasmi"}</div>
                       </Card>
                     ))}
@@ -125,7 +126,7 @@ function ProductDetailPage({ id }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {similar.map((row) => (
               <div key={row.id} style={{ cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }} onClick={() => nav("/products/" + row.id)}>
-                <div style={{ width: 44, height: 36, flexShrink: 0 }}><ACUnit product={row} size="sm" /></div>
+                <ProductPhoto product={row} size="table" />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{window.productDisplayName ? window.productDisplayName(row) : (row.name || row.model)}</div>
                   <div className="tg-cell-sub">{fmtUZS(row.priceUzs)}</div>
@@ -149,6 +150,7 @@ function ProductDetailPage({ id }) {
         }}
       />
       <ProductCategoriesModal open={categoryManagerOpen} onClose={() => setCategoryManagerOpen(false)} />
+      <ProductImageModal open={!!previewImage} onClose={() => setPreviewImage(null)} product={product} image={previewImage} />
       <ConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}

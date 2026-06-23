@@ -787,6 +787,75 @@ function ACUnit({ product, size = "md", className = "" }) {
   );
 }
 
+function productImageSrc(image) {
+  if (!image) return "";
+  if (typeof image === "string") return window.apiMediaUrl ? window.apiMediaUrl(image) : image;
+  const raw = image.url || image.image_url || image.image || image.picture || image.photo || image.thumbnail || "";
+  return window.apiMediaUrl ? window.apiMediaUrl(raw) : raw;
+}
+
+function productImages(product = {}) {
+  const images = [
+    ...(product.images || []),
+    ...(product.pictures || []),
+    ...(product.product_pictures || []),
+  ];
+  ["image_url", "image", "picture", "photo", "thumbnail"].forEach((key) => {
+    if (product[key]) images.push({ id: `${product.id || "product"}_${key}`, [key]: product[key] });
+  });
+  return images
+    .map((image, index) => ({
+      id: image.id || `product_img_${product.id || "new"}_${index}`,
+      url: productImageSrc(image),
+      alt: image.alt || image.name || product.name || product.model || "Mahsulot rasmi",
+      isPrimary: !!image.isPrimary || !!image.is_primary || index === 0,
+    }))
+    .filter((image) => image.url);
+}
+
+function ProductPhoto({ product, image, size = "md", fit = "cover", className = "", onClick }) {
+  const selected = image ? {
+    id: image.id || "selected",
+    url: productImageSrc(image),
+    alt: image.alt || product?.name || product?.model || "Mahsulot rasmi",
+    isPrimary: !!image.isPrimary,
+  } : productImages(product)[0];
+  const hasImage = !!selected?.url;
+  const name = window.productDisplayName ? window.productDisplayName(product) : (product?.name || product?.model || "Mahsulot");
+  const Tag = hasImage && onClick ? "button" : "div";
+
+  return (
+    <Tag
+      {...(Tag === "button" ? { type: "button" } : {})}
+      className={`product-photo product-photo-${size} ${className}`}
+      data-empty={hasImage ? undefined : "1"}
+      onClick={hasImage ? onClick : undefined}
+      title={hasImage && onClick ? "Rasmni kattalashtirish" : name}
+    >
+      {hasImage ? (
+        <img src={selected.url} alt={selected.alt || name} style={{ objectFit: fit }} loading="lazy" />
+      ) : (
+        <ACUnit product={product} size={size === "thumb" ? "sm" : size} />
+      )}
+    </Tag>
+  );
+}
+
+function ProductImageModal({ open, onClose, product, image }) {
+  const selected = image ? {
+    url: productImageSrc(image),
+    alt: image.alt || product?.name || product?.model || "Mahsulot rasmi",
+  } : productImages(product)[0];
+  if (!selected?.url) return null;
+  return (
+    <Modal open={open} onClose={onClose} title={selected.alt || "Mahsulot rasmi"} icon={<I.image size={18} />} width={1120}>
+      <div className="product-lightbox">
+        <img src={selected.url} alt={selected.alt || "Mahsulot rasmi"} />
+      </div>
+    </Modal>
+  );
+}
+
 // ---------- Export / Report dropdown ----------
 function FileTypeIcon({ type }) {
   if (type === "pdf") return (
@@ -871,5 +940,6 @@ Object.assign(window, {
   Card, CardHead, Button, IconButton, Badge, StatusBadge, Avatar, Tabs, Segmented,
   SearchInput, Field, Input, Textarea, DatePickerInput, Select, Toggle, Dropdown, Modal, Drawer,
   ConfirmDialog, EmptyState, SkeletonRows, useLoading, Progress, Delta, ACUnit,
+  productImages, productImageSrc, ProductPhoto, ProductImageModal,
   ExportDropdown, formatUzDate, DATE_PICKER_MONTHS, DATE_PICKER_MONTHS_SHORT,
 });
