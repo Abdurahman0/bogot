@@ -4,6 +4,15 @@ const debtNum = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
+const orderTakenDate = (order) => String(order?.createdAt || "").slice(0, 10);
+const orderDateMatchesRange = (dateValue, from, to) => {
+  const value = String(dateValue || "").slice(0, 10);
+  if (!from && !to) return true;
+  if (!value) return false;
+  if (from && value < from) return false;
+  if (to && value > to) return false;
+  return true;
+};
 const orderLocations = (locations) => locations || {};
 const orderDistrictOptions = (locations) => Object.keys(orderLocations(locations));
 const orderTuman = (order) => order?.district || "";
@@ -93,6 +102,9 @@ function OrdersPage() {
   const [statusTab, setStatusTab] = coS("all");
   const [districtFilter, setDistrictFilter] = coS("all");
   const [mahallaFilter, setMahallaFilter] = coS("all");
+  const [exporting, setExporting] = coS(false);
+  const [dateFrom, setDateFrom] = coS("");
+  const [dateTo, setDateTo] = coS("");
   const [createOpen, setCreateOpen] = coS(false);
   const [editOrder, setEditOrder] = coS(null);
   const [deleteOrder, setDeleteOrder] = coS(null);
@@ -117,6 +129,23 @@ function OrdersPage() {
     }
   }, [districtFilter, mahallaFilter, mahallaOptions]);
 
+  const exportDebtorsExcel = async () => {
+    try {
+      setExporting(true);
+      await apiDownloadDebtorsExcel({
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        district: districtFilter !== "all" ? districtFilter : undefined,
+        neighborhood: mahallaFilter !== "all" ? mahallaFilter : undefined,
+      });
+      toast("Qarzdorlar Excel fayli yuklandi");
+    } catch (error) {
+      toast(error.message || "Excel eksport bajarilmadi", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const filtered = coM(() => data.orders.filter(o => {
     const query = q.toLowerCase();
     if (q && !o.id.toLowerCase().includes(query) && !o.customerName.toLowerCase().includes(query) && !orderTuman(o).toLowerCase().includes(query) && !orderMahalla(o).toLowerCase().includes(query)) return false;
@@ -125,8 +154,9 @@ function OrdersPage() {
     if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
     if (showLocationFilters && districtFilter !== "all" && orderTuman(o) !== districtFilter) return false;
     if (showLocationFilters && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
+    if (!orderDateMatchesRange(orderTakenDate(o), dateFrom, dateTo)) return false;
     return true;
-  }), [data.orders, q, statusTab, showLocationFilters, districtFilter, mahallaFilter]);
+  }), [data.orders, q, statusTab, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
 
   const grouped = coM(() => {
     const map = new Map();
@@ -198,16 +228,11 @@ function OrdersPage() {
         <SearchInput value={q} onChange={setQ} placeholder="Mijoz, ID, tuman yoki mahalla..." width={260} />
         {showLocationFilters && <FilterSelect label="Tuman" icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
         {showLocationFilters && <FilterSelect label="Mahalla" icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
+        <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="Boshlanish sanasi" /></div>
+        <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder="Tugash sanasi" /></div>
+        {(dateFrom || dateTo) ? <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>Tozalash</Button> : null}
         <div className="toolbar-spacer" />
-        <ExportDropdown label="Hisobot" size="sm" filename="qarzdorlar" rows={filtered} mapper={o => ({
-          ID: o.id,
-          Mijoz: o.customerName,
-          Tuman: orderTuman(o),
-          Mahalla: orderMahalla(o),
-          "Yo'nalish": o.businessLine,
-          "Qoldiq qarz": debtNum(o.remainingDebtUzs),
-          "Muddati o'tgan": debtNum(o.overdueAmountUzs),
-        })} />
+        <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportDebtorsExcel} disabled={exporting}>Excel</Button>
       </div>
       <div style={{ marginBottom: 16 }}><Tabs tabs={tabs} active={statusTab} onChange={setStatusTab} /></div>
       {loading ? (
@@ -610,13 +635,6 @@ function PaymentsPage() {
         <SearchInput value={q} onChange={setQ} placeholder="Kategoriya, mijoz, ID..." width={260} />
         <FilterSelect label="Yo'nalish" icon="chart" value={direction} onChange={setDirection} options={[{ value: "income", label: "Kirim" }, { value: "expense", label: "Chiqim" }]} />
         <div className="toolbar-spacer" />
-        <ExportDropdown label="Hisobot" size="sm" filename="hisob-kitob" rows={filtered} mapper={p => ({
-          Sana: p.date,
-          Yonalish: p.direction,
-          Kategoriya: p.category,
-          Subyekt: p.customerName,
-          Summa: p.amountUzs,
-        })} />
       </div>
       <Card pad={false}>{loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewPayment(r)} defaultSort={{ key: "date", dir: "desc" }} />}</Card>
       <PaymentViewModal

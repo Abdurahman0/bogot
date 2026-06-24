@@ -27,7 +27,7 @@ function apiUiRole(role) {
 }
 
 function apiRoleLabel(role) {
-  return role === "developer" ? "Developer" : role === "admin" ? "Administrator" : "Operator";
+  return role === "developer" ? "Dasturchi" : role === "admin" ? "Administrator" : "Operator";
 }
 
 function apiLoadSession() {
@@ -225,6 +225,30 @@ async function apiRefreshToken(refresh) {
   return next;
 }
 
+function apiBuildUrl(path, params) {
+  const target = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const url = new URL(apiNormalizeUrl(target));
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    url.searchParams.set(key, String(value));
+  });
+  return url.toString();
+}
+
+function apiFilenameFromResponse(response, fallback = "download.xlsx") {
+  const header = response.headers.get("content-disposition") || "";
+  const utf8Match = header.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch (e) {
+      return utf8Match[1];
+    }
+  }
+  const plainMatch = header.match(/filename="?([^"]+)"?/i);
+  return plainMatch?.[1] || fallback;
+}
+
 async function apiRequest(path, options = {}) {
   const {
     method = "GET",
@@ -232,6 +256,8 @@ async function apiRequest(path, options = {}) {
     formData,
     auth = true,
     headers = {},
+    params,
+    responseType = "json",
     retry = true,
   } = options;
   const session = apiLoadSession();
@@ -239,7 +265,7 @@ async function apiRequest(path, options = {}) {
   if (auth && session?.access) requestHeaders.Authorization = `Bearer ${session.access}`;
   if (!formData && body !== undefined) requestHeaders["Content-Type"] = "application/json";
 
-  const response = await fetch(apiNormalizeUrl(path.startsWith("http") ? path : `${API_BASE}${path}`), {
+  const response = await fetch(apiBuildUrl(path, params), {
     method,
     headers: requestHeaders,
     body: formData || (body !== undefined ? JSON.stringify(body) : undefined),
@@ -261,6 +287,16 @@ async function apiRequest(path, options = {}) {
   }
 
   if (response.status === 204) return null;
+  if (responseType === "blob") {
+    if (!response.ok) {
+      const payload = await apiSafeJson(response);
+      throw new Error(apiErrorMessage(payload));
+    }
+    return {
+      blob: await response.blob(),
+      filename: apiFilenameFromResponse(response),
+    };
+  }
   const payload = await apiSafeJson(response);
   if (!response.ok) throw new Error(apiErrorMessage(payload));
   return payload;
@@ -287,6 +323,36 @@ async function apiPaginateAll(path) {
     next = page?.next ? apiNormalizeUrl(page.next) : null;
   }
   return all;
+}
+
+async function apiDownloadFile(path, options = {}) {
+  const { params, filename = "download.xlsx" } = options;
+  const result = await apiRequest(path, { params, responseType: "blob" });
+  const blob = result?.blob instanceof Blob ? result.blob : new Blob([result?.blob || ""], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const href = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = result?.filename || filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(href);
+}
+
+async function apiDownloadClientsExcel(filters = {}) {
+  return apiDownloadFile("/api/clients/export/excel/", {
+    params: filters,
+    filename: "clients_export.xlsx",
+  });
+}
+
+async function apiDownloadDebtorsExcel(filters = {}) {
+  return apiDownloadFile("/api/clients/debtors/export/excel/", {
+    params: filters,
+    filename: "debtors_export.xlsx",
+  });
 }
 
 function mapApiUser(user) {
@@ -1138,6 +1204,9 @@ Object.assign(window, {
   apiBootstrap,
   apiLogin,
   apiDelete,
+  apiDownloadFile,
+  apiDownloadClientsExcel,
+  apiDownloadDebtorsExcel,
   apiSaveUser,
   apiSaveClient,
   apiSaveDebtor,

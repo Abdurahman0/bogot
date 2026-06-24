@@ -80,18 +80,7 @@ function LeadsPage() {
         title={t("page.leads")}
         desc={`${data.leads.length} ta lead • ${data.leads.filter(l => l.pipelineStage === "greeted").length} ta yangi`}
         crumbs={[{ label: "CRM" }, { label: t("page.leads") }]}
-        actions={<>
-          <ExportDropdown label="Hisobot" size="sm" filename="leadlar" rows={filtered} mapper={l => ({
-            ID: l.id,
-            Ism: l.fullName,
-            Telefon: l.phone,
-            Manba: SOURCE_UZ[l.source],
-            "Talab (kW)": l.requiredPowerKw,
-            "To'lov turi": l.paymentTypeLabel,
-            Bosqich: PIPELINE_STAGE_UZ[l.pipelineStage],
-          })} />
-          <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setAddOpen(true)}>Yangi lead</Button>
-        </>}
+        actions={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setAddOpen(true)}>Yangi lead</Button>}
       />
 
       <div className="toolbar">

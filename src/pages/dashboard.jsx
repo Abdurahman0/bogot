@@ -139,7 +139,6 @@ function DashboardPage() {
     <div className="page fade-in">
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <DateRange value={range} onChange={setRange} />
-        <ExportDropdown label="Hisobot" size="sm" filename="dashboard" rows={data.customers} mapper={(row) => ({ Mijoz: row.fullName, Telefon: row.phone, Holat: dashboardStatusLabel(row.statusName || row.status), Qarzdorlik: row.debtBalanceUzs || 0 })} />
       </div>
 
       <div className="dash-hero" style={{ background: heroAccentBg(isLight) }}>

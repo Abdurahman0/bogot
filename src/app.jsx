@@ -45,6 +45,10 @@ function Router() {
   }, [route, nav]);
 
   aE(() => {
+    if (route === "/roles" || route.startsWith("/roles/")) nav("/users", { replace: true });
+  }, [route, nav]);
+
+  aE(() => {
     if (route === "/pipeline" || route.startsWith("/pipeline/")) nav("/tasks", { replace: true });
     if (route === "/leads" || route.startsWith("/leads/")) nav("/customers", { replace: true });
   }, [route, nav]);
@@ -104,7 +108,6 @@ function Router() {
     case "payments":
     case "accounting": page = <PaymentsPage />; break;
     case "users": page = <UsersPage />; break;
-    case "roles": page = <RolesPage />; break;
     case "settings": page = <SettingsPage />; break;
     case "notifications": page = window.NotificationsPage ? <NotificationsPage /> : <Placeholder label="Bildirishnomalar" />; break;
     case "integrations": page = window.IntegrationsPage ? <IntegrationsPage /> : <Placeholder label="Integratsiyalar" />; break;

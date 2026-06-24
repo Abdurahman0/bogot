@@ -38,6 +38,15 @@ const customerTextValue = (value, fallback = "Kiritilmagan") => {
   return text || fallback;
 };
 const customerSourceLabel = (source) => SOURCE_UZ[source] || customerTextValue(source);
+const customerCreatedDate = (customer) => String(customer?.createdAt || "").slice(0, 10);
+const dateMatchesRange = (dateValue, from, to) => {
+  const value = String(dateValue || "").slice(0, 10);
+  if (!from && !to) return true;
+  if (!value) return false;
+  if (from && value < from) return false;
+  if (to && value > to) return false;
+  return true;
+};
 const customerStatusTone = (customer) => {
   const key = String(customer?.statusName || customer?.status || "").toLowerCase();
   if (key.includes("inactive") || key.includes("lost") || key.includes("closed")) return "red";
@@ -87,6 +96,9 @@ function CustomersPage() {
   const [q, setQ] = cuS("");
   const [fDistrict, setFDistrict] = cuS("all");
   const [fStatus, setFStatus] = cuS("all");
+  const [exporting, setExporting] = cuS(false);
+  const [dateFrom, setDateFrom] = cuS("");
+  const [dateTo, setDateTo] = cuS("");
   const [statusModalOpen, setStatusModalOpen] = cuS(false);
   const [editStatus, setEditStatus] = cuS(null);
   const [deleteStatus, setDeleteStatus] = cuS(null);
@@ -108,8 +120,9 @@ function CustomersPage() {
     if (q && !c.fullName.toLowerCase().includes(q.toLowerCase()) && !c.phone.includes(q)) return false;
     if (fDistrict !== "all" && customerTuman(c) !== fDistrict) return false;
     if (fStatus !== "all" && c.statusId !== fStatus) return false;
+    if (!dateMatchesRange(customerCreatedDate(c), dateFrom, dateTo)) return false;
     return true;
-  }), [data.customers, q, fDistrict, fStatus]);
+  }), [data.customers, q, fDistrict, fStatus, dateFrom, dateTo]);
 
   const columns = [
     { key: "name", label: "Mijoz", sortVal: r => r.fullName, render: r => <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar name={r.fullName} size={34} /><div><div className="tg-cell-strong">{r.fullName}</div><div className="tg-cell-sub">{r.phone}</div></div></div> },
@@ -143,6 +156,21 @@ function CustomersPage() {
       sortOrder: (data.clientStatuses || []).length + 1,
     });
     setStatusModalOpen(true);
+  };
+
+  const exportClientsExcel = async () => {
+    try {
+      setExporting(true);
+      await apiDownloadClientsExcel({
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      });
+      toast("Mijozlar Excel fayli yuklandi");
+    } catch (error) {
+      toast(error.message || "Excel eksport bajarilmadi", "error");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const openStatusEdit = (status) => {
@@ -201,14 +229,7 @@ function CustomersPage() {
     <div className="page fade-in">
       <PageHeader title={t("page.customers")} desc={pageDesc} crumbs={[{ label: "CRM" }, { label: t("page.customers") }]}
         actions={<>
-          {viewMode === "clients" && <ExportDropdown label="Hisobot" size="sm" filename="mijozlar" rows={filtered} mapper={c => ({
-            Ism: c.fullName,
-            Telefon: c.phone,
-            Tuman: customerTuman(c),
-            Mahalla: customerMahalla(c),
-            "Tizim (kW)": c.currentSystemKw,
-            "Qoldiq qarz": c.debtBalanceUzs,
-          })} />}
+          {viewMode === "clients" && <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportClientsExcel} disabled={exporting}>Excel</Button>}
           {viewMode === "statuses" && <Button variant="soft" size="sm" icon={<I.flag size={15} />} onClick={openStatusCreate}>Yangi holat</Button>}
           {viewMode === "clients" && <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setAddOpen(true)}>Yangi mijoz</Button>}
         </>} />
@@ -262,6 +283,9 @@ function CustomersPage() {
             <SearchInput value={q} onChange={setQ} placeholder="Ism yoki telefon..." width={260} />
             <FilterSelect label="Tuman" icon="mapPin" value={fDistrict} onChange={setFDistrict} options={districts.map(d => ({ value: d, label: d }))} />
             <FilterSelect label="Holat" icon="flag" value={fStatus} onChange={setFStatus} options={statusOptions} />
+            <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="Boshlanish sanasi" /></div>
+            <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder="Tugash sanasi" /></div>
+            {(dateFrom || dateTo) ? <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>Tozalash</Button> : null}
             <div className="toolbar-spacer" />
             <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{filtered.length} ta</span>
           </div>

@@ -28,35 +28,157 @@ function permissionLabelUz(permissionKey) {
   return PERMISSION_LABELS_UZ[permissionKey] || permissionKey;
 }
 
+const USER_ROLE_OPTIONS = ["developer", "admin", "operator"];
+const USER_ROLE_META = {
+  developer: { label: "Dasturchi", color: "violet" },
+  admin: { label: "Administrator", color: "red" },
+  operator: { label: "Operator", color: "blue" },
+};
+const USER_MODULE_LABELS = {
+  dashboard: "Dashboard",
+  audit_logs: "Audit",
+  users: "Foydalanuvchilar",
+  clients: "Mijozlar",
+  accounting: "Hisob-kitob",
+  products: "Mahsulotlar",
+  tasks: "Vazifalar",
+  notifications: "Bildirishnomalar",
+  chats: "Inbox",
+  integrations: "Integratsiyalar",
+  ai: "AI",
+  other: "Boshqa",
+};
+
+function permissionCode(permission) {
+  if (typeof permission === "string") return permission;
+  if (!permission || typeof permission !== "object") return "";
+  return permission.key || permission.code || permission.permission_code || permission.codename || permission.name || "";
+}
+
+function permissionModule(permission) {
+  if (permission && typeof permission === "object" && permission.module) return permission.module;
+  const code = permissionCode(permission);
+  return code.includes(".") ? code.split(".")[0] : "other";
+}
+
+function permissionName(permission) {
+  const code = permissionCode(permission);
+  if (permission && typeof permission === "object") {
+    const directLabel = permission.label || permission.title || permission.description;
+    if (directLabel) return directLabel;
+    if (permission.name && permission.name !== code) return permission.name;
+    return permissionLabelUz(code);
+  }
+  return permissionLabelUz(code);
+}
+
+function normalizePermissionCodes(items) {
+  return [...new Set((items || []).map(permissionCode).filter(Boolean))];
+}
+
+function buildPermissionCatalog(data) {
+  const fromBackend = data.permissionsAll?.length ? data.permissionsAll : data.permissions || [];
+  if (fromBackend.length) {
+    return fromBackend
+      .map((permission) => {
+        const code = permissionCode(permission);
+        if (!code) return null;
+        return {
+          code,
+          module: permissionModule(permission),
+          label: permissionName(permission),
+        };
+      })
+      .filter(Boolean);
+  }
+  return Object.keys(PERMISSION_LABELS_UZ).map((code) => ({
+    code,
+    module: permissionModule(code),
+    label: permissionLabelUz(code),
+  }));
+}
+
+function groupedPermissionCatalog(catalog) {
+  return Object.entries(
+    (catalog || []).reduce((acc, permission) => {
+      const moduleKey = permission.module || "other";
+      if (!acc[moduleKey]) acc[moduleKey] = [];
+      acc[moduleKey].push(permission);
+      return acc;
+    }, {})
+  )
+    .sort((a, b) => (USER_MODULE_LABELS[a[0]] || a[0]).localeCompare(USER_MODULE_LABELS[b[0]] || b[0], "uz"))
+    .map(([moduleKey, permissions]) => [moduleKey, permissions.sort((a, b) => a.label.localeCompare(b.label, "uz"))]);
+}
+
+function roleKey(role) {
+  if (typeof role === "string") return role;
+  if (!role || typeof role !== "object") return "";
+  return role.key || role.code || role.name || "";
+}
+
+function roleLabel(role) {
+  const key = roleKey(role);
+  return role?.label || USER_ROLE_META[key]?.label || key;
+}
+
+function roleDefaultPermissions(roleValue, roles) {
+  const target = (roles || []).find((role) => roleKey(role) === roleValue);
+  return normalizePermissionCodes(target?.default_permissions || []);
+}
+
+function canManageDeveloper(currentRole) {
+  return currentRole === "developer";
+}
+
+function canManageTargetUser(currentUser, targetUser) {
+  const currentRole = currentUser?.rawRole || currentUser?.role || "operator";
+  const targetRole = targetUser?.rawRole || targetUser?.role || "operator";
+  if (currentRole === "developer") return true;
+  if (currentRole === "admin") return targetRole !== "developer";
+  return false;
+}
+
 /* ======= USERS ======= */
 function UsersPage() {
   const { data, t, upsert, remove, toast } = useApp();
   const loading = useLoading(420);
   const [q, setQ] = sysS("");
   const [roleFilter, setRoleFilter] = sysS("all");
+  const [statusFilter, setStatusFilter] = sysS("all");
   const [addOpen, setAddOpen] = sysS(false);
   const [editUser, setEditUser] = sysS(null);
   const [viewUser, setViewUser] = sysS(null);
   const [deleteUser, setDeleteUser] = sysS(null);
   const [viewPermissions, setViewPermissions] = sysS([]);
-  const [viewRole, setViewRole] = sysS("operator");
-  const [form, setForm] = sysS({ fullName: "", email: "", phone: "", role: "operator", region: "", status: "active", password: "" });
+  const [form, setForm] = sysS({ fullName: "", email: "", phone: "", role: "operator", region: "", status: "active", password: "", permissions: [] });
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const ROLES_UZ = { developer: "Developer", admin: "Administrator", operator: "Operator" };
-  const ROLE_COLORS = { developer: "violet", admin: "red", operator: "blue" };
-  const ROLE_OPTIONS = ["developer", "admin", "operator"];
+  const currentUser = data.authUser || null;
+  const currentRole = currentUser?.rawRole || currentUser?.role || "operator";
+  const myPermissionCodes = normalizePermissionCodes(currentUser?.permissions || []);
+  const canManageUsers = currentRole === "developer" || myPermissionCodes.includes("users.manage");
+  const permissionCatalog = sysM(() => buildPermissionCatalog(data), [data.permissionsAll, data.permissions]);
+  const permissionGroups = sysM(() => groupedPermissionCatalog(permissionCatalog), [permissionCatalog]);
+  const roleCatalog = sysM(() => {
+    const backendRoles = (data.roles || []).map((role) => ({ ...role, key: roleKey(role), label: roleLabel(role) })).filter((role) => role.key);
+    if (backendRoles.length) return backendRoles;
+    return USER_ROLE_OPTIONS.map((role) => ({ key: role, label: USER_ROLE_META[role].label, default_permissions: [] }));
+  }, [data.roles]);
+  const availableRoleOptions = sysM(
+    () => roleCatalog.filter((role) => canManageDeveloper(currentRole) || role.key !== "developer"),
+    [roleCatalog, currentRole]
+  );
+  const permissionLabelMap = sysM(
+    () => Object.fromEntries(permissionCatalog.map((permission) => [permission.code, permission.label])),
+    [permissionCatalog]
+  );
 
   React.useEffect(() => {
     if (!viewUser?.id) return;
     apiLoadUserPermissions(viewUser.id)
-      .then(setViewPermissions)
-      .catch(() => setViewPermissions(viewUser.permissions || []));
+      .then((permissions) => setViewPermissions(normalizePermissionCodes(permissions)))
+      .catch(() => setViewPermissions(normalizePermissionCodes(viewUser.permissions || [])));
   }, [viewUser?.id]);
-
-  React.useEffect(() => {
-    setViewRole(viewUser?.rawRole || viewUser?.role || "operator");
-  }, [viewUser]);
 
   const hasRegionField = sysM(
     () => data.users.some((u) => Object.prototype.hasOwnProperty.call(u || {}, "region")),
@@ -65,73 +187,108 @@ function UsersPage() {
 
   const filtered = sysM(() => data.users.filter(u =>
     (roleFilter === "all" || u.role === roleFilter) &&
+    (statusFilter === "all" || u.status === statusFilter) &&
     (!q || u.fullName.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()))
-  ), [data.users, roleFilter, q]);
+  ), [data.users, roleFilter, statusFilter, q]);
+
+  const resetForm = React.useCallback(() => {
+    const defaultRole = availableRoleOptions[0]?.key || "operator";
+    setForm({ fullName: "", email: "", phone: "", role: defaultRole, region: "", status: "active", password: "", permissions: roleDefaultPermissions(defaultRole, roleCatalog) });
+  }, [availableRoleOptions, roleCatalog]);
 
   const openEdit = (u) => {
     setEditUser(u);
-    setForm({ fullName: u.fullName, email: u.email, phone: u.phone, role: u.rawRole || u.role, region: u.region || "", status: u.status, password: "" });
+    setForm({
+      fullName: u.fullName,
+      email: u.email,
+      phone: u.phone,
+      role: u.rawRole || u.role,
+      region: u.region || "",
+      status: u.status,
+      password: "",
+      permissions: normalizePermissionCodes(u.permissions || []),
+    });
     setAddOpen(true);
   };
+
+  const openCreate = () => {
+    setEditUser(null);
+    resetForm();
+    setAddOpen(true);
+  };
+
+  const togglePermission = (code) => {
+    setForm((current) => {
+      const existing = new Set(normalizePermissionCodes(current.permissions));
+      if (existing.has(code)) existing.delete(code);
+      else existing.add(code);
+      return { ...current, permissions: [...existing] };
+    });
+  };
+
+  const applyRoleDefaults = () => {
+    if (form.role === "developer") return;
+    setF("permissions", roleDefaultPermissions(form.role, roleCatalog));
+  };
+
   const saveUser = async () => {
     const nextRegion = String(form.region || "").trim();
+    const nextPermissions = form.role === "developer" ? [] : normalizePermissionCodes(form.permissions);
     const payload = editUser
-      ? { ...editUser, ...form, rawRole: form.role, ...(hasRegionField ? { region: nextRegion } : {}) }
-      : { id: "U" + Date.now(), ...form, rawRole: form.role, ...(hasRegionField ? { region: nextRegion } : {}), avatarHue: Math.random() * 360, createdAt: new Date().toISOString(), completedSales: 0, activeLeads: 0 };
+      ? { ...editUser, ...form, permissions: nextPermissions, rawRole: form.role, ...(hasRegionField ? { region: nextRegion } : {}) }
+      : { id: "U" + Date.now(), ...form, permissions: nextPermissions, rawRole: form.role, ...(hasRegionField ? { region: nextRegion } : {}), avatarHue: Math.random() * 360, createdAt: new Date().toISOString(), completedSales: 0, activeLeads: 0 };
     await upsert("users", payload);
     toast(editUser ? "Foydalanuvchi yangilandi" : "Foydalanuvchi qo'shildi");
     setAddOpen(false);
     setEditUser(null);
-    setForm({ fullName: "", email: "", phone: "", role: "operator", region: "", status: "active", password: "" });
-  };
-  const saveViewRole = async () => {
-    if (!viewUser) return;
-    const nextUser = { ...viewUser, role: viewRole, rawRole: viewRole };
-    await upsert("users", nextUser);
-    setViewUser(nextUser);
-    toast("Foydalanuvchi roli yangilandi");
+    resetForm();
   };
 
   const stats = sysM(() => ({
     total: data.users.length,
     active: data.users.filter(u => u.status === "active").length,
-    byRole: Object.fromEntries(ROLE_OPTIONS.map(r => [r, data.users.filter(u => u.role === r).length])),
+    byRole: Object.fromEntries(USER_ROLE_OPTIONS.map(r => [r, data.users.filter(u => u.role === r).length])),
   }), [data.users]);
 
   return (
     <div className="page fade-in">
       <PageHeader title={t("page.users")} desc="Tizim foydalanuvchilarini boshqarish" crumbs={[{ label: "Tizim" }, { label: t("page.users") }]}
-        actions={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => { setEditUser(null); setForm({ fullName: "", email: "", phone: "", role: "operator", region: "", status: "active", password: "" }); setAddOpen(true); }}>Foydalanuvchi qo'shish</Button>} />
+        actions={canManageUsers ? <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={openCreate}>Foydalanuvchi qo'shish</Button> : null} />
 
       <div className="grid-kpi" style={{ marginBottom: 22 }}>
         <StatTile label="Jami" value={stats.total} />
         <StatTile label="Faol" value={stats.active} color="green" />
-        {ROLE_OPTIONS.map(r => <StatTile key={r} label={ROLES_UZ[r]} value={stats.byRole[r]} color={ROLE_COLORS[r]} />)}
+        {USER_ROLE_OPTIONS.map(r => <StatTile key={r} label={USER_ROLE_META[r].label} value={stats.byRole[r]} color={USER_ROLE_META[r].color} />)}
       </div>
 
       <Panel title="Foydalanuvchilar" icon="users" color="accent" pad={false}
         action={<div style={{ display: "flex", gap: 10 }}>
           <SearchInput value={q} onChange={setQ} placeholder="Qidirish..." width={200} />
-          <FilterSelect value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "Barcha rollar" }, ...ROLE_OPTIONS.map(r => ({ value: r, label: ROLES_UZ[r] }))]} />
+          <FilterSelect value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "Barcha rollar" }, ...USER_ROLE_OPTIONS.map(r => ({ value: r, label: USER_ROLE_META[r].label }))]} />
+          <FilterSelect value={statusFilter} onChange={setStatusFilter} options={[{ value: "all", label: "Barcha holatlar" }, { value: "active", label: "Faol" }, { value: "inactive", label: "Nofaol" }]} />
         </div>}>
-        {loading ? <SkeletonRows rows={10} cols={6} /> : (
+        {loading ? <SkeletonRows rows={10} cols={7} /> : (
           <div className="tg-table-wrap">
             <table className="tg-table">
-              <thead><tr><th>Foydalanuvchi</th><th>Rol</th>{hasRegionField && <th>Hudud</th>}<th>Holat</th><th>Savdolar</th><th>Qo'shilgan</th><th></th></tr></thead>
+              <thead><tr><th>Foydalanuvchi</th><th>Rol</th><th>Ruxsatlar</th>{hasRegionField && <th>Hudud</th>}<th>Holat</th><th>Qo'shilgan</th><th></th></tr></thead>
               <tbody>
                 {filtered.map(u => (
                   <tr key={u.id}>
                     <td><div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar name={u.fullName} hue={u.avatarHue} size={32} /><div><div className="tg-cell-strong">{u.fullName}</div><div className="tg-cell-sub">{u.email}</div></div></div></td>
-                    <td><Badge color={ROLE_COLORS[u.role]}>{ROLES_UZ[u.role]}</Badge></td>
+                    <td><Badge color={USER_ROLE_META[u.role]?.color || "slate"}>{USER_ROLE_META[u.role]?.label || u.role}</Badge></td>
+                    <td>
+                      {u.role === "developer"
+                        ? <Badge color="violet" size="sm">To'liq kirish</Badge>
+                        : <Badge color="blue" size="sm">{normalizePermissionCodes(u.permissions || []).length} ta</Badge>}
+                    </td>
                     {hasRegionField && <td>{u.region || "-"}</td>}
                     <td><StatusBadge status={u.status === "active" ? "active" : "inactive"} label={u.status === "active" ? "Faol" : "Nofaol"} /></td>
-                    <td><Badge color="blue" size="sm">{u.completedSales}</Badge></td>
                     <td className="tg-cell-sub">{fmtDate(u.createdAt)}</td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
                         <IconButton icon={<I.eye size={15} />} label="Ko'rish" onClick={() => setViewUser(u)} />
-                        <IconButton icon={<I.edit size={15} />} label="Tahrir" onClick={() => openEdit(u)} />
-                        <IconButton icon={<I.trash size={15} />} label="O'chirish" onClick={() => { if (u.role !== "admin") setDeleteUser(u); else toast("Admin o'chirib bo'lmaydi"); }} />
+                        {canManageUsers && canManageTargetUser(currentUser, u) ? <IconButton icon={<I.edit size={15} />} label="Tahrir" onClick={() => openEdit(u)} /> : null}
+                        {canManageUsers && canManageTargetUser(currentUser, u) && u.id !== currentUser?.id ? <IconButton icon={<I.trash size={15} />} label="O'chirish" onClick={() => setDeleteUser(u)} /> : null}
                       </div>
                     </td>
                   </tr>
@@ -142,50 +299,132 @@ function UsersPage() {
         )}
       </Panel>
 
-      <Modal open={addOpen} onClose={() => { setAddOpen(false); setEditUser(null); }} title={editUser ? "Foydalanuvchini tahrirlash" : "Yangi foydalanuvchi"} icon={<I.user size={18} />} width={500}
+      <Modal open={addOpen} onClose={() => { setAddOpen(false); setEditUser(null); }} title={editUser ? "Foydalanuvchini tahrirlash" : "Yangi foydalanuvchi"} icon={<I.user size={18} />} width={920}
         footer={<><Button variant="ghost" onClick={() => { setAddOpen(false); setEditUser(null); }}>Bekor</Button><Button variant="primary" onClick={saveUser}>{editUser ? "Saqlash" : "Qo'shish"}</Button></>}>
-        <div style={{ display: "grid", gap: 14 }}>
-          <Field label="To'liq ism" required><Input value={form.fullName} onChange={e => setF("fullName", e.target.value)} placeholder="Aziz Karimov" /></Field>
-          <Field label="Email" required><Input value={form.email} onChange={e => setF("email", e.target.value)} placeholder="aziz@bogotarmadanrg.uz" type="email" /></Field>
-          <Field label="Telefon"><Input value={form.phone} onChange={e => setF("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
-          <Field label={editUser ? "Yangi parol" : "Parol"}><Input value={form.password} onChange={e => setF("password", e.target.value)} type="password" placeholder={editUser ? "O'zgartirmasangiz bo'sh qoldiring" : "Kamida 8 belgi"} /></Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Rol"><Select value={form.role} onChange={v => setF("role", v)} options={ROLE_OPTIONS.map(r => ({ value: r, label: ROLES_UZ[r] }))} /></Field>
-            {hasRegionField && <Field label="Hudud"><Select value={form.region} onChange={v => setF("region", v)} options={["Toshkent", "Samarqand", "Namangan", "Andijon", "Farg'ona"].map(r => ({ value: r, label: r }))} /></Field>}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(320px, .9fr)", gap: 18 }}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div style={{ padding: 16, border: "1px solid var(--border)", borderRadius: 18, background: "var(--surface-2)" }}>
+              <div style={{ display: "grid", gap: 14 }}>
+                <Field label="To'liq ism" required><Input value={form.fullName} onChange={e => setF("fullName", e.target.value)} placeholder="Aziz Karimov" /></Field>
+                <Field label="Email" required><Input value={form.email} onChange={e => setF("email", e.target.value)} placeholder="aziz@bogotarmadanrg.uz" type="email" /></Field>
+                <Field label="Telefon"><Input value={form.phone} onChange={e => setF("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
+                <Field label={editUser ? "Yangi parol" : "Parol"} hint={editUser ? "O'zgartirmasangiz bo'sh qoldiring" : undefined}><Input value={form.password} onChange={e => setF("password", e.target.value)} type="password" placeholder={editUser ? "Yangi parol" : "Kamida 8 belgi"} /></Field>
+              </div>
+            </div>
+
+            <div style={{ padding: 16, border: "1px solid var(--border)", borderRadius: 18, background: "var(--surface-2)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: hasRegionField ? "1fr 1fr" : "1fr", gap: 14 }}>
+                <Field label="Rol">
+                  <Select
+                    value={form.role}
+                    onChange={(value) => setForm((current) => ({ ...current, role: value, permissions: value === "developer" ? [] : current.permissions }))}
+                    options={availableRoleOptions.map((role) => ({ value: role.key, label: role.label }))}
+                  />
+                </Field>
+                {hasRegionField ? <Field label="Hudud"><Select value={form.region} onChange={v => setF("region", v)} options={["Toshkent", "Samarqand", "Namangan", "Andijon", "Farg'ona"].map(r => ({ value: r, label: r }))} /></Field> : null}
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <Field label="Holat"><Select value={form.status} onChange={v => setF("status", v)} options={[{ value: "active", label: "Faol" }, { value: "inactive", label: "Nofaol" }]} /></Field>
+              </div>
+            </div>
           </div>
-          <Field label="Holat"><Select value={form.status} onChange={v => setF("status", v)} options={[{ value: "active", label: "Faol" }, { value: "inactive", label: "Nofaol" }]} /></Field>
+
+          <div style={{ padding: 16, border: "1px solid var(--border)", borderRadius: 18, background: "var(--surface-2)", minHeight: 420 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+              <div>
+                <div className="tg-section-title" style={{ marginBottom: 4 }}>Ruxsatlar</div>
+                <div className="tg-cell-sub">{form.role === "developer" ? "Dasturchi barcha modullarga to'liq kira oladi." : "Rol defaultlarini qo'llab keyin kerakli ruxsatlarni qo'lda o'zgartiring."}</div>
+              </div>
+              {form.role !== "developer" ? <div style={{ display: "flex", gap: 8 }}>
+                <Button variant="soft" size="sm" onClick={applyRoleDefaults}>Rol defaultlari</Button>
+                <Button variant="ghost" size="sm" onClick={() => setF("permissions", [])}>Tozalash</Button>
+              </div> : null}
+            </div>
+
+            {form.role === "developer" ? (
+              <div style={{ display: "grid", placeItems: "center", minHeight: 300, borderRadius: 16, border: "1px dashed var(--border)", background: "color-mix(in srgb, var(--violet) 10%, var(--surface-2))", textAlign: "center", padding: 20 }}>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "center" }}><Badge color="violet">To'liq kirish</Badge></div>
+                  <div style={{ fontWeight: 700 }}>Dasturchi foydalanuvchisi uchun alohida permission tanlash kerak emas.</div>
+                  <div className="tg-cell-sub">Administrator dasturchi rolini bera olmaydi yoki olib tashlay olmaydi.</div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 12, maxHeight: 520, overflowY: "auto", paddingRight: 4 }}>
+                {permissionGroups.map(([moduleKey, permissions]) => (
+                  <div key={moduleKey} style={{ border: "1px solid var(--border)", borderRadius: 16, background: "var(--surface)", padding: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+                      <div style={{ fontWeight: 700 }}>{USER_MODULE_LABELS[moduleKey] || moduleKey}</div>
+                      <Badge color="slate" size="sm">{permissions.filter((permission) => form.permissions.includes(permission.code)).length}/{permissions.length}</Badge>
+                    </div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {permissions.map((permission) => {
+                        const active = form.permissions.includes(permission.code);
+                        return (
+                          <button
+                            key={permission.code}
+                            type="button"
+                            onClick={() => togglePermission(permission.code)}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 12,
+                              padding: "11px 12px",
+                              borderRadius: 12,
+                              border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                              background: active ? "var(--accent-soft)" : "var(--surface-2)",
+                              color: active ? "var(--accent)" : "var(--text)",
+                              cursor: "pointer",
+                              textAlign: "left",
+                              fontWeight: active ? 650 : 560,
+                            }}
+                          >
+                            <span>{permission.label}</span>
+                            {active ? <I.checkCircle size={16} /> : <I.plus size={15} style={{ color: "var(--text-3)" }} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
-      <Modal open={!!viewUser} onClose={() => setViewUser(null)} title="Foydalanuvchi ma'lumotlari" icon={<I.user size={18} />} width={460}
+      <Modal open={!!viewUser} onClose={() => setViewUser(null)} title="Foydalanuvchi ma'lumotlari" icon={<I.user size={18} />} width={720}
         footer={<>
           <Button variant="ghost" onClick={() => setViewUser(null)}>Bekor</Button>
-          <Button variant="soft" icon={<I.edit size={14} />} onClick={() => {
+          {canManageUsers && viewUser && canManageTargetUser(currentUser, viewUser) ? <Button variant="soft" icon={<I.edit size={14} />} onClick={() => {
             const current = viewUser;
             setViewUser(null);
             openEdit(current);
-          }}>To'liq tahrir</Button>
-          <Button variant="primary" onClick={saveViewRole}>Rolni saqlash</Button>
+          }}>Tahrir</Button> : null}
         </>}>
         {viewUser && (
-          <div style={{ display: "grid", gap: 16 }}>
-            <div className="tg-meta">
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, .95fr) minmax(280px, 1.05fr)", gap: 16 }}>
+            <div className="tg-meta" style={{ padding: 16, border: "1px solid var(--border)", borderRadius: 18, background: "var(--surface-2)" }}>
               <div className="tg-meta-row"><span className="tg-meta-k">Foydalanuvchi</span><span className="tg-meta-v">{viewUser.fullName}</span></div>
               <div className="tg-meta-row"><span className="tg-meta-k">Email</span><span className="tg-meta-v">{viewUser.email}</span></div>
               <div className="tg-meta-row"><span className="tg-meta-k">Telefon</span><span className="tg-meta-v">{viewUser.phone}</span></div>
-              <div className="tg-meta-row" style={{ alignItems: "center" }}>
-                <span className="tg-meta-k">Rol</span>
-                <span className="tg-meta-v" style={{ minWidth: 180 }}>
-                  <Select value={viewRole} onChange={setViewRole} options={ROLE_OPTIONS.map(r => ({ value: r, label: ROLES_UZ[r] }))} />
-                </span>
-              </div>
+              <div className="tg-meta-row"><span className="tg-meta-k">Rol</span><span className="tg-meta-v"><Badge color={USER_ROLE_META[viewUser.role]?.color || "slate"}>{USER_ROLE_META[viewUser.role]?.label || viewUser.role}</Badge></span></div>
               {hasRegionField && viewUser.region ? <div className="tg-meta-row"><span className="tg-meta-k">Hudud</span><span className="tg-meta-v">{viewUser.region}</span></div> : null}
-              <div className="tg-meta-row"><span className="tg-meta-k">Savdolar</span><span className="tg-meta-v">{viewUser.completedSales}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">Holat</span><span className="tg-meta-v"><StatusBadge status={viewUser.status === "active" ? "active" : "inactive"} label={viewUser.status === "active" ? "Faol" : "Nofaol"} /></span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">Qo'shilgan</span><span className="tg-meta-v">{fmtDate(viewUser.createdAt)}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">Username</span><span className="tg-meta-v">{viewUser.username || "-"}</span></div>
             </div>
-            <div>
-              <div className="tg-section-title">Ruxsatlar</div>
-              {(viewPermissions || []).length ? (
+
+            <div style={{ padding: 16, border: "1px solid var(--border)", borderRadius: 18, background: "var(--surface-2)" }}>
+              <div className="tg-section-title" style={{ marginBottom: 10 }}>Ruxsatlar</div>
+              {viewUser.role === "developer" ? (
+                <div style={{ display: "grid", gap: 10 }}>
+                  <Badge color="violet" size="sm">To'liq kirish</Badge>
+                  <div className="tg-cell-sub">Dasturchi barcha bo'limlarga kirish va boshqarish huquqiga ega.</div>
+                </div>
+              ) : (viewPermissions || []).length ? (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {viewPermissions.map((permission) => <Badge key={permission} color="blue" size="sm">{permissionLabelUz(permission)}</Badge>)}
+                  {viewPermissions.map((permission) => <Badge key={permission} color="blue" size="sm">{permissionLabelMap[permission] || permissionLabelUz(permission)}</Badge>)}
                 </div>
               ) : (
                 <div className="tg-cell-sub">Qo'shimcha ruxsat topilmadi</div>
@@ -204,124 +443,10 @@ function UsersPage() {
         }}
         title="Foydalanuvchini o'chirish"
         message={`"${deleteUser?.fullName || ""}" foydalanuvchisini o'chirmoqchimisiz?`}
-        details={deleteUser ? `Email: ${deleteUser.email}\nRol: ${ROLES_UZ[deleteUser.role]}` : ""}
+        details={deleteUser ? `Email: ${deleteUser.email}\nRol: ${USER_ROLE_META[deleteUser.role]?.label || deleteUser.role}` : ""}
         confirmLabel="O'chirish"
         danger
       />
-    </div>
-  );
-}
-
-/* ======= ROLES ======= */
-function RolesPage() {
-  const { data, t } = useApp();
-  const roles = data.roles || [];
-  const permissions = data.permissionsAll?.length ? data.permissionsAll : data.permissions || [];
-  const [selected, setSelected] = sysS(roles[0]?.key || "developer");
-
-  React.useEffect(() => {
-    if (!roles.length) return;
-    if (!roles.find((role) => role.key === selected)) setSelected(roles[0].key);
-  }, [roles, selected]);
-
-  const moduleLabels = {
-    dashboard: "Dashboard",
-    audit_logs: "Audit",
-    users: "Foydalanuvchilar",
-    clients: "Mijozlar",
-    accounting: "Hisob-kitob",
-    products: "Mahsulotlar",
-    chats: "Chat",
-    integrations: "Integratsiyalar",
-    ai: "AI",
-  };
-  const moduleIcons = {
-    dashboard: "home",
-    audit_logs: "clock",
-    users: "users",
-    clients: "users",
-    accounting: "chart",
-    products: "box",
-    chats: "message",
-    integrations: "link",
-    ai: "robot",
-  };
-  const roleColors = { developer: "violet", admin: "red", operator: "blue" };
-  const roleMap = Object.fromEntries(roles.map((role) => [role.key, role]));
-  const selectedRole = roleMap[selected] || roles[0] || null;
-  const permissionModules = Object.entries(
-    permissions.reduce((acc, permission) => {
-      const moduleKey = permission.module || "other";
-      if (!acc[moduleKey]) acc[moduleKey] = [];
-      acc[moduleKey].push(permission);
-      return acc;
-    }, {})
-  );
-
-  return (
-    <div className="page fade-in">
-      <PageHeader title={t("page.roles")} desc="Backend rollari va default ruxsatlar" crumbs={[{ label: "Tizim" }, { label: t("page.roles") }]} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 22 }}>
-        {roles.map((role) => (
-          <Card key={role.key} hover data-selected={selected === role.key ? "1" : undefined} onClick={() => setSelected(role.key)} style={{ cursor: "pointer", border: selected === role.key ? `2px solid var(--${roleColors[role.key] || "accent"})` : undefined }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
-              <Badge color={roleColors[role.key] || "slate"}>{role.label || role.key}</Badge>
-              <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{data.users.filter(u => u.rawRole === role.key || u.role === role.key).length} ta</span>
-            </div>
-            <div style={{ fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.5 }}>{(role.default_permissions || []).length} ta default ruxsat</div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid-dash">
-        <Panel title="Default ruxsatlar" icon="shield" color="violet">
-          {selectedRole ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {(selectedRole.default_permissions || []).map((permission) => <Badge key={permission} color="blue" size="sm">{permissionLabelUz(permission)}</Badge>)}
-            </div>
-          ) : (
-            <EmptyState icon={<I.lock size={22} />} title="Rollar topilmadi" message="Backend role ma'lumoti kelmadi." />
-          )}
-        </Panel>
-        <Panel title="Modullar bo'yicha matritsa" icon="layers" color="green" pad={false}>
-          <div className="tg-table-wrap">
-            <table className="tg-table tg-matrix">
-              <thead>
-                <tr>
-                  <th style={{ minWidth: 160 }}>Modul</th>
-                  {roles.map((role) => <th key={role.key}><Badge color={roleColors[role.key] || "slate"} size="sm">{role.label || role.key}</Badge></th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {permissionModules.map(([moduleKey, modulePermissions]) => {
-                  const Ico = I[moduleIcons[moduleKey] || "box"];
-                  return (
-                    <tr key={moduleKey} data-highlighted={modulePermissions.some((permission) => (selectedRole?.default_permissions || []).includes(permission.key)) ? "1" : undefined}>
-                      <td>
-                        <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-                          <span style={{ color: "var(--text-3)", display: "flex" }}><Ico size={14} /></span>
-                          <span style={{ fontSize: 13 }}>{moduleLabels[moduleKey] || moduleKey}</span>
-                        </div>
-                      </td>
-                      {roles.map((role) => {
-                        const hasModule = modulePermissions.some((permission) => (role.default_permissions || []).includes(permission.key));
-                        return (
-                          <td key={role.key}>
-                            <div style={{ display: "grid", placeItems: "center" }}>
-                              {hasModule ? <I.checkCircle size={17} style={{ color: "var(--green)" }} /> : <I.x size={16} style={{ color: "var(--border)" }} />}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      </div>
     </div>
   );
 }
@@ -545,8 +670,7 @@ function AuditPage() {
 
   return (
     <div className="page fade-in">
-      <PageHeader title={t("page.audit")} desc="Barcha tizim harakatlari jurnali" crumbs={[{ label: "Tizim" }, { label: t("page.audit") }]}
-        actions={<ExportDropdown label="Hisobot" size="sm" filename="audit" rows={filtered} mapper={a => ({ Foydalanuvchi: a.userName, Harakat: a.action, Ob_yekt: a.entity, ID: a.entityId, Sana: fmtDate(a.createdAt) })} />} />
+      <PageHeader title={t("page.audit")} desc="Barcha tizim harakatlari jurnali" crumbs={[{ label: "Tizim" }, { label: t("page.audit") }]} />
 
       <Panel title="Audit jurnali" icon="clock" color="accent" pad={false}
         action={<div style={{ display: "flex", gap: 10 }}>
@@ -753,8 +877,8 @@ function HelpPage() {
     { q: "Kanban pipeline qanday ishlaydi?", a: "Pipeline sahifasida kartalarni drag & drop orqali ustunlar orasida siljiting. Har bir ustun lid bosqichini bildiradi." },
     { q: "AI lead saralashi qanday ishlaydi?", a: "Instagram AI va Telegram Web App foydalanuvchidan ism, telefon, kerakli quvvat va to'lov turini yig'adi. Ma'lumotlar tayyor bo'lgach lead CRM ga tushadi va operatorga biriktiriladi." },
     { q: "Qarzdorlar sahifasi nimaga xizmat qiladi?", a: "Qarzdorlar sahifasida mijozning umumiy summa, to'langan qismi, qolgan qarzi va undirish holati ko'rinadi. Excel dagi qarzdorlik daftarlari shu modulga mos keladi." },
-    { q: "Ruxsatlar qanday belgilanadi?", a: "Rollar sahifasida har bir rol uchun modul ruxsatlarini ko'rishingiz mumkin. Hozir 4 ta rol: Admin, Savdo, Operator va Moliya." },
-    { q: "CSV eksport qanday amalga oshiriladi?", a: "Har bir jadval sahifasida 'Eksport' tugmasi mavjud. U joriy filtrga mos ma'lumotlarni CSV formatda yuklab beradi." },
+    { q: "Ruxsatlar qanday belgilanadi?", a: "Ruxsatlar foydalanuvchilar sahifasida belgilanadi. Dasturchi barcha ruxsatlarni boshqaradi, administrator esa o'zi boshqara oladigan foydalanuvchilarga ruxsat beradi yoki olib tashlaydi." },
+    { q: "Excel eksport qanday amalga oshiriladi?", a: "Mijozlar va qarzdorlar sahifasida 'Excel' tugmasi mavjud. U backend tayyorlagan haqiqiy .xlsx faylni yuklab beradi." },
     { q: "Instagram/Telegram AI qanday ulanadi?", a: "Integratsiyalar sahifasida Instagram yoki Telegram'ni tanlang va 'Ulash' tugmasini bosing. Webhook URL va API kalitlarni mos bo'limga kiriting." },
     { q: "Hisob-kitob sahifasi nimani ko'rsatadi?", a: "Hisob-kitob sahifasida kundalik kirim-chiqim, to'lov turi, kategoriya va yakuniy balans ko'rinadi. Bu modul kunlik moliyaviy nazorat uchun ishlatiladi." },
   ];
@@ -819,7 +943,6 @@ function HelpPage() {
 }
 
 window.UsersPage = UsersPage;
-window.RolesPage = RolesPage;
 window.SettingsPage = SettingsPage;
 window.NotificationsPage = NotificationsPage;
 window.AuditPage = AuditPage;

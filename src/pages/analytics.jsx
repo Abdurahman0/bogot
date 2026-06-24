@@ -46,7 +46,7 @@ function AnalyticsPage() {
   return (
     <div className="page fade-in">
       <PageHeader title={t("page.analytics")} desc="Lead, qarzdorlik va moliyaviy ko'rsatkichlar" crumbs={[{ label: "Umumiy" }, { label: t("page.analytics") }]}
-        actions={<><DateRange value={range} onChange={setRange} /><ExportDropdown label="Hisobot" size="sm" filename="analitika" rows={[]} mapper={r => r} /></>} />
+        actions={<DateRange value={range} onChange={setRange} />} />
 
       <div className="dash-hero" style={{ background: "linear-gradient(135deg,#0f172a 0%,#1d4ed8 45%,#38bdf8 100%)" }}>
         <div className="dash-hero-content">

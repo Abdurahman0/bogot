@@ -94,9 +94,9 @@ function routeCollectionKeys(route) {
     case "payments":
       return [...BASE_COLLECTIONS, "payments", "accountingDays", "orders", "customers"];
     case "users":
-      return [...BASE_COLLECTIONS, "users"];
+      return [...BASE_COLLECTIONS, "users", "roles", "permissionsAll"];
     case "roles":
-      return [...BASE_COLLECTIONS, "users", "roles", "permissions", "permissionsAll"];
+      return [...BASE_COLLECTIONS, "users", "roles", "permissionsAll"];
     case "notifications":
       return [...BASE_COLLECTIONS];
     case "integrations":
@@ -290,7 +290,7 @@ function AppProvider({ children }) {
 
     if (key === "users") {
       await apiSaveUser(item);
-      await refreshCollections(["users"]);
+      await refreshCollections(["users", "authUser"], ["roles", "permissionsAll"]);
     }
     if (key === "customers") {
       await apiSaveClient(item, dataRef.current);
@@ -343,7 +343,7 @@ function AppProvider({ children }) {
 
     if (key === "users") {
       await apiDelete(`/api/users/${id}/`);
-      await refreshCollections(["users"]);
+      await refreshCollections(["users", "authUser"], ["roles", "permissionsAll"]);
     }
     if (key === "customers") {
       await apiDelete(`/api/clients/${id}/`);

@@ -20,7 +20,6 @@ const NAV = [
   {
     group: "nav.system", items: [
       { path: "/users", key: "page.users", icon: "users" },
-      { path: "/roles", key: "page.roles", icon: "lock" },
       { path: "/notifications", key: "page.notifications", icon: "bell" },
       { path: "/integrations", key: "page.integrations", icon: "link" },
       { path: "/settings", key: "page.settings", icon: "settings" },
@@ -45,7 +44,6 @@ const PAGE_PERMISSION_MAP = {
   "/debtors": ["clients.view", "clients.manage", "accounting.view", "accounting.manage"],
   "/accounting": ["accounting.view", "accounting.manage"],
   "/users": ["users.view", "users.manage"],
-  "/roles": ["users.view", "users.manage"],
   "/notifications": ["notifications.view", "notifications.manage"],
   "/integrations": ["integrations.view", "integrations.manage"],
   "/settings": ["clients.view", "clients.manage", "ai.view", "ai.manage", "integrations.view", "integrations.manage"],
@@ -182,7 +180,7 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
   const me = data.authUser || data.users.find(u => u.role === role) || data.users[0] || {
     fullName: "Foydalanuvchi",
     role,
-    label: role === "developer" ? "Developer" : role === "admin" ? "Administrator" : "Operator",
+    label: role === "developer" ? "Dasturchi" : role === "admin" ? "Administrator" : "Operator",
     avatarHue: 220,
   };
 
