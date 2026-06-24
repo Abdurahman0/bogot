@@ -36,7 +36,45 @@ const ROLE_ACCESS = {
   operator: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/debtors", "/accounting", "/notifications", "/integrations", "/settings"],
 };
 window.ROLE_ACCESS = ROLE_ACCESS;
-function canAccess(role, path) { const a = ROLE_ACCESS[role]; return a == null || a.includes(path); }
+const PAGE_PERMISSION_MAP = {
+  "/dashboard": ["dashboard.view"],
+  "/customers": ["clients.view", "clients.manage"],
+  "/tasks": ["tasks.view", "tasks.manage"],
+  "/inbox": ["chats.view", "chats.manage"],
+  "/products": ["products.view", "products.manage"],
+  "/debtors": ["clients.view", "clients.manage", "accounting.view", "accounting.manage"],
+  "/accounting": ["accounting.view", "accounting.manage"],
+  "/users": ["users.view", "users.manage"],
+  "/roles": ["users.view", "users.manage"],
+  "/notifications": ["notifications.view", "notifications.manage"],
+  "/integrations": ["integrations.view", "integrations.manage"],
+  "/settings": ["clients.view", "clients.manage", "ai.view", "ai.manage", "integrations.view", "integrations.manage"],
+};
+function permissionKeysFrom(items) {
+  return [...new Set((items || []).map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object") return item.key || item.codename || item.name || "";
+    return "";
+  }).filter(Boolean))];
+}
+function routeBasePath(path) {
+  const normalized = String(path || "").trim();
+  if (!normalized.startsWith("/")) return "/" + normalized.split("/")[0];
+  return "/" + normalized.split("/").filter(Boolean)[0];
+}
+function canAccess(role, path, data) {
+  const basePath = routeBasePath(path);
+  const allowedByRole = ROLE_ACCESS[role];
+  const roleAllows = allowedByRole == null || allowedByRole.includes(basePath);
+  if (!data) return roleAllows;
+  const authUserHasPermissions = !!data.authUser && Object.prototype.hasOwnProperty.call(data.authUser, "permissions");
+  const sourcePermissions = authUserHasPermissions ? data.authUser.permissions : data.permissions;
+  const permissionKeys = permissionKeysFrom(sourcePermissions);
+  if (!authUserHasPermissions && !permissionKeys.length) return roleAllows;
+  const needed = PAGE_PERMISSION_MAP[basePath];
+  if (!needed?.length) return roleAllows;
+  return needed.some((key) => permissionKeys.includes(key));
+}
 window.canAccess = canAccess;
 
 // ---------- Logo ----------
@@ -57,7 +95,7 @@ window.Logo = Logo;
 
 // ---------- Sidebar ----------
 function Sidebar({ route, nav, mobileOpen, setMobileOpen }) {
-  const { t, sidebarCollapsed, role } = useApp();
+  const { t, sidebarCollapsed, role, data } = useApp();
   const collapsed = sidebarCollapsed && !mobileOpen;
   const [closedGroups, setClosedGroups] = shS({});
   const toggleGroup = (key) => setClosedGroups(g => ({ ...g, [key]: !g[key] }));
@@ -70,7 +108,7 @@ function Sidebar({ route, nav, mobileOpen, setMobileOpen }) {
         </div>
         <nav className="tg-sidebar-nav">
           {NAV.map(grp => {
-            const items = grp.items.filter(it => canAccess(role, it.path));
+            const items = grp.items.filter(it => canAccess(role, it.path, data));
             if (!items.length) return null;
             const isClosed = !!closedGroups[grp.group];
             return (
@@ -169,8 +207,8 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
         <LangSelector />
         {/* notifications */}
         <div style={{ position: "relative" }}>
-          <IconButton icon={<I.bell size={19} />} label="Bildirishnomalar" badge={unread} onClick={() => setNotifOpen(o => !o)} />
-          {notifOpen && <NotifPanel onClose={() => setNotifOpen(false)} nav={nav} />}
+          {canAccess(role, "/notifications", data) ? <><IconButton icon={<I.bell size={19} />} label="Bildirishnomalar" badge={unread} onClick={() => setNotifOpen(o => !o)} />
+          {notifOpen && <NotifPanel onClose={() => setNotifOpen(false)} nav={nav} />}</> : null}
         </div>
         {/* account */}
         <Dropdown align="right" width={230} trigger={
@@ -185,7 +223,7 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
         } items={[
           { label: me.label || t("role." + role), icon: <I.shield size={16} />, right: <I.check size={15} style={{ color: "var(--accent)" }} />, onClick: () => {} },
           { divider: true },
-          { label: t("page.settings"), icon: <I.settings size={16} />, onClick: () => nav("/settings") },
+          ...(canAccess(role, "/settings", data) ? [{ label: t("page.settings"), icon: <I.settings size={16} />, onClick: () => nav("/settings") }] : []),
           { label: "Chiqish", icon: <I.logout size={16} />, danger: true, onClick: logout },
         ]} />
       </div>
@@ -235,12 +273,13 @@ function LangSelector() {
 }
 
 function QuickCreate() {
-  const { t, toast } = useApp();
+  const { t, toast, role, data } = useApp();
   const items = [
     { key: "qc.customer", icon: "user", to: "/customers" },
     { key: "qc.order", icon: "wallet", to: "/debtors" }, { key: "qc.task", icon: "checkCircle", to: "/tasks" },
     { key: "qc.product", icon: "box", to: "/products" }, { key: "qc.call", icon: "chart", to: "/accounting" },
-  ];
+  ].filter((item) => canAccess(role, item.to, data));
+  if (!items.length) return null;
   return (
     <Dropdown align="right" width={210} trigger={<Button variant="primary" size="sm" icon={<I.plus size={16} />}><span className="hide-sm">{t("common.quickCreate")}</span></Button>}
       items={items.map(it => { const Ico = I[it.icon]; return { label: t(it.key), icon: <Ico size={16} />, onClick: () => { window.navTo(it.to); toast(t(it.key) + " — forma ochildi"); } }; })} />
@@ -297,7 +336,7 @@ function CommandPalette({ open, onClose, nav }) {
   const results = shM(() => {
     const ql = q.toLowerCase().trim();
     const groups = [];
-    const pages = NAV.flatMap(g => g.items).filter(it => canAccess(role, it.path)).map(it => ({ type: "Sahifa", label: t(it.key), icon: it.icon, to: it.path }));
+    const pages = NAV.flatMap(g => g.items).filter(it => canAccess(role, it.path, data)).map(it => ({ type: "Sahifa", label: t(it.key), icon: it.icon, to: it.path }));
     const matchPages = pages.filter(p => !ql || p.label.toLowerCase().includes(ql)).slice(0, 6);
     if (matchPages.length) groups.push({ title: "Sahifalar", items: matchPages });
     if (ql) {
@@ -325,7 +364,7 @@ function CommandPalette({ open, onClose, nav }) {
       { type: "Amal", label: "Yangi mijoz qo'shish", icon: "plus", to: "/customers" },
       { type: "Amal", label: "Yangi qarzdor ochish", icon: "wallet", to: "/debtors" },
       { type: "Amal", label: "Yangi vazifa ochish", icon: "checkCircle", to: "/tasks" },
-    ].filter(a => !ql || a.label.toLowerCase().includes(ql));
+    ].filter(a => canAccess(role, a.to, data) && (!ql || a.label.toLowerCase().includes(ql)));
     if (actions.length && (ql || groups.length < 2)) groups.push({ title: "Amallar", items: actions.slice(0, 3) });
     return groups;
   }, [q, data, role]);

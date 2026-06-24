@@ -50,7 +50,7 @@ function Router() {
   }, [route, nav]);
 
   if (!authed) return <Login />;
-  if (dataLoading && !data.authUser && data.users.length === 0) {
+  if (!data.authUser) {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "var(--bg)" }}>
         <Card style={{ maxWidth: 420, width: "100%" }}>
@@ -67,7 +67,7 @@ function Router() {
   // access guard
   const basePath = "/" + route.split("/")[1];
   const accessPath = basePath === "/pipeline" ? "/tasks" : basePath === "/leads" ? "/customers" : basePath;
-  if (!canAccess(role, accessPath) && accessPath !== "/dashboard") {
+  if (!canAccess(role, accessPath, data)) {
     return (
       <div className="app-shell">
         <Sidebar route={route} nav={nav} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />

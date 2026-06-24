@@ -112,6 +112,26 @@ function apiMediaUrl(value) {
   }
 }
 
+function apiNormalizeUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const apiUrl = new URL(API_BASE, window.location.origin);
+    const resolved = raw.startsWith("//")
+      ? new URL(`${apiUrl.protocol}${raw}`)
+      : new URL(raw, apiUrl);
+
+    if (resolved.host === apiUrl.host && apiUrl.protocol === "https:" && resolved.protocol === "http:") {
+      resolved.protocol = "https:";
+    }
+
+    return resolved.href;
+  } catch (e) {
+    return raw;
+  }
+}
+
 function apiDateOnly(value) {
   if (!value) return new Date().toISOString().slice(0, 10);
   return String(value).slice(0, 10);
@@ -219,7 +239,7 @@ async function apiRequest(path, options = {}) {
   if (auth && session?.access) requestHeaders.Authorization = `Bearer ${session.access}`;
   if (!formData && body !== undefined) requestHeaders["Content-Type"] = "application/json";
 
-  const response = await fetch(path.startsWith("http") ? path : `${API_BASE}${path}`, {
+  const response = await fetch(apiNormalizeUrl(path.startsWith("http") ? path : `${API_BASE}${path}`), {
     method,
     headers: requestHeaders,
     body: formData || (body !== undefined ? JSON.stringify(body) : undefined),
@@ -259,12 +279,12 @@ function apiListItems(payload) {
 
 async function apiPaginateAll(path) {
   const all = [];
-  let next = `${API_BASE}${path.includes("?") ? `${path}&page_size=100` : `${path}?page_size=100`}`;
+  let next = apiNormalizeUrl(`${API_BASE}${path.includes("?") ? `${path}&page_size=100` : `${path}?page_size=100`}`);
   while (next) {
     const page = apiUnwrap(await apiRequest(next, { auth: true }));
     const rows = Array.isArray(page?.results) ? page.results : Array.isArray(page) ? page : [];
     all.push(...rows);
-    next = page?.next || null;
+    next = page?.next ? apiNormalizeUrl(page.next) : null;
   }
   return all;
 }

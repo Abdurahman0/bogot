@@ -68,7 +68,7 @@ function mergeRemoteData(remote, previous) {
   return next;
 }
 
-const BASE_COLLECTIONS = ["authUser", "users", "notifications"];
+const BASE_COLLECTIONS = ["authUser", "notifications"];
 
 function routeCollectionKeys(route) {
   const normalized = normalizeRoute(route);
@@ -76,7 +76,7 @@ function routeCollectionKeys(route) {
 
   switch (main) {
     case "dashboard":
-      return [...BASE_COLLECTIONS, "customers", "orders", "tasks", "taskColumns", "payments", "accountingDays", "products", "dashboardOverview"];
+      return [...BASE_COLLECTIONS, "users", "customers", "orders", "tasks", "taskColumns", "payments", "accountingDays", "products", "dashboardOverview"];
     case "customers":
     case "leads":
       return [...BASE_COLLECTIONS, "customers", "clientStatuses", "orders", "payments", "accountingDays"];
@@ -84,7 +84,7 @@ function routeCollectionKeys(route) {
     case "pipeline":
       return [...BASE_COLLECTIONS, "tasks", "taskColumns", "taskAssignees"];
     case "inbox":
-      return [...BASE_COLLECTIONS, "conversations", "customers"];
+      return [...BASE_COLLECTIONS, "users", "conversations", "customers"];
     case "products":
       return [...BASE_COLLECTIONS, "products", "productCategories"];
     case "debtors":
@@ -94,9 +94,9 @@ function routeCollectionKeys(route) {
     case "payments":
       return [...BASE_COLLECTIONS, "payments", "accountingDays", "orders", "customers"];
     case "users":
-      return [...BASE_COLLECTIONS];
+      return [...BASE_COLLECTIONS, "users"];
     case "roles":
-      return [...BASE_COLLECTIONS, "roles", "permissions", "permissionsAll"];
+      return [...BASE_COLLECTIONS, "users", "roles", "permissions", "permissionsAll"];
     case "notifications":
       return [...BASE_COLLECTIONS];
     case "integrations":
@@ -134,7 +134,6 @@ function AppProvider({ children }) {
   const dataRef = useRef(data);
   const chatWsRef = useRef(null);
   const loadedCollectionsRef = useRef(new Set());
-  const loginRouteLoadHandledRef = useRef(false);
 
   useEffect(() => {
     dataRef.current = data;
@@ -231,10 +230,6 @@ function AppProvider({ children }) {
 
   useEffect(() => {
     if (!authed) return undefined;
-    if (loginRouteLoadHandledRef.current) {
-      loginRouteLoadHandledRef.current = false;
-      return undefined;
-    }
     const syncRouteCollections = () => {
       loadCollections(routeCollectionKeys(readRoute()), { silent: true, force: true }).catch((error) => {
         if (error?.isAuthError || (error.message || "").toLowerCase().includes("token")) logout();
@@ -258,12 +253,11 @@ function AppProvider({ children }) {
       if (!access) throw new Error("Access token qaytmadi");
       apiSaveSession({ access, refresh, user: result?.user || null });
       loadedCollectionsRef.current = new Set();
-      loginRouteLoadHandledRef.current = true;
+      setData(createLocalSeed());
+      setRole(apiUiRole(result?.user?.role || "operator"));
       setAuthed(true);
-      const remote = await loadCollections(routeCollectionKeys(readRoute()), { silent: true, force: true });
-      setRole(remote.authUser?.role || apiUiRole(result?.user?.role || "operator"));
       toast("Tizimga kirildi");
-      return remote;
+      return result;
     } catch (error) {
       apiClearSession();
       setAuthed(false);
