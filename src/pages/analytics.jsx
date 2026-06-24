@@ -1,5 +1,48 @@
 /* pages/analytics.jsx */
 const { useState: anS, useMemo: anM } = React;
+const ANALYTICS_UI = {
+  uz: {
+    pageDesc: "Lead, qarzdorlik va moliyaviy ko'rsatkichlar", generalCrumb: "Umumiy",
+    heroTitle: "CRM analitikasi", heroSub: "Savdo, qarzdorlik va kunlik hisob-kitob holati",
+    kpiIncome: "Kirim", kpiExpense: "Chiqim", kpiLeads: "Leadlar", kpiConversion: "Konversiya",
+    deltaVs: "o'tgan davrga",
+    panelIncomeTrend: "Kirim tendensiyasi", panelIncomeTrendSub: "Kunlik tushumlar (mln so'm)",
+    panelLeadSources: "Lead manbalari",
+    panelExpenseTrend: "Chiqim tendensiyasi", panelExpenseTrendSub: "Kunlik xarajatlar (mln so'm)",
+    panelDebtDist: "Qarzdorlik taqsimoti", centerDebt: "Qarz",
+    panelByCategory: "Kategoriya bo'yicha yozuvlar",
+    panelActiveProducts: "Faol mahsulotlar",
+    bizOld: "Eski biznes", bizSolar: "Quyosh panel biznesi",
+  },
+  ru: {
+    pageDesc: "Показатели лидов, долгов и финансов", generalCrumb: "Общее",
+    heroTitle: "CRM Аналитика", heroSub: "Продажи, задолженности и ежедневный учёт",
+    kpiIncome: "Доход", kpiExpense: "Расход", kpiLeads: "Лиды", kpiConversion: "Конверсия",
+    deltaVs: "к прошлому периоду",
+    panelIncomeTrend: "Тенденция дохода", panelIncomeTrendSub: "Ежедневные поступления (млн сум)",
+    panelLeadSources: "Источники лидов",
+    panelExpenseTrend: "Тенденция расходов", panelExpenseTrendSub: "Ежедневные расходы (млн сум)",
+    panelDebtDist: "Распределение долгов", centerDebt: "Долг",
+    panelByCategory: "Записи по категориям",
+    panelActiveProducts: "Активные товары",
+    bizOld: "Старый бизнес", bizSolar: "Бизнес солнечных панелей",
+  },
+  en: {
+    pageDesc: "Lead, debt and financial indicators", generalCrumb: "General",
+    heroTitle: "CRM Analytics", heroSub: "Sales, debts and daily accounting status",
+    kpiIncome: "Income", kpiExpense: "Expense", kpiLeads: "Leads", kpiConversion: "Conversion",
+    deltaVs: "vs prev. period",
+    panelIncomeTrend: "Income trend", panelIncomeTrendSub: "Daily receipts (mln UZS)",
+    panelLeadSources: "Lead sources",
+    panelExpenseTrend: "Expense trend", panelExpenseTrendSub: "Daily expenses (mln UZS)",
+    panelDebtDist: "Debt distribution", centerDebt: "Debt",
+    panelByCategory: "Records by category",
+    panelActiveProducts: "Active products",
+    bizOld: "Old business", bizSolar: "Solar panel business",
+  },
+};
+function anLang() { return window.__TG_LANG || "uz"; }
+function anTx(key) { return ANALYTICS_UI[anLang()]?.[key] || ANALYTICS_UI.uz[key] || key; }
 
 function AnalyticsPage() {
   const { data, t, nav } = useApp();
@@ -29,8 +72,8 @@ function AnalyticsPage() {
 
   const byBusiness = anM(() => {
     const rows = [
-      { label: "Eski biznes", value: data.orders.filter(o => o.businessLine === "Eski biznes").reduce((s, o) => s + o.remainingDebtUzs, 0), color: "var(--amber)" },
-      { label: "Quyosh panel biznesi", value: data.orders.filter(o => o.businessLine === "Quyosh panel biznesi").reduce((s, o) => s + o.remainingDebtUzs, 0), color: "var(--blue)" },
+      { label: anTx("bizOld"), value: data.orders.filter(o => o.businessLine === "Eski biznes").reduce((s, o) => s + o.remainingDebtUzs, 0), color: "var(--amber)" },
+      { label: anTx("bizSolar"), value: data.orders.filter(o => o.businessLine === "Quyosh panel biznesi").reduce((s, o) => s + o.remainingDebtUzs, 0), color: "var(--blue)" },
     ];
     return rows;
   }, [data.orders]);
@@ -45,24 +88,24 @@ function AnalyticsPage() {
 
   return (
     <div className="page fade-in">
-      <PageHeader title={t("page.analytics")} desc="Lead, qarzdorlik va moliyaviy ko'rsatkichlar" crumbs={[{ label: "Umumiy" }, { label: t("page.analytics") }]}
+      <PageHeader title={t("page.analytics")} desc={anTx("pageDesc")} crumbs={[{ label: anTx("generalCrumb") }, { label: t("page.analytics") }]}
         actions={<DateRange value={range} onChange={setRange} />} />
 
       <div className="dash-hero" style={{ background: "linear-gradient(135deg,#0f172a 0%,#1d4ed8 45%,#38bdf8 100%)" }}>
         <div className="dash-hero-content">
-          <h1 className="dash-hero-title" style={{ display: "flex", alignItems: "center", gap: 10 }}><I.chart size={20} style={{ opacity: 0.85 }} /> CRM analitikasi</h1>
-          <div className="dash-hero-sub">Savdo, qarzdorlik va kunlik hisob-kitob holati</div>
+          <h1 className="dash-hero-title" style={{ display: "flex", alignItems: "center", gap: 10 }}><I.chart size={20} style={{ opacity: 0.85 }} /> {anTx("heroTitle")}</h1>
+          <div className="dash-hero-sub">{anTx("heroSub")}</div>
           <div className="dash-hero-kpis" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             {[
-              { label: "Kirim", value: fmtShort(income) + " so'm", delta: 14, icon: "wallet" },
-              { label: "Chiqim", value: fmtShort(expense) + " so'm", delta: -3, icon: "chart" },
-              { label: "Leadlar", value: leads, delta: 8, icon: "target" },
-              { label: "Konversiya", value: conversion + "%", delta: 5, icon: "trendUp" },
+              { label: anTx("kpiIncome"), value: fmtShort(income) + " so'm", delta: 14, icon: "wallet" },
+              { label: anTx("kpiExpense"), value: fmtShort(expense) + " so'm", delta: -3, icon: "chart" },
+              { label: anTx("kpiLeads"), value: leads, delta: 8, icon: "target" },
+              { label: anTx("kpiConversion"), value: conversion + "%", delta: 5, icon: "trendUp" },
             ].map(k => (
               <div key={k.label} className={`dash-hero-tile ${k.delta >= 0 ? "dash-hero-tile-delta-up" : "dash-hero-tile-delta-dn"}`}>
                 <div className="dash-hero-tile-head">{React.createElement(I[k.icon], { size: 15 })}<span>{k.label}</span></div>
                 <div className="dash-hero-tile-value">{k.value}</div>
-                <div className="dash-hero-tile-delta">{k.delta >= 0 ? <I.trendUp size={11} /> : <I.trendDown size={11} />}<span className="dash-hero-tile-delta-pct">{k.delta >= 0 ? "+" : ""}{k.delta}%</span><span className="dash-hero-tile-delta-vs">o'tgan davrga</span></div>
+                <div className="dash-hero-tile-delta">{k.delta >= 0 ? <I.trendUp size={11} /> : <I.trendDown size={11} />}<span className="dash-hero-tile-delta-pct">{k.delta >= 0 ? "+" : ""}{k.delta}%</span><span className="dash-hero-tile-delta-vs">{anTx("deltaVs")}</span></div>
               </div>
             ))}
           </div>
@@ -70,28 +113,28 @@ function AnalyticsPage() {
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
-        <Panel title="Kirim tendensiyasi" subtitle="Kunlik tushumlar (mln so'm)" icon="chart" color="green">
+        <Panel title={anTx("panelIncomeTrend")} subtitle={anTx("panelIncomeTrendSub")} icon="chart" color="green">
           {loading ? <div className="skeleton" style={{ height: 220 }} /> : <AreaChart series={cashflowSeries} labels={labels} height={230} color="var(--green)" format={v => v.toFixed(0) + " mln"} />}
         </Panel>
-        <Panel title="Lead manbalari" icon="funnel" color="violet">
+        <Panel title={anTx("panelLeadSources")} icon="funnel" color="violet">
           {loading ? <div className="skeleton" style={{ height: 220 }} /> : <TreemapChart data={bySource} height={230} />}
         </Panel>
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
-        <Panel title="Chiqim tendensiyasi" subtitle="Kunlik xarajatlar (mln so'm)" icon="wallet" color="red">
+        <Panel title={anTx("panelExpenseTrend")} subtitle={anTx("panelExpenseTrendSub")} icon="wallet" color="red">
           {loading ? <div className="skeleton" style={{ height: 220 }} /> : <AreaChart series={expenseSeries} labels={labels} height={230} color="var(--red)" area={false} format={v => v.toFixed(0) + " mln"} />}
         </Panel>
-        <Panel title="Qarzdorlik taqsimoti" icon="layers" color="amber">
-          {loading ? <div className="skeleton" style={{ height: 220 }} /> : <Donut data={byBusiness} size={160} centerLabel="Qarz" />}
+        <Panel title={anTx("panelDebtDist")} icon="layers" color="amber">
+          {loading ? <div className="skeleton" style={{ height: 220 }} /> : <Donut data={byBusiness} size={160} centerLabel={anTx("centerDebt")} />}
         </Panel>
       </div>
 
       <div className="grid-2" style={{ marginBottom: 16 }}>
-        <Panel title="Kategoriya bo'yicha yozuvlar" icon="box" color="blue">
+        <Panel title={anTx("panelByCategory")} icon="box" color="blue">
           {loading ? <div className="skeleton" style={{ height: 200 }} /> : <BarChart data={byCategory} horizontal format={v => v + " mln"} />}
         </Panel>
-        <Panel title="Faol mahsulotlar" icon="sun" color="teal">
+        <Panel title={anTx("panelActiveProducts")} icon="sun" color="teal">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {topProducts.slice(0, 5).map(({ p, sales }) => (
               <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => nav("/products/" + p.id)}>

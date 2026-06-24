@@ -1,5 +1,66 @@
 /* pages/product-detail.jsx */
 const { useState: pdS } = React;
+const PRODUCT_DETAIL_UI = {
+  uz: {
+    notFound: "Mahsulot topilmadi", backToCatalog: "Katalogga",
+    categoriesBtn: "Kategoriyalar", deleteBtn: "O'chirish", editBtn: "Tahrirlash",
+    activeLabel: "Faol", backendCard: "Backend mahsulot kartasi",
+    statStock: "Qoldiq", statCreated: "Yaratilgan", statUpdated: "Yangilangan", statUnit: "dona",
+    goToProducts: "Mahsulotlarga o'tish",
+    tabDetails: "Tafsilotlar", tabDescription: "Tavsif", tabImages: "Rasmlar",
+    metaName: "Nomi", metaCategory: "Kategoriya", metaPrice: "Narx",
+    metaStock: "Qoldiq", metaCreated: "Yaratilgan", metaUpdated: "Yangilangan",
+    noDescription: "Tavsif kiritilmagan", imageAltFallback: "Mahsulot rasmi",
+    noImages: "Rasmlar yo'q",
+    panelDescription: "Mahsulot tavsifi", noDescLong: "Mahsulot uchun tavsif kiritilmagan.",
+    panelSimilar: "O'xshash mahsulotlar", noSimilar: "O'xshash mahsulot topilmadi",
+    productUpdated: "Mahsulot yangilandi", productDeleted: "Mahsulot o'chirildi",
+    deleteTitle: "Mahsulotni o'chirish", deleteMsg: '"{0}" mahsulotini o\'chirmoqchimisiz?',
+    detailCategory: "Kategoriya:", detailPrice: "Narx:", detailStock: "Qoldiq:",
+    nameFallback: "Mahsulot", categoryFallback: "Kategoriyasiz",
+    catalogCrumb: "Katalog va moliya", deleteConfirm: "O'chirish",
+  },
+  ru: {
+    notFound: "Товар не найден", backToCatalog: "В каталог",
+    categoriesBtn: "Категории", deleteBtn: "Удалить", editBtn: "Редактировать",
+    activeLabel: "Активный", backendCard: "Карточка товара из бэкенда",
+    statStock: "Остаток", statCreated: "Создан", statUpdated: "Обновлён", statUnit: "шт",
+    goToProducts: "Перейти к товарам",
+    tabDetails: "Детали", tabDescription: "Описание", tabImages: "Изображения",
+    metaName: "Название", metaCategory: "Категория", metaPrice: "Цена",
+    metaStock: "Остаток", metaCreated: "Создан", metaUpdated: "Обновлён",
+    noDescription: "Описание не указано", imageAltFallback: "Фото товара",
+    noImages: "Нет изображений",
+    panelDescription: "Описание товара", noDescLong: "Описание для товара не указано.",
+    panelSimilar: "Похожие товары", noSimilar: "Похожих товаров не найдено",
+    productUpdated: "Товар обновлён", productDeleted: "Товар удалён",
+    deleteTitle: "Удалить товар", deleteMsg: 'Удалить товар "{0}"?',
+    detailCategory: "Категория:", detailPrice: "Цена:", detailStock: "Остаток:",
+    nameFallback: "Товар", categoryFallback: "Без категории",
+    catalogCrumb: "Каталог и финансы", deleteConfirm: "Удалить",
+  },
+  en: {
+    notFound: "Product not found", backToCatalog: "To catalog",
+    categoriesBtn: "Categories", deleteBtn: "Delete", editBtn: "Edit",
+    activeLabel: "Active", backendCard: "Backend product card",
+    statStock: "Stock", statCreated: "Created", statUpdated: "Updated", statUnit: "pcs",
+    goToProducts: "Go to products",
+    tabDetails: "Details", tabDescription: "Description", tabImages: "Images",
+    metaName: "Name", metaCategory: "Category", metaPrice: "Price",
+    metaStock: "Stock", metaCreated: "Created", metaUpdated: "Updated",
+    noDescription: "No description", imageAltFallback: "Product image",
+    noImages: "No images",
+    panelDescription: "Product description", noDescLong: "No description for this product.",
+    panelSimilar: "Similar products", noSimilar: "No similar products found",
+    productUpdated: "Product updated", productDeleted: "Product deleted",
+    deleteTitle: "Delete product", deleteMsg: 'Delete product "{0}"?',
+    detailCategory: "Category:", detailPrice: "Price:", detailStock: "Stock:",
+    nameFallback: "Product", categoryFallback: "No category",
+    catalogCrumb: "Catalog & finance", deleteConfirm: "Delete",
+  },
+};
+function pdLang() { return window.__TG_LANG || "uz"; }
+function pdTx(key) { return PRODUCT_DETAIL_UI[pdLang()]?.[key] || PRODUCT_DETAIL_UI.uz[key] || key; }
 
 function ProductDetailPage({ id }) {
   const { data, t, nav, toast, upsert, remove } = useApp();
@@ -12,11 +73,11 @@ function ProductDetailPage({ id }) {
   const [previewImage, setPreviewImage] = pdS(null);
 
   if (!product) {
-    return <div className="page"><Card><EmptyState title="Mahsulot topilmadi" action={<Button onClick={() => nav("/products")}>Katalogga</Button>} /></Card></div>;
+    return <div className="page"><Card><EmptyState title={pdTx("notFound")} action={<Button onClick={() => nav("/products")}>{pdTx("backToCatalog")}</Button>} /></Card></div>;
   }
 
-  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
-  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
+  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || pdTx("nameFallback"));
+  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || pdTx("categoryFallback"));
   const galleryImages = productImages(product);
   const similar = data.products
     .filter((item) => item.categoryId === product.categoryId && item.id !== product.id)
@@ -33,12 +94,12 @@ function ProductDetailPage({ id }) {
   return (
     <div className="page fade-in">
       <PageHeader
-        crumbs={[{ label: "Katalog va moliya" }, { label: t("page.products"), to: "/products" }, { label: name }]}
+        crumbs={[{ label: pdTx("catalogCrumb") }, { label: t("page.products"), to: "/products" }, { label: name }]}
         title={name}
         actions={<>
-          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={() => setCategoryManagerOpen(true)}>Kategoriyalar</Button>
-          <Button variant="default" size="sm" icon={<I.trash size={15} />} onClick={() => setDeleteOpen(true)}>O'chirish</Button>
-          <Button variant="primary" size="sm" icon={<I.edit size={15} />} onClick={() => setEditOpen(true)}>Tahrirlash</Button>
+          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={() => setCategoryManagerOpen(true)}>{pdTx("categoriesBtn")}</Button>
+          <Button variant="default" size="sm" icon={<I.trash size={15} />} onClick={() => setDeleteOpen(true)}>{pdTx("deleteBtn")}</Button>
+          <Button variant="primary" size="sm" icon={<I.edit size={15} />} onClick={() => setEditOpen(true)}>{pdTx("editBtn")}</Button>
         </>}
       />
 
@@ -66,50 +127,50 @@ function ProductDetailPage({ id }) {
           <Card>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <Badge color="slate" size="sm">{category}</Badge>
-              <StatusBadge status="active" label="Faol" />
+              <StatusBadge status="active" label={pdTx("activeLabel")} />
             </div>
             <h2 style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 700 }}>{name}</h2>
-            <div style={{ color: "var(--text-3)", fontSize: 13 }}>Backend mahsulot kartasi</div>
+            <div style={{ color: "var(--text-3)", fontSize: 13 }}>{pdTx("backendCard")}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "16px 0" }}>
               <span style={{ fontSize: 26, fontWeight: 760 }}>{fmtUZS(product.priceUzs)}</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-              <StatTile label="Qoldiq" value={product.stockQuantity} color={product.stockQuantity < 5 ? "amber" : "green"} sub="dona" />
-              <StatTile label="Yaratilgan" value={product.createdAt ? fmtDate(product.createdAt, false) : "—"} />
-              <StatTile label="Yangilangan" value={product.updatedAt ? fmtDate(product.updatedAt, false) : "—"} />
+              <StatTile label={pdTx("statStock")} value={product.stockQuantity} color={product.stockQuantity < 5 ? "amber" : "green"} sub={pdTx("statUnit")} />
+              <StatTile label={pdTx("statCreated")} value={product.createdAt ? fmtDate(product.createdAt, false) : "—"} />
+              <StatTile label={pdTx("statUpdated")} value={product.updatedAt ? fmtDate(product.updatedAt, false) : "—"} />
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <Button variant="primary" full icon={<I.box size={16} />} onClick={() => nav("/products")}>Mahsulotlarga o'tish</Button>
+              <Button variant="primary" full icon={<I.box size={16} />} onClick={() => nav("/products")}>{pdTx("goToProducts")}</Button>
             </div>
           </Card>
 
           <Card pad={false}>
             <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border)" }}>
-              <Tabs size="sm" tabs={[{ value: "details", label: "Tafsilotlar" }, { value: "description", label: "Tavsif" }, { value: "images", label: "Rasmlar" }]} active={tab} onChange={setTab} />
+              <Tabs size="sm" tabs={[{ value: "details", label: pdTx("tabDetails") }, { value: "description", label: pdTx("tabDescription") }, { value: "images", label: pdTx("tabImages") }]} active={tab} onChange={setTab} />
             </div>
             <div style={{ padding: 18 }}>
               {tab === "details" && (
                 <div className="tg-meta">
-                  <div className="tg-meta-row"><span className="tg-meta-k">Nomi</span><span className="tg-meta-v">{name}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{category}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Narx</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq</span><span className="tg-meta-v">{product.stockQuantity} dona</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Yaratilgan</span><span className="tg-meta-v">{product.createdAt ? fmtDate(product.createdAt, true) : "—"}</span></div>
-                  <div className="tg-meta-row"><span className="tg-meta-k">Yangilangan</span><span className="tg-meta-v">{product.updatedAt ? fmtDate(product.updatedAt, true) : "—"}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">{pdTx("metaName")}</span><span className="tg-meta-v">{name}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">{pdTx("metaCategory")}</span><span className="tg-meta-v">{category}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">{pdTx("metaPrice")}</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">{pdTx("metaStock")}</span><span className="tg-meta-v">{product.stockQuantity} {pdTx("statUnit")}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">{pdTx("metaCreated")}</span><span className="tg-meta-v">{product.createdAt ? fmtDate(product.createdAt, true) : "—"}</span></div>
+                  <div className="tg-meta-row"><span className="tg-meta-k">{pdTx("metaUpdated")}</span><span className="tg-meta-v">{product.updatedAt ? fmtDate(product.updatedAt, true) : "—"}</span></div>
                 </div>
               )}
-              {tab === "description" && <div style={{ padding: 14, background: "var(--surface-2)", borderRadius: 10, fontSize: 13, lineHeight: 1.7, color: "var(--text-2)", border: "1px solid var(--border)" }}>{product.description || "Tavsif kiritilmagan"}</div>}
+              {tab === "description" && <div style={{ padding: 14, background: "var(--surface-2)", borderRadius: 10, fontSize: 13, lineHeight: 1.7, color: "var(--text-2)", border: "1px solid var(--border)" }}>{product.description || pdTx("noDescription")}</div>}
               {tab === "images" && (
                 galleryImages.length ? (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     {galleryImages.map((image) => (
                       <Card key={image.id} style={{ padding: 10 }}>
                         <ProductPhoto product={product} image={image} size="gallery" fit="contain" onClick={() => setPreviewImage(image)} />
-                        <div className="tg-cell-sub" style={{ marginTop: 8 }}>{image.alt || "Mahsulot rasmi"}</div>
+                        <div className="tg-cell-sub" style={{ marginTop: 8 }}>{image.alt || pdTx("imageAltFallback")}</div>
                       </Card>
                     ))}
                   </div>
-                ) : <EmptyState title="Rasmlar yo'q" />
+                ) : <EmptyState title={pdTx("noImages")} />
               )}
             </div>
           </Card>
@@ -117,12 +178,12 @@ function ProductDetailPage({ id }) {
       </div>
 
       <div className="grid-2">
-        <Panel title="Mahsulot tavsifi" icon="doc" color="blue">
+        <Panel title={pdTx("panelDescription")} icon="doc" color="blue">
           <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--text-2)" }}>
-            {product.description || "Mahsulot uchun tavsif kiritilmagan."}
+            {product.description || pdTx("noDescLong")}
           </div>
         </Panel>
-        <Panel title="O'xshash mahsulotlar" subtitle={category} icon="layers" color="violet">
+        <Panel title={pdTx("panelSimilar")} subtitle={category} icon="layers" color="violet">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {similar.map((row) => (
               <div key={row.id} style={{ cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }} onClick={() => nav("/products/" + row.id)}>
@@ -133,7 +194,7 @@ function ProductDetailPage({ id }) {
                 </div>
               </div>
             ))}
-            {!similar.length && <EmptyState title="O'xshash mahsulot topilmadi" />}
+            {!similar.length && <EmptyState title={pdTx("noSimilar")} />}
           </div>
         </Panel>
       </div>
@@ -145,7 +206,7 @@ function ProductDetailPage({ id }) {
         onManageCategories={() => setCategoryManagerOpen(true)}
         onSave={async (nextProduct) => {
           await upsert("products", nextProduct);
-          toast("Mahsulot yangilandi");
+          toast(pdTx("productUpdated"));
           setEditOpen(false);
         }}
       />
@@ -156,14 +217,14 @@ function ProductDetailPage({ id }) {
         onClose={() => setDeleteOpen(false)}
         onConfirm={async () => {
           await remove("products", product.id);
-          toast("Mahsulot o'chirildi");
+          toast(pdTx("productDeleted"));
           setDeleteOpen(false);
           nav("/products");
         }}
-        title="Mahsulotni o'chirish"
-        message={`"${name}" mahsulotini o'chirmoqchimisiz?`}
-        details={`Kategoriya: ${category}\nNarx: ${fmtUZS(product.priceUzs)}\nQoldiq: ${product.stockQuantity} dona`}
-        confirmLabel="O'chirish"
+        title={pdTx("deleteTitle")}
+        message={pdTx("deleteMsg").replace("{0}", name)}
+        details={`${pdTx("detailCategory")} ${category}\n${pdTx("detailPrice")} ${fmtUZS(product.priceUzs)}\n${pdTx("detailStock")} ${product.stockQuantity} ${pdTx("statUnit")}`}
+        confirmLabel={pdTx("deleteConfirm")}
         danger
       />
     </div>

@@ -141,6 +141,10 @@ function AppProvider({ children }) {
   }, [data]);
 
   useEffect(() => {
+    window.__TG_LANG = lang;
+  }, [lang]);
+
+  useEffect(() => {
     localStorage.setItem(PREF_KEY, JSON.stringify({
       theme,
       accent,

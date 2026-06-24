@@ -27,8 +27,22 @@ function PageHeader({ title, desc, crumbs, actions }) {
 }
 
 // ---------- Custom Calendar picker ----------
-const MONTHS_UZ = ["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"];
-const DAYS_UZ   = ["Du","Se","Ch","Pa","Ju","Sh","Ya"];
+const MONTHS_BY_LANG = {
+  uz: ["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"],
+  ru: ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"],
+  en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+};
+const DAYS_BY_LANG = {
+  uz: ["Du","Se","Ch","Pa","Ju","Sh","Ya"],
+  ru: ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"],
+  en: ["Mo","Tu","We","Th","Fr","Sa","Su"],
+};
+const CAL_HINT_BY_LANG = {
+  uz: { start: "Boshlanish sanasini tanlang", end: "Tugash sanasini tanlang" },
+  ru: { start: "Выберите дату начала", end: "Выберите дату окончания" },
+  en: { start: "Select the start date", end: "Select the end date" },
+};
+function calLang() { return window.__TG_LANG || "uz"; }
 
 function CalendarPicker({ onSelect, onClose }) {
   const now = new Date(); now.setHours(0,0,0,0);
@@ -89,14 +103,14 @@ function CalendarPicker({ onSelect, onClose }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         {navBtn(prevM, <I.chevLeft size={15} />)}
         <span style={{ fontWeight: 660, fontSize: 13.5, color: "var(--text)" }}>
-          {MONTHS_UZ[vm]} {vy}
+          {(MONTHS_BY_LANG[calLang()] || MONTHS_BY_LANG.uz)[vm]} {vy}
         </span>
         {navBtn(nextM, <I.chevRight size={15} />)}
       </div>
 
       {/* Day headers */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 }}>
-        {DAYS_UZ.map(d => (
+        {(DAYS_BY_LANG[calLang()] || DAYS_BY_LANG.uz).map(d => (
           <div key={d} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 650, color: "var(--text-3)", padding: "2px 0" }}>{d}</div>
         ))}
       </div>
@@ -150,7 +164,7 @@ function CalendarPicker({ onSelect, onClose }) {
 
       {/* Footer hint */}
       <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--text-3)", textAlign: "center" }}>
-        {from ? "Tugash sanasini tanlang" : "Boshlanish sanasini tanlang"}
+        {from ? (CAL_HINT_BY_LANG[calLang()] || CAL_HINT_BY_LANG.uz).end : (CAL_HINT_BY_LANG[calLang()] || CAL_HINT_BY_LANG.uz).start}
       </div>
     </div>
   );
@@ -158,6 +172,7 @@ function CalendarPicker({ onSelect, onClose }) {
 
 // date-range selector
 function DateRange({ value, onChange }) {
+  const { t } = useApp();
   const [calOpen, setCalOpen] = pS(false);
   const ref = React.useRef(null);
 
@@ -169,10 +184,10 @@ function DateRange({ value, onChange }) {
   }, [calOpen]);
 
   const presets = [
-    { value: "today", label: "Bugun" },
-    { value: "7d",    label: "7 kun" },
-    { value: "30d",   label: "30 kun" },
-    { value: "90d",   label: "90 kun" },
+    { value: "today", label: t("common.today") },
+    { value: "7d",    label: t("common.7d") },
+    { value: "30d",   label: t("common.30d") },
+    { value: "90d",   label: t("common.90d") },
   ];
 
   const isCustom = value && typeof value === "object";
@@ -199,7 +214,7 @@ function DateRange({ value, onChange }) {
           className="tg-seg-btn"
           data-active={isCustom || calOpen ? "1" : undefined}
           onClick={() => setCalOpen(o => !o)}
-          title="Sana oralig'i tanlash"
+          title={t("common.dateRange")}
           style={{
             height: 34, borderRadius: 8, gap: 6,
             background: isCustom ? "rgba(var(--accent-rgb),0.13)" : undefined,
@@ -322,7 +337,7 @@ function FilterSelect({ label, icon, options, value, onChange, multi }) {
       </button>
       {open && menuStyle && ReactDOM.createPortal((
         <div ref={menuRef} className="tg-dd-menu pop-in" style={menuStyle}>
-          {!multi && !hasExplicitAllOption && <button className="tg-dd-item" onClick={() => toggle("all")}><span>Barchasi</span>{(value === "all" || !value) && <I.check size={15} style={{ color: "var(--accent)", marginLeft: "auto" }} />}</button>}
+          {!multi && !hasExplicitAllOption && <button className="tg-dd-item" onClick={() => toggle("all")}><span>{window.TRANSLATIONS?.[window.__TG_LANG || "uz"]?.["common.all"] || window.TRANSLATIONS?.uz?.["common.all"] || "Barchasi"}</span>{(value === "all" || !value) && <I.check size={15} style={{ color: "var(--accent)", marginLeft: "auto" }} />}</button>}
           {options.map(o => {
             const sel = multi ? value.includes(o.value) : value === o.value;
             return (
@@ -367,7 +382,13 @@ function Panel({ title, subtitle, icon, color, action, children, pad = true, cla
 
 // feature chips for products
 const FEATURE_ICONS = { hybrid: "zapline", battery: "zap", monitoring: "chart", threePhase: "layers", fastInstall: "clock", netMetering: "refresh" };
-const FEATURE_LABELS = { hybrid: "Gibrid", battery: "Batareya", monitoring: "Monitoring", threePhase: "3 faza", fastInstall: "Tez montaj", netMetering: "Net-metering" };
+const FEATURE_LABELS_BY_LANG = {
+  uz: { hybrid: "Gibrid", battery: "Batareya", monitoring: "Monitoring", threePhase: "3 faza", fastInstall: "Tez montaj", netMetering: "Net-metering" },
+  ru: { hybrid: "Гибрид", battery: "Аккумулятор", monitoring: "Мониторинг", threePhase: "3 фазы", fastInstall: "Быстрый монтаж", netMetering: "Net-metering" },
+  en: { hybrid: "Hybrid", battery: "Battery", monitoring: "Monitoring", threePhase: "3-phase", fastInstall: "Fast install", netMetering: "Net-metering" },
+};
+function getFeatureLabels() { return FEATURE_LABELS_BY_LANG[calLang()] || FEATURE_LABELS_BY_LANG.uz; }
+const FEATURE_LABELS = FEATURE_LABELS_BY_LANG.uz;
 function FeatureChips({ product, max = 4 }) {
   const feats = [];
   if (product.category === "Gibrid stansiya") feats.push("hybrid");
@@ -376,9 +397,10 @@ function FeatureChips({ product, max = 4 }) {
   if ((product.installationDays || 0) <= 3) feats.push("fastInstall");
   if (product.monthlyYieldKwh > 0) feats.push("monitoring");
   const shown = feats.slice(0, max);
+  const featureLabels = getFeatureLabels();
   return (
     <div className="tg-chips">
-      {shown.map(f => { const Ico = I[FEATURE_ICONS[f]]; return <span key={f} className="tg-chip"><Ico size={12} />{FEATURE_LABELS[f]}</span>; })}
+      {shown.map(f => { const Ico = I[FEATURE_ICONS[f]]; return <span key={f} className="tg-chip"><Ico size={12} />{featureLabels[f]}</span>; })}
       {feats.length > max && <span className="tg-chip">+{feats.length - max}</span>}
     </div>
   );

@@ -1,6 +1,234 @@
 /* pages/products.jsx */
 const { useState: prS, useMemo: prM, useEffect: prE } = React;
 
+const PRODUCT_UI = {
+  uz: {
+    noDescription: "Tavsif kiritilmagan",
+    product: "Mahsulot",
+    category: "Kategoriya",
+    uncategorized: "Kategoriyasiz",
+    price: "Narx",
+    stock: "Qoldiq",
+    updated: "Yangilangan",
+    updatedShort: "Yangilangan:",
+    quantityUnit: "dona",
+    actions: "Amallar",
+    view: "Ko'rish",
+    edit: "Tahrirlash",
+    delete: "O'chirish",
+    catalogFinance: "Katalog va moliya",
+    productsDesc: "ta backend mahsuloti",
+    categoriesDesc: "ta kategoriya",
+    newProduct: "Yangi mahsulot",
+    newCategory: "Yangi kategoriya",
+    table: "Jadval",
+    cards: "Kartalar",
+    productSearch: "Mahsulot nomi, kategoriya, tavsif...",
+    categorySearch: "Kategoriya nomi yoki code...",
+    all: "Barchasi",
+    available: "Mavjud",
+    lowStock: "Kam qolgan",
+    outOfStock: "Tugagan",
+    results: "natija",
+    productCreated: "Mahsulot yaratildi",
+    productUpdated: "Mahsulot yangilandi",
+    productDeleted: "Mahsulot o'chirildi",
+    deleteProduct: "Mahsulotni o'chirish",
+    deleteProductMessage: "mahsulotini o'chirmoqchimisiz?",
+    categoryRequired: "Kategoriya nomini kiriting",
+    categoryCreated: "Kategoriya yaratildi",
+    categoryUpdated: "Kategoriya yangilandi",
+    categoryDeleted: "Kategoriya o'chirildi",
+    deleteCategory: "Kategoriyani o'chirish",
+    deleteCategoryMessage: "kategoriyasini o'chirmoqchimisiz?",
+    productDetails: "Mahsulot ma'lumotlari",
+    created: "Yaratilgan",
+    description: "Tavsif",
+    editProduct: "Mahsulotni tahrirlash",
+    save: "Saqlash",
+    create: "Yaratish",
+    productName: "Mahsulot nomi",
+    unselected: "Tanlanmagan",
+    chooseCategory: "Kategoriyani tanlang",
+    manage: "Boshqarish",
+    images: "Rasmlar",
+    imageFiles: "Rasm fayllari",
+    newImagesSelected: "ta yangi rasm tanlandi",
+    imageUrl: "Rasm URL",
+    imageName: "Rasm nomi",
+    productImage: "Mahsulot rasmi",
+    primaryImage: "Asosiy rasm",
+    extraImage: "Qo'shimcha rasm",
+    primary: "Asosiy",
+    addAnotherImage: "Yana rasm qo'shish",
+    productDescription: "Mahsulot tavsifi...",
+    enterProductName: "Mahsulot nomini kiriting",
+    editCategoryTitle: "Kategoriyani tahrirlash",
+    categoryName: "Nomi",
+    codeHint: "Bo'sh joylar avtomatik `_` ga o'zgaradi.",
+    sortOrder: "Tartib",
+    productCategories: "Mahsulot kategoriyalari",
+    close: "Yopish",
+    categoryActions: "Kategoriya amallari",
+    categoriesNotFound: "Kategoriyalar topilmadi",
+    createCategoryFirst: "Mahsulotlar uchun avval kategoriya yarating.",
+    products: "Mahsulotlar",
+  },
+  ru: {
+    noDescription: "Описание не указано",
+    product: "Продукт",
+    category: "Категория",
+    uncategorized: "Без категории",
+    price: "Цена",
+    stock: "Остаток",
+    updated: "Обновлено",
+    updatedShort: "Обновлено:",
+    quantityUnit: "шт",
+    actions: "Действия",
+    view: "Просмотр",
+    edit: "Изменить",
+    delete: "Удалить",
+    catalogFinance: "Каталог и финансы",
+    productsDesc: "товаров из backend",
+    categoriesDesc: "категорий",
+    newProduct: "Новый продукт",
+    newCategory: "Новая категория",
+    table: "Таблица",
+    cards: "Карточки",
+    productSearch: "Название продукта, категория, описание...",
+    categorySearch: "Название категории или code...",
+    all: "Все",
+    available: "В наличии",
+    lowStock: "Заканчивается",
+    outOfStock: "Нет в наличии",
+    results: "результат",
+    productCreated: "Продукт создан",
+    productUpdated: "Продукт обновлен",
+    productDeleted: "Продукт удален",
+    deleteProduct: "Удалить продукт",
+    deleteProductMessage: "Удалить этот продукт?",
+    categoryRequired: "Введите название категории",
+    categoryCreated: "Категория создана",
+    categoryUpdated: "Категория обновлена",
+    categoryDeleted: "Категория удалена",
+    deleteCategory: "Удалить категорию",
+    deleteCategoryMessage: "Удалить эту категорию?",
+    productDetails: "Данные продукта",
+    created: "Создано",
+    description: "Описание",
+    editProduct: "Редактировать продукт",
+    save: "Сохранить",
+    create: "Создать",
+    productName: "Название продукта",
+    unselected: "Не выбрано",
+    chooseCategory: "Выберите категорию",
+    manage: "Управлять",
+    images: "Изображения",
+    imageFiles: "Файлы изображений",
+    newImagesSelected: "новых изображений выбрано",
+    imageUrl: "URL изображения",
+    imageName: "Название изображения",
+    productImage: "Изображение продукта",
+    primaryImage: "Основное изображение",
+    extraImage: "Дополнительное изображение",
+    primary: "Основное",
+    addAnotherImage: "Добавить еще изображение",
+    productDescription: "Описание продукта...",
+    enterProductName: "Введите название продукта",
+    editCategoryTitle: "Редактировать категорию",
+    categoryName: "Название",
+    codeHint: "Пробелы автоматически заменяются на `_`.",
+    sortOrder: "Порядок",
+    productCategories: "Категории продуктов",
+    close: "Закрыть",
+    categoryActions: "Действия категории",
+    categoriesNotFound: "Категории не найдены",
+    createCategoryFirst: "Сначала создайте категорию для продуктов.",
+    products: "Продукты",
+  },
+  en: {
+    noDescription: "No description provided",
+    product: "Product",
+    category: "Category",
+    uncategorized: "Uncategorized",
+    price: "Price",
+    stock: "Stock",
+    updated: "Updated",
+    updatedShort: "Updated:",
+    quantityUnit: "pcs",
+    actions: "Actions",
+    view: "View",
+    edit: "Edit",
+    delete: "Delete",
+    catalogFinance: "Catalog & Finance",
+    productsDesc: "backend products",
+    categoriesDesc: "categories",
+    newProduct: "New product",
+    newCategory: "New category",
+    table: "Table",
+    cards: "Cards",
+    productSearch: "Product name, category, description...",
+    categorySearch: "Category name or code...",
+    all: "All",
+    available: "Available",
+    lowStock: "Low stock",
+    outOfStock: "Out of stock",
+    results: "results",
+    productCreated: "Product created",
+    productUpdated: "Product updated",
+    productDeleted: "Product deleted",
+    deleteProduct: "Delete product",
+    deleteProductMessage: "Delete this product?",
+    categoryRequired: "Enter a category name",
+    categoryCreated: "Category created",
+    categoryUpdated: "Category updated",
+    categoryDeleted: "Category deleted",
+    deleteCategory: "Delete category",
+    deleteCategoryMessage: "Delete this category?",
+    productDetails: "Product details",
+    created: "Created",
+    description: "Description",
+    editProduct: "Edit product",
+    save: "Save",
+    create: "Create",
+    productName: "Product name",
+    unselected: "Not selected",
+    chooseCategory: "Choose category",
+    manage: "Manage",
+    images: "Images",
+    imageFiles: "Image files",
+    newImagesSelected: "new images selected",
+    imageUrl: "Image URL",
+    imageName: "Image name",
+    productImage: "Product image",
+    primaryImage: "Primary image",
+    extraImage: "Additional image",
+    primary: "Primary",
+    addAnotherImage: "Add another image",
+    productDescription: "Product description...",
+    enterProductName: "Enter product name",
+    editCategoryTitle: "Edit category",
+    categoryName: "Name",
+    codeHint: "Spaces are automatically converted to `_`.",
+    sortOrder: "Sort order",
+    productCategories: "Product categories",
+    close: "Close",
+    categoryActions: "Category actions",
+    categoriesNotFound: "No categories found",
+    createCategoryFirst: "Create a category for products first.",
+    products: "Products",
+  },
+};
+
+function productLang() {
+  return window.__TG_LANG || "uz";
+}
+
+function ptx(key) {
+  const lang = productLang();
+  return PRODUCT_UI[lang]?.[key] || PRODUCT_UI.uz[key] || key;
+}
+
 const makeProductImage = (image = {}, index = 0) => ({
   id: image.id || `img_${Date.now()}_${index}`,
   url: image.url || "",
@@ -25,7 +253,7 @@ function productCategoryCodeify(value) {
 
 function productDescriptionPreview(value) {
   const text = String(value || "").trim();
-  if (!text) return "Tavsif kiritilmagan";
+  if (!text) return ptx("noDescription");
   return text.length > 108 ? `${text.slice(0, 105)}...` : text;
 }
 
@@ -35,8 +263,8 @@ function productDateLabel(value) {
 }
 
 function ProductCard({ product, onClick }) {
-  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
-  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
+  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || ptx("product"));
+  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || ptx("uncategorized"));
   const stockColor = product.stockQuantity === 0 ? "red" : product.stockQuantity < 5 ? "amber" : "green";
 
   return (
@@ -55,9 +283,9 @@ function ProductCard({ product, onClick }) {
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8, marginTop: 14 }}>
           <div>
             <div style={{ fontWeight: 760, fontSize: 15 }}>{fmtUZS(product.priceUzs)}</div>
-            <div className="tg-cell-sub">Yangilangan: {productDateLabel(product.updatedAt)}</div>
+            <div className="tg-cell-sub">{ptx("updatedShort")} {productDateLabel(product.updatedAt)}</div>
           </div>
-          <Badge color={stockColor} size="sm">{product.stockQuantity} dona</Badge>
+          <Badge color={stockColor} size="sm">{product.stockQuantity} {ptx("quantityUnit")}</Badge>
         </div>
       </div>
     </Card>
@@ -117,7 +345,7 @@ function ProductsPage() {
   const columns = [
     {
       key: "name",
-      label: "Mahsulot",
+      label: ptx("product"),
       sortVal: (row) => window.productDisplayName ? window.productDisplayName(row) : (row.name || row.model || ""),
       render: (row) => (
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
@@ -131,25 +359,25 @@ function ProductsPage() {
     },
     {
       key: "category",
-      label: "Kategoriya",
+      label: ptx("category"),
       sortVal: (row) => window.productDisplayCategory ? window.productDisplayCategory(row) : (row.category || ""),
-      render: (row) => <Badge color="slate" size="sm">{window.productDisplayCategory ? window.productDisplayCategory(row) : (row.category || "Kategoriyasiz")}</Badge>,
+      render: (row) => <Badge color="slate" size="sm">{window.productDisplayCategory ? window.productDisplayCategory(row) : (row.category || ptx("uncategorized"))}</Badge>,
     },
     {
       key: "price",
-      label: "Narx",
+      label: ptx("price"),
       sortVal: (row) => row.priceUzs,
       render: (row) => <span style={{ fontWeight: 700 }}>{fmtUZS(row.priceUzs)}</span>,
     },
     {
       key: "stock",
-      label: "Qoldiq",
+      label: ptx("stock"),
       sortVal: (row) => row.stockQuantity,
       render: (row) => <Badge color={row.stockQuantity === 0 ? "red" : row.stockQuantity < 5 ? "amber" : "green"} size="sm">{row.stockQuantity}</Badge>,
     },
     {
       key: "updatedAt",
-      label: "Yangilangan",
+      label: ptx("updated"),
       sortVal: (row) => row.updatedAt || row.createdAt || "",
       render: (row) => <span className="tg-cell-sub">{productDateLabel(row.updatedAt || row.createdAt)}</span>,
     },
@@ -161,12 +389,12 @@ function ProductsPage() {
         <div onClick={(event) => event.stopPropagation()}>
           <Dropdown
             align="right"
-            trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />}
+            trigger={<IconButton icon={<I.dots size={16} />} label={ptx("actions")} />}
             items={[
-              { label: "Ko'rish", icon: <I.eye size={16} />, onClick: () => setViewProduct(row) },
-              { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditProduct(row) },
+              { label: ptx("view"), icon: <I.eye size={16} />, onClick: () => setViewProduct(row) },
+              { label: ptx("edit"), icon: <I.edit size={16} />, onClick: () => setEditProduct(row) },
               { divider: true },
-              { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteProduct(row) },
+              { label: ptx("delete"), icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteProduct(row) },
             ]}
           />
         </div>
@@ -176,7 +404,7 @@ function ProductsPage() {
   const categoryColumns = [
     {
       key: "name",
-      label: "Kategoriya",
+      label: ptx("category"),
       sortVal: (row) => row.name,
       render: (row) => (
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -190,15 +418,15 @@ function ProductsPage() {
     },
     {
       key: "sortOrder",
-      label: "Tartib",
+      label: ptx("sortOrder"),
       sortVal: (row) => Number(row.sortOrder || 0),
       render: (row) => <span>{row.sortOrder || 0}</span>,
     },
     {
       key: "products",
-      label: "Mahsulotlar",
+      label: ptx("products"),
       sortVal: (row) => data.products.filter((product) => product.categoryId === row.id).length,
-      render: (row) => <Badge color="slate" size="sm">{data.products.filter((product) => product.categoryId === row.id).length} ta</Badge>,
+      render: (row) => <Badge color="slate" size="sm">{data.products.filter((product) => product.categoryId === row.id).length} {ptx("quantityUnit")}</Badge>,
     },
     {
       key: "actions",
@@ -208,11 +436,11 @@ function ProductsPage() {
         <div onClick={(event) => event.stopPropagation()}>
           <Dropdown
             align="right"
-            trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />}
+            trigger={<IconButton icon={<I.dots size={16} />} label={ptx("actions")} />}
             items={[
-              { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditCategory(row) },
+              { label: ptx("edit"), icon: <I.edit size={16} />, onClick: () => setEditCategory(row) },
               { divider: true },
-              { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteCategory(row) },
+              { label: ptx("delete"), icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteCategory(row) },
             ]}
           />
         </div>
@@ -222,11 +450,11 @@ function ProductsPage() {
 
   const saveCategory = async (category) => {
     if (!category.name) {
-      toast("Kategoriya nomini kiriting", "error");
+      toast(ptx("categoryRequired"), "error");
       return;
     }
     await upsert("productCategories", category);
-    toast(editCategory ? "Kategoriya yangilandi" : "Kategoriya yaratildi");
+    toast(editCategory ? ptx("categoryUpdated") : ptx("categoryCreated"));
     setCreateCategoryOpen(false);
     setEditCategory(null);
   };
@@ -235,30 +463,30 @@ function ProductsPage() {
     <div className="page fade-in">
       <PageHeader
         title={t("page.products")}
-        desc={`${data.products.length} ta backend mahsuloti • ${(data.productCategories || []).length} ta kategoriya`}
-        crumbs={[{ label: "Katalog va moliya" }, { label: t("page.products") }]}
+        desc={`${data.products.length} ${ptx("productsDesc")} • ${(data.productCategories || []).length} ${ptx("categoriesDesc")}`}
+        crumbs={[{ label: t("nav.catalog") }, { label: t("page.products") }]}
         actions={<>
           <div className="tg-chips">
-            <Button variant={section === "products" ? "primary" : "ghost"} size="sm" icon={<I.box size={15} />} onClick={() => setSection("products")}>Products</Button>
-            <Button variant={section === "categories" ? "primary" : "ghost"} size="sm" icon={<I.layers size={15} />} onClick={() => setSection("categories")}>Categories</Button>
+            <Button variant={section === "products" ? "primary" : "ghost"} size="sm" icon={<I.box size={15} />} onClick={() => setSection("products")}>{ptx("products")}</Button>
+            <Button variant={section === "categories" ? "primary" : "ghost"} size="sm" icon={<I.layers size={15} />} onClick={() => setSection("categories")}>{ptx("productCategories")}</Button>
           </div>
           {section === "products" ? (
             <>
-              <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi mahsulot</Button>
-              <Segmented value={view} onChange={setView} options={[{ value: "table", label: "Jadval", icon: <I.list size={14} /> }, { value: "grid", label: "Kartalar", icon: <I.grid size={14} /> }]} />
+              <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{ptx("newProduct")}</Button>
+              <Segmented value={view} onChange={setView} options={[{ value: "table", label: ptx("table"), icon: <I.list size={14} /> }, { value: "grid", label: ptx("cards"), icon: <I.grid size={14} /> }]} />
             </>
           ) : (
-            <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateCategoryOpen(true)}>Yangi kategoriya</Button>
+            <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateCategoryOpen(true)}>{ptx("newCategory")}</Button>
           )}
         </>}
       />
 
       <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder={section === "products" ? "Mahsulot nomi, kategoriya, tavsif..." : "Kategoriya nomi yoki code..."} width={280} />
-        {section === "products" && <FilterSelect label="Kategoriya" icon="layers" multi value={fCategory} onChange={setFCategory} options={categoryOptions} />}
-        {section === "products" && <FilterSelect label="Qoldiq" icon="box" value={fStock} onChange={setFStock} options={[{ value: "all", label: "Barchasi" }, { value: "in", label: "Mavjud" }, { value: "low", label: "Kam qolgan" }, { value: "out", label: "Tugagan" }]} />}
+        <SearchInput value={q} onChange={setQ} placeholder={section === "products" ? ptx("productSearch") : ptx("categorySearch")} width={280} />
+        {section === "products" && <FilterSelect label={ptx("category")} icon="layers" multi value={fCategory} onChange={setFCategory} options={categoryOptions} />}
+        {section === "products" && <FilterSelect label={ptx("stock")} icon="box" value={fStock} onChange={setFStock} options={[{ value: "all", label: ptx("all") }, { value: "in", label: ptx("available") }, { value: "low", label: ptx("lowStock") }, { value: "out", label: ptx("outOfStock") }]} />}
         <div className="toolbar-spacer" />
-        <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{section === "products" ? filtered.length : filteredCategories.length} natija</span>
+        <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{section === "products" ? filtered.length : filteredCategories.length} {ptx("results")}</span>
       </div>
 
       {loading ? <SkeletonRows rows={10} cols={5} /> : section === "products" ? (
@@ -275,7 +503,7 @@ function ProductsPage() {
         onManageCategories={() => { setSection("categories"); setCreateCategoryOpen(true); }}
         onSave={async (product) => {
           await upsert("products", product);
-          toast("Mahsulot yaratildi");
+          toast(ptx("productCreated"));
           setCreateOpen(false);
         }}
       />
@@ -293,7 +521,7 @@ function ProductsPage() {
         onManageCategories={() => { setSection("categories"); setCreateCategoryOpen(true); }}
         onSave={async (product) => {
           await upsert("products", product);
-          toast("Mahsulot yangilandi");
+          toast(ptx("productUpdated"));
           setEditProduct(null);
         }}
       />
@@ -302,13 +530,13 @@ function ProductsPage() {
         onClose={() => setDeleteProduct(null)}
         onConfirm={async () => {
           await remove("products", deleteProduct.id);
-          toast("Mahsulot o'chirildi");
+          toast(ptx("productDeleted"));
           setDeleteProduct(null);
         }}
-        title="Mahsulotni o'chirish"
-        message={`"${window.productDisplayName ? window.productDisplayName(deleteProduct || {}) : (deleteProduct?.name || deleteProduct?.model || "")}" mahsulotini o'chirmoqchimisiz?`}
-        details={deleteProduct ? `Kategoriya: ${window.productDisplayCategory ? window.productDisplayCategory(deleteProduct) : (deleteProduct.category || "Kategoriyasiz")}\nNarx: ${fmtUZS(deleteProduct.priceUzs)}\nQoldiq: ${deleteProduct.stockQuantity} dona` : ""}
-        confirmLabel="O'chirish"
+        title={ptx("deleteProduct")}
+        message={productLang() === "uz" ? `"${window.productDisplayName ? window.productDisplayName(deleteProduct || {}) : (deleteProduct?.name || deleteProduct?.model || "")}" ${ptx("deleteProductMessage")}` : ptx("deleteProductMessage")}
+        details={deleteProduct ? `${ptx("category")}: ${window.productDisplayCategory ? window.productDisplayCategory(deleteProduct) : (deleteProduct.category || ptx("uncategorized"))}\n${ptx("price")}: ${fmtUZS(deleteProduct.priceUzs)}\n${ptx("stock")}: ${deleteProduct.stockQuantity} ${ptx("quantityUnit")}` : ""}
+        confirmLabel={ptx("delete")}
         danger
       />
       <ProductCategoryFormModal
@@ -329,13 +557,13 @@ function ProductsPage() {
         onClose={() => setDeleteCategory(null)}
         onConfirm={async () => {
           await remove("productCategories", deleteCategory.id);
-          toast("Kategoriya o'chirildi");
+          toast(ptx("categoryDeleted"));
           setDeleteCategory(null);
         }}
-        title="Kategoriyani o'chirish"
-        message={`"${deleteCategory?.name || ""}" kategoriyasini o'chirmoqchimisiz?`}
-        details={deleteCategory ? `Code: ${deleteCategory.code || "—"}\nTartib: ${deleteCategory.sortOrder || 0}` : ""}
-        confirmLabel="O'chirish"
+        title={ptx("deleteCategory")}
+        message={productLang() === "uz" ? `"${deleteCategory?.name || ""}" ${ptx("deleteCategoryMessage")}` : ptx("deleteCategoryMessage")}
+        details={deleteCategory ? `Code: ${deleteCategory.code || "—"}\n${ptx("sortOrder")}: ${deleteCategory.sortOrder || 0}` : ""}
+        confirmLabel={ptx("delete")}
         danger
       />
     </div>
@@ -346,32 +574,32 @@ window.ProductsPage = ProductsPage;
 function ProductViewModal({ open, onClose, onEdit, onDelete, product }) {
   const [previewImage, setPreviewImage] = prS(null);
   if (!product) return null;
-  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || "Mahsulot");
-  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || "Kategoriyasiz");
+  const name = window.productDisplayName ? window.productDisplayName(product) : (product.name || product.model || ptx("product"));
+  const category = window.productDisplayCategory ? window.productDisplayCategory(product) : (product.category || ptx("uncategorized"));
   const images = productImages(product);
   return (
     <>
       <Modal
         open={open}
         onClose={onClose}
-        title="Mahsulot ma'lumotlari"
+        title={ptx("productDetails")}
         icon={<I.box size={18} />}
         width={760}
         footer={<>
-          <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>Tahrirlash</Button>
-          <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>O'chirish</Button>
-          <Button variant="primary" onClick={onClose}>Yopish</Button>
+          <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ptx("edit")}</Button>
+          <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ptx("delete")}</Button>
+          <Button variant="primary" onClick={onClose}>{ptx("close")}</Button>
         </>}
       >
         <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 18 }}>
           <ProductPhoto product={product} size="view" fit="contain" onClick={() => images[0] && setPreviewImage(images[0])} />
           <div className="tg-meta">
-            <div className="tg-meta-row"><span className="tg-meta-k">Nomi</span><span className="tg-meta-v">{name}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{category}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Narx</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq</span><span className="tg-meta-v">{product.stockQuantity} dona</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Yaratilgan</span><span className="tg-meta-v">{productDateLabel(product.createdAt)}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Yangilangan</span><span className="tg-meta-v">{productDateLabel(product.updatedAt)}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{ptx("productName")}</span><span className="tg-meta-v">{name}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{ptx("category")}</span><span className="tg-meta-v">{category}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{ptx("price")}</span><span className="tg-meta-v">{fmtUZS(product.priceUzs)}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{ptx("stock")}</span><span className="tg-meta-v">{product.stockQuantity} {ptx("quantityUnit")}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{ptx("created")}</span><span className="tg-meta-v">{productDateLabel(product.createdAt)}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{ptx("updated")}</span><span className="tg-meta-v">{productDateLabel(product.updatedAt)}</span></div>
           </div>
         </div>
         {images.length > 1 && (
@@ -382,8 +610,8 @@ function ProductViewModal({ open, onClose, onEdit, onDelete, product }) {
           </div>
         )}
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>Tavsif</div>
-          <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{product.description || "Tavsif kiritilmagan"}</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>{ptx("description")}</div>
+          <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{product.description || ptx("noDescription")}</div>
         </div>
       </Modal>
       <ProductImageModal open={!!previewImage} onClose={() => setPreviewImage(null)} product={product} image={previewImage} />
@@ -447,17 +675,17 @@ function ProductFormModal({ open, onClose, onSave, initial, onManageCategories }
     <Modal
       open={open}
       onClose={onClose}
-      title={initial ? "Mahsulotni tahrirlash" : "Yangi mahsulot"}
+      title={initial ? ptx("editProduct") : ptx("newProduct")}
       icon={initial ? <I.edit size={18} /> : <I.plus size={18} />}
       width={580}
       footer={<>
-        <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
+        <Button variant="ghost" onClick={onClose}>{window.TRANSLATIONS?.[productLang()]?.["common.cancel"] || "Bekor qilish"}</Button>
         <Button
           variant="primary"
           onClick={async () => {
             const name = String(form.name || "").trim();
             if (!name) {
-              toast("Mahsulot nomini kiriting", "error");
+              toast(ptx("enterProductName"), "error");
               return;
             }
             const payload = {
@@ -480,31 +708,31 @@ function ProductFormModal({ open, onClose, onSave, initial, onManageCategories }
             await onSave(payload);
           }}
         >
-          {initial ? "Saqlash" : "Yaratish"}
+          {initial ? ptx("save") : ptx("create")}
         </Button>
       </>}
     >
       <div style={{ display: "grid", gap: 14 }}>
-        <Field label="Mahsulot nomi" required><Input value={form.name} onChange={(event) => set("name", event.target.value)} /></Field>
+        <Field label={ptx("productName")} required><Input value={form.name} onChange={(event) => set("name", event.target.value)} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
-          <Field label="Kategoriya">
+          <Field label={ptx("category")}>
             <Select
               value={form.categoryId}
               onChange={(value) => set("categoryId", value)}
-              options={[{ value: "", label: "Tanlanmagan" }, ...categoryOptions]}
-              placeholder="Kategoriyani tanlang"
+              options={[{ value: "", label: ptx("unselected") }, ...categoryOptions]}
+              placeholder={ptx("chooseCategory")}
             />
           </Field>
-          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={onManageCategories}>Boshqarish</Button>
+          <Button variant="default" size="sm" icon={<I.layers size={15} />} onClick={onManageCategories}>{ptx("manage")}</Button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Narx"><Input type="number" value={form.priceUzs} onChange={(event) => set("priceUzs", event.target.value)} /></Field>
-          <Field label="Qoldiq"><Input type="number" value={form.stockQuantity} onChange={(event) => set("stockQuantity", event.target.value)} /></Field>
+          <Field label={ptx("price")}><Input type="number" value={form.priceUzs} onChange={(event) => set("priceUzs", event.target.value)} /></Field>
+          <Field label={ptx("stock")}><Input type="number" value={form.stockQuantity} onChange={(event) => set("stockQuantity", event.target.value)} /></Field>
         </div>
-        <Field label="Rasmlar">
+        <Field label={ptx("images")}>
           <div style={{ display: "grid", gap: 10 }}>
             <Card style={{ padding: 12 }}>
-              <Field label="Rasm fayllari">
+              <Field label={ptx("imageFiles")}>
                 <input
                   type="file"
                   accept="image/*"
@@ -514,33 +742,33 @@ function ProductFormModal({ open, onClose, onSave, initial, onManageCategories }
                 />
               </Field>
               {(form.pictureFiles || []).length > 0 && (
-                <div className="tg-cell-sub" style={{ marginTop: 8 }}>{form.pictureFiles.length} ta yangi rasm tanlandi</div>
+                <div className="tg-cell-sub" style={{ marginTop: 8 }}>{form.pictureFiles.length} {ptx("newImagesSelected")}</div>
               )}
             </Card>
             {(form.images || []).map((image, index) => (
               <Card key={image.id || index} style={{ padding: 12 }}>
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <Field label="Rasm URL"><Input value={image.url || ""} onChange={(event) => setImage(index, { url: event.target.value })} placeholder="https://..." /></Field>
-                    <Field label="Rasm nomi"><Input value={image.alt || ""} onChange={(event) => setImage(index, { alt: event.target.value })} placeholder="Mahsulot rasmi" /></Field>
+                    <Field label={ptx("imageUrl")}><Input value={image.url || ""} onChange={(event) => setImage(index, { url: event.target.value })} placeholder="https://..." /></Field>
+                    <Field label={ptx("imageName")}><Input value={image.alt || ""} onChange={(event) => setImage(index, { alt: event.target.value })} placeholder={ptx("productImage")} /></Field>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 64, height: 52 }}><ProductPhoto product={form} image={image} size="thumb" /></div>
-                      <span className="tg-cell-sub">{image.isPrimary ? "Asosiy rasm" : "Qo'shimcha rasm"}</span>
+                      <span className="tg-cell-sub">{image.isPrimary ? ptx("primaryImage") : ptx("extraImage")}</span>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <Button variant={image.isPrimary ? "primary" : "default"} size="sm" icon={<I.star size={14} />} onClick={() => setPrimaryImage(index)}>Asosiy</Button>
-                      <Button variant="danger" size="sm" icon={<I.trash size={14} />} onClick={() => removeImage(index)} disabled={(form.images || []).length <= 1}>O'chirish</Button>
+                      <Button variant={image.isPrimary ? "primary" : "default"} size="sm" icon={<I.star size={14} />} onClick={() => setPrimaryImage(index)}>{ptx("primary")}</Button>
+                      <Button variant="danger" size="sm" icon={<I.trash size={14} />} onClick={() => removeImage(index)} disabled={(form.images || []).length <= 1}>{ptx("delete")}</Button>
                     </div>
                   </div>
                 </div>
               </Card>
             ))}
-            <Button variant="default" size="sm" icon={<I.plus size={14} />} onClick={addImage}>Yana rasm qo'shish</Button>
+            <Button variant="default" size="sm" icon={<I.plus size={14} />} onClick={addImage}>{ptx("addAnotherImage")}</Button>
           </div>
         </Field>
-        <Field label="Tavsif"><Textarea rows={5} value={form.description || ""} onChange={(event) => set("description", event.target.value)} placeholder="Mahsulot tavsifi..." /></Field>
+        <Field label={ptx("description")}><Textarea rows={5} value={form.description || ""} onChange={(event) => set("description", event.target.value)} placeholder={ptx("productDescription")} /></Field>
       </div>
     </Modal>
   );
@@ -574,11 +802,11 @@ function ProductCategoryFormModal({ open, onClose, initial, onSave, count }) {
     <Modal
       open={open}
       onClose={onClose}
-      title={initial ? "Kategoriyani tahrirlash" : "Yangi kategoriya"}
+      title={initial ? ptx("editCategoryTitle") : ptx("newCategory")}
       icon={initial ? <I.edit size={18} /> : <I.plus size={18} />}
       width={460}
       footer={<>
-        <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
+        <Button variant="ghost" onClick={onClose}>{window.TRANSLATIONS?.[productLang()]?.["common.cancel"] || "Bekor qilish"}</Button>
         <Button
           variant="primary"
           onClick={() => onSave({
@@ -588,12 +816,12 @@ function ProductCategoryFormModal({ open, onClose, initial, onSave, count }) {
             sortOrder: apiParseNumber(form.sortOrder || 0),
           })}
         >
-          {initial ? "Saqlash" : "Yaratish"}
+          {initial ? ptx("save") : ptx("create")}
         </Button>
       </>}
     >
       <div style={{ display: "grid", gap: 14 }}>
-        <Field label="Nomi" required>
+        <Field label={ptx("categoryName")} required>
           <Input
             value={form.name}
             onChange={(event) => {
@@ -603,7 +831,7 @@ function ProductCategoryFormModal({ open, onClose, initial, onSave, count }) {
             }}
           />
         </Field>
-        <Field label="Code" hint="Bo'sh joylar avtomatik `_` ga o'zgaradi.">
+        <Field label="Code" hint={ptx("codeHint")}>
           <Input
             value={form.code}
             onChange={(event) => {
@@ -612,7 +840,7 @@ function ProductCategoryFormModal({ open, onClose, initial, onSave, count }) {
             }}
           />
         </Field>
-        <Field label="Tartib">
+        <Field label={ptx("sortOrder")}>
           <Input type="number" value={form.sortOrder} onChange={(event) => set("sortOrder", event.target.value)} />
         </Field>
       </div>
@@ -632,11 +860,11 @@ function ProductCategoriesModal({ open, onClose }) {
 
   const saveCategory = async (category) => {
     if (!category.name) {
-      toast("Kategoriya nomini kiriting", "error");
+      toast(ptx("categoryRequired"), "error");
       return;
     }
     await upsert("productCategories", category);
-    toast(editCategory ? "Kategoriya yangilandi" : "Kategoriya yaratildi");
+    toast(editCategory ? ptx("categoryUpdated") : ptx("categoryCreated"));
     setCreateOpen(false);
     setEditCategory(null);
   };
@@ -645,12 +873,12 @@ function ProductCategoriesModal({ open, onClose }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Mahsulot kategoriyalari"
+      title={ptx("productCategories")}
       icon={<I.layers size={18} />}
       width={640}
       footer={<>
-        <Button variant="default" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi kategoriya</Button>
-        <Button variant="primary" onClick={onClose}>Yopish</Button>
+        <Button variant="default" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{ptx("newCategory")}</Button>
+        <Button variant="primary" onClick={onClose}>{ptx("close")}</Button>
       </>}
     >
       {categories.length ? (
@@ -661,15 +889,15 @@ function ProductCategoriesModal({ open, onClose }) {
                 <span style={{ width: 12, height: 12, borderRadius: 999, background: window.accentColorFromText ? window.accentColorFromText(category.name) : "var(--accent)", flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="tg-cell-strong">{category.name}</div>
-                  <div className="tg-cell-sub">Code: {category.code || "—"} • Tartib: {category.sortOrder || 0}</div>
+                  <div className="tg-cell-sub">Code: {category.code || "—"} • {ptx("sortOrder")}: {category.sortOrder || 0}</div>
                 </div>
                 <Dropdown
                   align="right"
-                  trigger={<IconButton icon={<I.dots size={16} />} label="Kategoriya amallari" />}
+                  trigger={<IconButton icon={<I.dots size={16} />} label={ptx("categoryActions")} />}
                   items={[
-                    { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditCategory(category) },
+                    { label: ptx("edit"), icon: <I.edit size={16} />, onClick: () => setEditCategory(category) },
                     { divider: true },
-                    { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteCategory(category) },
+                    { label: ptx("delete"), icon: <I.trash size={16} />, danger: true, onClick: () => setDeleteCategory(category) },
                   ]}
                 />
               </div>
@@ -677,7 +905,7 @@ function ProductCategoriesModal({ open, onClose }) {
           ))}
         </div>
       ) : (
-        <EmptyState title="Kategoriyalar topilmadi" message="Mahsulotlar uchun avval kategoriya yarating." action={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi kategoriya</Button>} />
+        <EmptyState title={ptx("categoriesNotFound")} message={ptx("createCategoryFirst")} action={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{ptx("newCategory")}</Button>} />
       )}
 
       <ProductCategoryFormModal
@@ -698,13 +926,13 @@ function ProductCategoriesModal({ open, onClose }) {
         onClose={() => setDeleteCategory(null)}
         onConfirm={async () => {
           await remove("productCategories", deleteCategory.id);
-          toast("Kategoriya o'chirildi");
+          toast(ptx("categoryDeleted"));
           setDeleteCategory(null);
         }}
-        title="Kategoriyani o'chirish"
-        message={`"${deleteCategory?.name || ""}" kategoriyasini o'chirmoqchimisiz?`}
-        details={deleteCategory ? `Code: ${deleteCategory.code || "—"}\nTartib: ${deleteCategory.sortOrder || 0}` : ""}
-        confirmLabel="O'chirish"
+        title={ptx("deleteCategory")}
+        message={productLang() === "uz" ? `"${deleteCategory?.name || ""}" ${ptx("deleteCategoryMessage")}` : ptx("deleteCategoryMessage")}
+        details={deleteCategory ? `Code: ${deleteCategory.code || "—"}\n${ptx("sortOrder")}: ${deleteCategory.sortOrder || 0}` : ""}
+        confirmLabel={ptx("delete")}
         danger
       />
     </Modal>

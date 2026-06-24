@@ -1,8 +1,141 @@
 /* pages/commerce.jsx - debtors and accounting */
 const { useState: coS, useMemo: coM, useEffect: coE } = React;
+const COMMERCE_UI = {
+  uz: {
+    overdue: "Muddati o'tgan", withDebt: "Qoldiq bor", closed: "Yopilgan",
+    credit: "Kredit", cash: "Naqd",
+    totalDebtKpi: "Jami qarzdorlik", creditCustomers: "Kredit mijozlar", districts: "Tumanlar",
+    newDebtor: "Yangi qarzdor", emptyDebtors: "Qarzdorlar topilmadi",
+    colCustomer: "Mijoz", colDistrict: "Tuman", colMahalla: "Mahalla", colDebt: "Qoldiq",
+    excelOk: "Qarzdorlar Excel fayli yuklandi", excelFail: "Excel eksport bajarilmadi",
+    debtorCreated: "Qarzdor yozuvi yaratildi", debtorUpdated: "Qarzdor yozuvi yangilandi",
+    debtorDeleted: "Qarzdor yozuvi o'chirildi", deleteDebtorTitle: "Qarzdor yozuvini o'chirish",
+    debtorNotFound: "Qarzdor topilmadi", backToDebtors: "Qarzdorlarga",
+    debtPanel: "Qarzdorlik tarkibi", businessLine: "Biznes yo'nalishi", address: "Manzil",
+    totalAmount: "Jami summa", paid: "To'langan", remaining: "Qoldiq",
+    overdueAmount: "Muddati o'tgan", deadline: "Muddat", nextReminder: "Keyingi eslatma",
+    projectPanel: "Loyiha tarkibi", productCol: "Mahsulot", countCol: "Soni", priceCol: "Narx",
+    customerPanel: "Mijoz", lastPaymentsPanel: "Oxirgi to'lovlar",
+    dateCol: "Sana", amountCol: "Summa", methodCol: "Usul", noPayments: "To'lov yozuvi yo'q",
+    paymentAdded: "Yozuv qo'shildi", paymentUpdated: "Yozuv yangilandi", paymentDeleted: "Yozuv o'chirildi",
+    deletePaymentTitle: "Moliyaviy yozuvni o'chirish",
+    paymentFormNew: "Yangi hisob-kitob yozuvi", paymentFormEdit: "Hisob-kitobni tahrirlash",
+    paymentViewTitle: "Hisob-kitob yozuvi",
+    income: "Kirim", expense: "Chiqim", netFlow: "Sof oqim", records: "Yozuvlar",
+    direction: "Yo'nalish", category: "Kategoriya", subject: "Subyekt",
+    currency: "Valyuta", sortOrder: "Tartib", note: "Izoh", newRecord: "Yangi yozuv",
+    paymentsDesc: "Kunlik kirim-chiqim va moliyaviy nazorat",
+    debtorsDescUnit: "ta qarzdor yozuvi", availableDistricts: "Mavjud tumanlar",
+    availableMahallas: "Mavjud mahallalar", paymentType: "To'lov turi",
+    tabAll: "Barchasi", tabOpen: "Qoldiq bor", tabOverdue: "Muddati o'tgan", tabClosed: "Yopilgan",
+    remainingLabel: "Qoldiq:", overdueLabel: "Muddati o'tgan:",
+    debtorsSearch: "Mijoz, ID, tuman yoki mahalla...", paymentsSearch: "Kategoriya, mijoz, ID...",
+    solar: "Quyosh panel biznesi", oldBiz: "Eski biznes",
+    notePlaceholder: "To'lov kelishuvi yoki eslatma...", currencyPh: "UZS yoki USD",
+    phoneRequired: "Telefon raqamini kiriting", phoneLabel: "Telefon", debtorLabel: "Mijoz",
+    debtorFormNew: "Yangi qarzdor", debtorFormEdit: "Qarzdor yozuvini tahrirlash",
+    by: "Kiritdi", countSuffix: "ta", view: "Ko'rish",
+    deleteMsg: "Yozuvni o'chirmoqchimisiz?", debtorDeleteMsg: "yozuvini o'chirmoqchimisiz?",
+    detailsPhone: "Telefon:", detailsDebt: "Qoldiq qarz:", detailsRegion: "Hudud:",
+    detailsCat: "Kategoriya:", detailsAmount: "Summa:",
+    startDate: "Boshlanish sanasi", endDate: "Tugash sanasi",
+    districtPh: "Masalan, Bog'ot", mahallaPh: "Masalan, Yangiobod",
+    catalogCrumb: "Katalog va moliya", actions: "Amallar", edit: "Tahrirlash", delete: "O'chirish", view: "Ko'rish", cancel: "Bekor qilish", save: "Saqlash", create: "Yaratish", close: "Yopish", clear: "Tozalash",
+  },
+  ru: {
+    overdue: "Просрочено", withDebt: "Есть остаток", closed: "Закрыто",
+    credit: "Кредит", cash: "Наличные",
+    totalDebtKpi: "Общий долг", creditCustomers: "Кредитные клиенты", districts: "Районы",
+    newDebtor: "Новый должник", emptyDebtors: "Должники не найдены",
+    colCustomer: "Клиент", colDistrict: "Район", colMahalla: "Махалля", colDebt: "Остаток",
+    excelOk: "Файл Excel с должниками загружен", excelFail: "Ошибка экспорта Excel",
+    debtorCreated: "Запись должника создана", debtorUpdated: "Запись должника обновлена",
+    debtorDeleted: "Запись должника удалена", deleteDebtorTitle: "Удалить запись должника",
+    debtorNotFound: "Должник не найден", backToDebtors: "К должникам",
+    debtPanel: "Состав долга", businessLine: "Направление бизнеса", address: "Адрес",
+    totalAmount: "Общая сумма", paid: "Оплачено", remaining: "Остаток",
+    overdueAmount: "Просрочено", deadline: "Срок", nextReminder: "Следующее напоминание",
+    projectPanel: "Состав проекта", productCol: "Продукт", countCol: "Кол-во", priceCol: "Цена",
+    customerPanel: "Клиент", lastPaymentsPanel: "Последние платежи",
+    dateCol: "Дата", amountCol: "Сумма", methodCol: "Метод", noPayments: "Нет записей о платежах",
+    paymentAdded: "Запись добавлена", paymentUpdated: "Запись обновлена", paymentDeleted: "Запись удалена",
+    deletePaymentTitle: "Удалить финансовую запись",
+    paymentFormNew: "Новая финансовая запись", paymentFormEdit: "Редактировать финансы",
+    paymentViewTitle: "Финансовая запись",
+    income: "Приход", expense: "Расход", netFlow: "Чистый поток", records: "Записи",
+    direction: "Направление", category: "Категория", subject: "Субъект",
+    currency: "Валюта", sortOrder: "Порядок", note: "Примечание", newRecord: "Новая запись",
+    paymentsDesc: "Ежедневные доходы-расходы и финансовый контроль",
+    debtorsDescUnit: "записей должников", availableDistricts: "Доступные районы",
+    availableMahallas: "Доступные махалли", paymentType: "Тип оплаты",
+    tabAll: "Все", tabOpen: "Есть остаток", tabOverdue: "Просрочено", tabClosed: "Закрыто",
+    remainingLabel: "Остаток:", overdueLabel: "Просрочено:",
+    debtorsSearch: "Клиент, ID, район или махалля...", paymentsSearch: "Категория, клиент, ID...",
+    solar: "Бизнес солнечных панелей", oldBiz: "Старый бизнес",
+    notePlaceholder: "Договор об оплате или примечание...", currencyPh: "UZS или USD",
+    phoneRequired: "Введите номер телефона", phoneLabel: "Телефон", debtorLabel: "Клиент",
+    debtorFormNew: "Новый должник", debtorFormEdit: "Редактировать запись должника",
+    by: "Внёс", countSuffix: "шт", view: "Просмотр",
+    deleteMsg: "Удалить запись?", debtorDeleteMsg: "запись удалить?",
+    detailsPhone: "Телефон:", detailsDebt: "Остаток долга:", detailsRegion: "Регион:",
+    detailsCat: "Категория:", detailsAmount: "Сумма:",
+    startDate: "Дата начала", endDate: "Дата окончания",
+    districtPh: "Напр., Богот", mahallaPh: "Напр., Янгиобод",
+    catalogCrumb: "Каталог и финансы", actions: "Действия", edit: "Редактировать", delete: "Удалить", view: "Просмотр", cancel: "Отмена", save: "Сохранить", create: "Создать", close: "Закрыть", clear: "Очистить",
+  },
+  en: {
+    overdue: "Overdue", withDebt: "Has balance", closed: "Closed",
+    credit: "Credit", cash: "Cash",
+    totalDebtKpi: "Total debt", creditCustomers: "Credit customers", districts: "Districts",
+    newDebtor: "New debtor", emptyDebtors: "No debtors found",
+    colCustomer: "Customer", colDistrict: "District", colMahalla: "Mahalla", colDebt: "Balance",
+    excelOk: "Debtors Excel file downloaded", excelFail: "Excel export failed",
+    debtorCreated: "Debtor record created", debtorUpdated: "Debtor record updated",
+    debtorDeleted: "Debtor record deleted", deleteDebtorTitle: "Delete debtor record",
+    debtorNotFound: "Debtor not found", backToDebtors: "Back to debtors",
+    debtPanel: "Debt composition", businessLine: "Business line", address: "Address",
+    totalAmount: "Total amount", paid: "Paid", remaining: "Balance",
+    overdueAmount: "Overdue", deadline: "Due date", nextReminder: "Next reminder",
+    projectPanel: "Project items", productCol: "Product", countCol: "Qty", priceCol: "Price",
+    customerPanel: "Customer", lastPaymentsPanel: "Recent payments",
+    dateCol: "Date", amountCol: "Amount", methodCol: "Method", noPayments: "No payment records",
+    paymentAdded: "Record added", paymentUpdated: "Record updated", paymentDeleted: "Record deleted",
+    deletePaymentTitle: "Delete financial record",
+    paymentFormNew: "New accounting entry", paymentFormEdit: "Edit accounting entry",
+    paymentViewTitle: "Accounting entry",
+    income: "Income", expense: "Expense", netFlow: "Net flow", records: "Records",
+    direction: "Direction", category: "Category", subject: "Subject",
+    currency: "Currency", sortOrder: "Order", note: "Note", newRecord: "New entry",
+    paymentsDesc: "Daily income/expenses and financial control",
+    debtorsDescUnit: "debtor records", availableDistricts: "Available districts",
+    availableMahallas: "Available mahallas", paymentType: "Payment type",
+    tabAll: "All", tabOpen: "Has balance", tabOverdue: "Overdue", tabClosed: "Closed",
+    remainingLabel: "Balance:", overdueLabel: "Overdue:",
+    debtorsSearch: "Customer, ID, district or mahalla...", paymentsSearch: "Category, customer, ID...",
+    solar: "Solar panel business", oldBiz: "Old business",
+    notePlaceholder: "Payment agreement or note...", currencyPh: "UZS or USD",
+    phoneRequired: "Enter phone number", phoneLabel: "Phone", debtorLabel: "Customer",
+    debtorFormNew: "New debtor", debtorFormEdit: "Edit debtor record",
+    by: "By", countSuffix: "pcs", view: "View",
+    deleteMsg: "Delete this record?", debtorDeleteMsg: "record delete?",
+    detailsPhone: "Phone:", detailsDebt: "Balance:", detailsRegion: "Region:",
+    detailsCat: "Category:", detailsAmount: "Amount:",
+    startDate: "Start date", endDate: "End date",
+    districtPh: "e.g. Bogot", mahallaPh: "e.g. Yangiobod",
+    catalogCrumb: "Catalog & Finance", actions: "Actions", edit: "Edit", delete: "Delete", view: "View", cancel: "Cancel", save: "Save", create: "Create", close: "Close", clear: "Clear",
+  },
+};
+function comLang() { return window.__TG_LANG || "uz"; }
+function comTx(key) { return COMMERCE_UI[comLang()]?.[key] || COMMERCE_UI.uz[key] || key; }
 const debtNum = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+};
+const rawDebt = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const s = String(value).trim();
+  if (!s || Number(s) === 0) return null;
+  return s;
 };
 const orderTakenDate = (order) => String(order?.createdAt || "").slice(0, 10);
 const orderDateMatchesRange = (dateValue, from, to) => {
@@ -34,7 +167,7 @@ function OrderRow({ o, onClick }) {
   const overdueAmount = debtNum(o.overdueAmountUzs);
   const remainingDebt = debtNum(o.remainingDebtUzs);
   const locationText = orderLocationLabel(o);
-  const metaParts = [o.businessLine, o.paymentType === "credit" ? "Kredit" : "Naqd", fmtDate(o.createdAt)].filter(Boolean);
+  const metaParts = [o.businessLine, o.paymentType === "credit" ? comTx("credit") : comTx("cash"), fmtDate(o.createdAt)].filter(Boolean);
   const subMetaParts = [locationText, o.deliveryAddress].filter(Boolean);
   return (
     <Card hover onClick={onClick}>
@@ -42,14 +175,14 @@ function OrderRow({ o, onClick }) {
         <span className="tg-card-icon" style={{ color: "var(--amber)", background: "var(--amber-bg)" }}><I.wallet size={17} /></span>
         <div style={{ flex: 1, minWidth: 160 }}>
           <div className="tg-cell-strong">{o.customerName}</div>
-          <div className="tg-cell-sub">{o.businessLine} • {o.paymentType === "credit" ? "Kredit" : "Naqd"} • {fmtDate(o.createdAt)}</div>
+          <div className="tg-cell-sub">{o.businessLine} • {o.paymentType === "credit" ? comTx("credit") : comTx("cash")} • {fmtDate(o.createdAt)}</div>
           <div className="tg-cell-sub">{orderLocationLabel(o)} • {o.deliveryAddress}</div>
         </div>
         {hasOrderLocation(o) && <Badge color="slate" size="sm">{orderMahalla(o) || orderTuman(o)}</Badge>}
         <Badge color={overdueAmount > 0 ? "red" : remainingDebt > 0 ? "amber" : "green"} size="sm">
-          {overdueAmount > 0 ? "Muddati o'tgan" : remainingDebt > 0 ? "Qoldiq bor" : "Yopilgan"}
+          {overdueAmount > 0 ? comTx("overdue") : remainingDebt > 0 ? comTx("withDebt") : comTx("closed")}
         </Badge>
-        <div style={{ fontWeight: 700, fontSize: 15, minWidth: 130, textAlign: "right" }}>{fmtUZS(remainingDebt)}</div>
+        <div style={{ fontWeight: 700, fontSize: 15, minWidth: 130, textAlign: "right" }}>{rawDebt(o.remainingDebtUzs) ?? "—"}</div>
       </div>
     </Card>
   );
@@ -60,7 +193,7 @@ OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete }) {
   const overdueAmount = debtNum(o.overdueAmountUzs);
   const remainingDebt = debtNum(o.remainingDebtUzs);
   const locationText = orderLocationLabel(o);
-  const metaParts = [o.businessLine, o.paymentType === "credit" ? "Kredit" : "Naqd", fmtDate(o.createdAt)].filter(Boolean);
+  const metaParts = [o.businessLine, o.paymentType === "credit" ? comTx("credit") : comTx("cash"), fmtDate(o.createdAt)].filter(Boolean);
   const subMetaParts = [locationText, o.deliveryAddress].filter(Boolean);
   return (
     <Card hover onClick={onClick}>
@@ -73,22 +206,22 @@ OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete }) {
         </div>
         {hasOrderLocation(o) && <Badge color="slate" size="sm">{orderMahalla(o) || orderTuman(o)}</Badge>}
         <Badge color={overdueAmount > 0 ? "red" : remainingDebt > 0 ? "amber" : "green"} size="sm">
-          {overdueAmount > 0 ? "Muddati o'tgan" : remainingDebt > 0 ? "Qoldiq bor" : "Yopilgan"}
+          {overdueAmount > 0 ? comTx("overdue") : remainingDebt > 0 ? comTx("withDebt") : comTx("closed")}
         </Badge>
         {(onEdit || onDelete) && (
           <div onClick={(event) => event.stopPropagation()}>
             <Dropdown
               align="right"
-              trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />}
+              trigger={<IconButton icon={<I.dots size={16} />} label={comTx("actions")} />}
               items={[
-                { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: onEdit },
+                { label: comTx("edit"), icon: <I.edit size={16} />, onClick: onEdit },
                 { divider: true },
-                { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: onDelete },
+                { label: comTx("delete"), icon: <I.trash size={16} />, danger: true, onClick: onDelete },
               ].filter((item) => item.divider || item.onClick)}
             />
           </div>
         )}
-        <div style={{ fontWeight: 700, fontSize: 15, minWidth: 130, textAlign: "right" }}>{fmtUZS(remainingDebt)}</div>
+        <div style={{ fontWeight: 700, fontSize: 15, minWidth: 130, textAlign: "right" }}>{rawDebt(o.remainingDebtUzs) ?? "—"}</div>
       </div>
     </Card>
   );
@@ -138,9 +271,9 @@ function OrdersPage() {
         district: districtFilter !== "all" ? districtFilter : undefined,
         neighborhood: mahallaFilter !== "all" ? mahallaFilter : undefined,
       });
-      toast("Qarzdorlar Excel fayli yuklandi");
+      toast(comTx("excelOk"));
     } catch (error) {
-      toast(error.message || "Excel eksport bajarilmadi", "error");
+      toast(error.message || comTx("excelFail"), "error");
     } finally {
       setExporting(false);
     }
@@ -206,31 +339,31 @@ function OrdersPage() {
   const totalDebt = data.orders.reduce((sum, o) => sum + debtNum(o.remainingDebtUzs), 0);
   const overdue = data.orders.reduce((sum, o) => sum + debtNum(o.overdueAmountUzs), 0);
   const tabs = [
-    { value: "all", label: "Barchasi", count: data.orders.length },
-    { value: "open", label: "Qoldiq bor", count: data.orders.filter(o => debtNum(o.remainingDebtUzs) > 0).length },
-    { value: "overdue", label: "Muddati o'tgan", count: data.orders.filter(o => debtNum(o.overdueAmountUzs) > 0).length },
-    { value: "closed", label: "Yopilgan", count: data.orders.filter(o => debtNum(o.remainingDebtUzs) === 0).length },
+    { value: "all", label: comTx("tabAll"), count: data.orders.length },
+    { value: "open", label: comTx("tabOpen"), count: data.orders.filter(o => debtNum(o.remainingDebtUzs) > 0).length },
+    { value: "overdue", label: comTx("tabOverdue"), count: data.orders.filter(o => debtNum(o.overdueAmountUzs) > 0).length },
+    { value: "closed", label: comTx("tabClosed"), count: data.orders.filter(o => debtNum(o.remainingDebtUzs) === 0).length },
   ];
 
   return (
     <div className="page fade-in">
-      <PageHeader title={t("page.orders")} desc={`${data.orders.length} ta qarzdor yozuvi`} crumbs={[{ label: "Katalog va moliya" }, { label: t("page.orders") }]}
+      <PageHeader title={t("page.orders")} desc={`${data.orders.length} ${comTx("debtorsDescUnit")}`} crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.orders") }]}
         actions={<>
-          <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi qarzdor</Button>
+          <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{comTx("newDebtor")}</Button>
         </>} />
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
-        <StatTile label="Jami qarzdorlik" value={fmtShort(totalDebt)} sub="so'm" color="red" />
-        <StatTile label="Muddati o'tgan" value={fmtShort(overdue)} sub="so'm" color="amber" />
-        <StatTile label="Kredit mijozlar" value={data.orders.filter(o => o.paymentType === "credit").length} color="blue" />
-        <StatTile label="Tumanlar" value={new Set(data.orders.map(o => orderTuman(o)).filter(Boolean)).size} color="violet" />
+        <StatTile label={comTx("totalDebtKpi")} value={fmtShort(totalDebt)} sub="so'm" color="red" />
+        <StatTile label={comTx("tabOverdue")} value={fmtShort(overdue)} sub="so'm" color="amber" />
+        <StatTile label={comTx("creditCustomers")} value={data.orders.filter(o => o.paymentType === "credit").length} color="blue" />
+        <StatTile label={comTx("districts")} value={new Set(data.orders.map(o => orderTuman(o)).filter(Boolean)).size} color="violet" />
       </div>
       <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Mijoz, ID, tuman yoki mahalla..." width={260} />
-        {showLocationFilters && <FilterSelect label="Tuman" icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
-        {showLocationFilters && <FilterSelect label="Mahalla" icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
-        <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="Boshlanish sanasi" /></div>
-        <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder="Tugash sanasi" /></div>
-        {(dateFrom || dateTo) ? <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>Tozalash</Button> : null}
+        <SearchInput value={q} onChange={setQ} placeholder={comTx("debtorsSearch")} width={260} />
+        {showLocationFilters && <FilterSelect label={comTx("colDistrict")} icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
+        {showLocationFilters && <FilterSelect label={comTx("colMahalla")} icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
+        <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder={comTx("startDate")} /></div>
+        <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder={comTx("endDate")} /></div>
+        {(dateFrom || dateTo) ? <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>{comTx("clear")}</Button> : null}
         <div className="toolbar-spacer" />
         <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportDebtorsExcel} disabled={exporting}>Excel</Button>
       </div>
@@ -240,16 +373,16 @@ function OrdersPage() {
           {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 76, borderRadius: 14 }} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <Card><EmptyState icon={<I.wallet size={26} />} title="Qarzdorlar topilmadi" /></Card>
+        <Card><EmptyState icon={<I.wallet size={26} />} title={comTx("emptyDebtors")} /></Card>
       ) : showFlatList ? (
         <Card pad={false}>
           <DataTable
             columns={[
-              { key: "name", label: "Mijoz", sortVal: (row) => row.customerName, render: (row) => <div><div className="tg-cell-strong">{row.customerName}</div><div className="tg-cell-sub">{row.phone || row.id}</div></div> },
-              { key: "district", label: "Tuman", sortVal: (row) => orderTuman(row), render: (row) => orderTuman(row) || <span className="tg-cell-sub">—</span> },
-              { key: "mahalla", label: "Mahalla", sortVal: (row) => orderMahalla(row), render: (row) => orderMahalla(row) || <span className="tg-cell-sub">—</span> },
-              { key: "debt", label: "Qoldiq", sortVal: (row) => debtNum(row.remainingDebtUzs), render: (row) => <span style={{ fontWeight: 700 }}>{fmtUZS(debtNum(row.remainingDebtUzs))}</span> },
-              { key: "overdue", label: "Muddati o'tgan", sortVal: (row) => debtNum(row.overdueAmountUzs), render: (row) => <Badge color={debtNum(row.overdueAmountUzs) > 0 ? "red" : "slate"} size="sm">{fmtUZS(debtNum(row.overdueAmountUzs))}</Badge> },
+              { key: "name", label: comTx("colCustomer"), sortVal: (row) => row.customerName, render: (row) => <div><div className="tg-cell-strong">{row.customerName}</div><div className="tg-cell-sub">{row.phone || row.id}</div></div> },
+              { key: "district", label: comTx("colDistrict"), sortVal: (row) => orderTuman(row), render: (row) => orderTuman(row) || <span className="tg-cell-sub">—</span> },
+              { key: "mahalla", label: comTx("colMahalla"), sortVal: (row) => orderMahalla(row), render: (row) => orderMahalla(row) || <span className="tg-cell-sub">—</span> },
+              { key: "debt", label: comTx("colDebt"), sortVal: (row) => debtNum(row.remainingDebtUzs), render: (row) => <span style={{ fontWeight: 700 }}>{rawDebt(row.remainingDebtUzs) ?? "—"}</span> },
+              { key: "overdue", label: comTx("tabOverdue"), sortVal: (row) => debtNum(row.overdueAmountUzs), render: (row) => <Badge color={debtNum(row.overdueAmountUzs) > 0 ? "red" : "slate"} size="sm">{rawDebt(row.overdueAmountUzs) ?? "—"}</Badge> },
             ]}
             rows={filtered}
             onRowClick={(row) => nav("/debtors/" + row.id)}
@@ -269,7 +402,7 @@ function OrdersPage() {
                     <Badge color="slate" size="sm">{group.orders.length} ta</Badge>
                   </div>
                   <div className="tg-cell-sub" style={{ marginTop: 4 }}>
-                    Qoldiq: {fmtUZS(group.totalDebt)}{group.overdueDebt > 0 ? ` • Muddati o'tgan: ${fmtUZS(group.overdueDebt)}` : ""}
+                    {comTx("remainingLabel")} {fmtUZS(group.totalDebt)}{group.overdueDebt > 0 ? ` • ${comTx("overdueLabel")} ${fmtUZS(group.overdueDebt)}` : ""}
                   </div>
                 </div>
               </div>
@@ -296,7 +429,7 @@ function OrdersPage() {
                     <Badge color="slate" size="sm">{group.orders.length} ta</Badge>
                   </div>
                   <div className="tg-cell-sub" style={{ marginTop: 4 }}>
-                    Qoldiq: {fmtUZS(group.totalDebt)}{group.overdueDebt > 0 ? ` • Muddati o'tgan: ${fmtUZS(group.overdueDebt)}` : ""}
+                    {comTx("remainingLabel")} {fmtUZS(group.totalDebt)}{group.overdueDebt > 0 ? ` • ${comTx("overdueLabel")} ${fmtUZS(group.overdueDebt)}` : ""}
                   </div>
                 </div>
               </div>
@@ -312,7 +445,7 @@ function OrdersPage() {
                         </div>
                       ) : <div />}
                       <div className="tg-cell-sub">
-                        Qoldiq: {fmtUZS(mahallaGroup.totalDebt)}{mahallaGroup.overdueDebt > 0 ? ` • Muddati o'tgan: ${fmtUZS(mahallaGroup.overdueDebt)}` : ""}
+                        {comTx("remainingLabel")} {fmtUZS(mahallaGroup.totalDebt)}{mahallaGroup.overdueDebt > 0 ? ` • ${comTx("overdueLabel")} ${fmtUZS(mahallaGroup.overdueDebt)}` : ""}
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -336,7 +469,7 @@ function OrdersPage() {
         locations={data.locations}
         onSave={async (order) => {
           await upsert("orders", order);
-          toast("Qarzdor yozuvi yaratildi");
+          toast(comTx("debtorCreated"));
           setCreateOpen(false);
         }}
       />
@@ -347,7 +480,7 @@ function OrdersPage() {
         locations={data.locations}
         onSave={async (order) => {
           await upsert("orders", order);
-          toast("Qarzdor yozuvi yangilandi");
+          toast(comTx("debtorUpdated"));
           setEditOrder(null);
         }}
       />
@@ -356,13 +489,13 @@ function OrdersPage() {
         onClose={() => setDeleteOrder(null)}
         onConfirm={async () => {
           await remove("orders", deleteOrder.id);
-          toast("Qarzdor yozuvi o'chirildi");
+          toast(comTx("debtorDeleted"));
           setDeleteOrder(null);
         }}
-        title="Qarzdor yozuvini o'chirish"
+        title={comTx("deleteDebtorTitle")}
         message={`"${deleteOrder?.customerName || ""}" yozuvini o'chirmoqchimisiz?`}
-        details={deleteOrder ? [`Telefon: ${deleteOrder.phone || "-"}`, `Qoldiq qarz: ${fmtUZS(debtNum(deleteOrder.remainingDebtUzs))}`, hasOrderLocation(deleteOrder) ? `Hudud: ${orderLocationLabel(deleteOrder)}` : ""].filter(Boolean).join("\n") : ""}
-        confirmLabel="O'chirish"
+        details={deleteOrder ? [`${comTx("detailsPhone")} ${deleteOrder.phone || "-"}`, rawDebt(deleteOrder.remainingDebtUzs) ? `${comTx("detailsDebt")} ${rawDebt(deleteOrder.remainingDebtUzs)}` : "", hasOrderLocation(deleteOrder) ? `${comTx("detailsRegion")} ${orderLocationLabel(deleteOrder)}` : ""].filter(Boolean).join("\n") : ""}
+        confirmLabel={comTx("delete")}
         danger
       />
     </div>
@@ -402,13 +535,13 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   return (
-    <Modal open={open} onClose={onClose} title={initial ? "Qarzdor yozuvini tahrirlash" : "Yangi qarzdor"} icon={initial ? <I.edit size={18} /> : <I.plus size={18} />} width={620}
+    <Modal open={open} onClose={onClose} title={initial ? comTx("debtorFormEdit") : comTx("debtorFormNew")} icon={initial ? <I.edit size={18} /> : <I.plus size={18} />} width={620}
       footer={<>
-        <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
+        <Button variant="ghost" onClick={onClose}>{comTx("cancel")}</Button>
         <Button variant="primary" onClick={async () => {
           const phone = (form.phone || "").trim();
           if (!phone) {
-            toast("Telefon raqamini kiriting", "error");
+            toast(comTx("phoneRequired"), "error");
             return;
           }
           const totalUzs = +form.totalUzs || 0;
@@ -444,22 +577,22 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             note: form.note || "",
             createdAt: form.createdAt || new Date().toISOString(),
           });
-        }}>{initial ? "Saqlash" : "Yaratish"}</Button>
+        }}>{initial ? comTx("save") : comTx("create")}</Button>
       </>}>
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <Field label="Mijoz"><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
-          <Field label="Telefon" required><Input value={form.phone || ""} onChange={e => set("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
-          <Field label="Tuman"><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder="Masalan, Bog'ot" /></Field>
+          <Field label={comTx("debtorLabel")}><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
+          <Field label={comTx("phoneLabel")} required><Input value={form.phone || ""} onChange={e => set("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
+          <Field label={comTx("colDistrict")}><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder={comTx("districtPh")} /></Field>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <Field label="Mahalla"><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder="Masalan, Yangiobod" /></Field>
-          <Field label="Yo'nalish"><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: "Quyosh panel biznesi" }, { value: "Eski biznes", label: "Eski biznes" }]} /></Field>
-          <Field label="To'lov turi"><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: "Kredit" }, { value: "cash", label: "Naqd" }]} /></Field>
+          <Field label={comTx("colMahalla")}><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder={comTx("mahallaPh")} /></Field>
+          <Field label={comTx("direction")}><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: comTx("solar") }, { value: "Eski biznes", label: comTx("oldBiz") }]} /></Field>
+          <Field label={comTx("paymentType")}><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: comTx("credit") }, { value: "cash", label: comTx("cash") }]} /></Field>
         </div>
         {!!districts.length && (
           <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud tumanlar</div>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>{comTx("availableDistricts")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {districts.slice(0, 10).map((district) => (
                 <button
@@ -485,7 +618,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
         )}
         {!!form.district && !!debtorMahallasFor(form.district, locations).length && (
           <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Mavjud mahallalar</div>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>{comTx("availableMahallas")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {debtorMahallasFor(form.district, locations).slice(0, 12).map((mahalla) => (
                 <button
@@ -509,26 +642,26 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             </div>
           </div>
         )}
-        <Field label="Manzil"><Input value={form.deliveryAddress} onChange={e => set("deliveryAddress", e.target.value)} /></Field>
+        <Field label={comTx("address")}><Input value={form.deliveryAddress} onChange={e => set("deliveryAddress", e.target.value)} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <Field label="Jami summa"><Input type="number" value={form.totalUzs} onChange={e => set("totalUzs", e.target.value)} /></Field>
-          <Field label="To'langan"><Input type="number" value={form.paidUzs} onChange={e => set("paidUzs", e.target.value)} /></Field>
-          <Field label="Muddati o'tgan"><Input type="number" value={form.overdueAmountUzs} onChange={e => set("overdueAmountUzs", e.target.value)} /></Field>
+          <Field label={comTx("totalAmount")}><Input type="number" value={form.totalUzs} onChange={e => set("totalUzs", e.target.value)} /></Field>
+          <Field label={comTx("paid")}><Input type="number" value={form.paidUzs} onChange={e => set("paidUzs", e.target.value)} /></Field>
+          <Field label={comTx("overdueAmount")}><Input type="number" value={form.overdueAmountUzs} onChange={e => set("overdueAmountUzs", e.target.value)} /></Field>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Muddat"><DatePickerInput value={(form.dueDate || "").slice(0, 10)} onChange={(value) => set("dueDate", value)} /></Field>
-          <Field label="Keyingi eslatma"><DatePickerInput value={(form.nextReminderAt || "").slice(0, 10)} onChange={(value) => set("nextReminderAt", value)} /></Field>
+          <Field label={comTx("deadline")}><DatePickerInput value={(form.dueDate || "").slice(0, 10)} onChange={(value) => set("dueDate", value)} /></Field>
+          <Field label={comTx("nextReminder")}><DatePickerInput value={(form.nextReminderAt || "").slice(0, 10)} onChange={(value) => set("nextReminderAt", value)} /></Field>
         </div>
-        <Field label="Izoh"><Textarea rows={4} value={form.note || ""} onChange={e => set("note", e.target.value)} placeholder="To'lov kelishuvi yoki eslatma..." /></Field>
+        <Field label={comTx("note")}><Textarea rows={4} value={form.note || ""} onChange={e => set("note", e.target.value)} placeholder={comTx("notePlaceholder")} /></Field>
       </div>
     </Modal>
   );
 }
 
 function OrderDetailPage({ id }) {
-  const { data, nav } = useApp();
+  const { data, nav, t } = useApp();
   const o = data.orders.find(x => x.id === id);
-  if (!o) return <div className="page"><Card><EmptyState title="Qarzdor topilmadi" action={<Button onClick={() => nav("/debtors")}>Qarzdorlarga</Button>} /></Card></div>;
+  if (!o) return <div className="page"><Card><EmptyState title={comTx("debtorNotFound")} action={<Button onClick={() => nav("/debtors")}>{comTx("backToDebtors")}</Button>} /></Card></div>;
   const cust = data.customers.find(c => c.id === o.customerId);
   const payments = data.payments.filter(p => p.orderId === o.id).slice(0, 8);
   const totalUzs = debtNum(o.totalUzs);
@@ -537,44 +670,44 @@ function OrderDetailPage({ id }) {
   const overdueAmount = debtNum(o.overdueAmountUzs);
   return (
     <div className="page fade-in">
-      <PageHeader crumbs={[{ label: "Katalog va moliya" }, { label: "Qarzdorlar", to: "/debtors" }, { label: o.customerName }]} title={o.customerName} />
+      <PageHeader crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.orders"), to: "/debtors" }, { label: o.customerName }]} title={o.customerName} />
       <div className="grid-dash">
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Panel title="Qarzdorlik tarkibi" icon="wallet" color="amber">
+          <Panel title={comTx("debtPanel")} icon="wallet" color="amber">
             <div className="tg-meta">
-              <div className="tg-meta-row"><span className="tg-meta-k">Biznes yo'nalishi</span><span className="tg-meta-v">{o.businessLine}</span></div>
-              {!!orderTuman(o) && <div className="tg-meta-row"><span className="tg-meta-k">Tuman</span><span className="tg-meta-v">{orderTuman(o)}</span></div>}
-              {!!orderMahalla(o) && <div className="tg-meta-row"><span className="tg-meta-k">Mahalla</span><span className="tg-meta-v">{orderMahalla(o)}</span></div>}
-              <div className="tg-meta-row"><span className="tg-meta-k">Manzil</span><span className="tg-meta-v">{o.deliveryAddress}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Jami summa</span><span className="tg-meta-v">{fmtUZS(totalUzs)}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">To'langan</span><span className="tg-meta-v">{fmtUZS(paidUzs)}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Qoldiq</span><span className="tg-meta-v">{fmtUZS(remainingDebt)}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Muddati o'tgan</span><span className="tg-meta-v">{fmtUZS(overdueAmount)}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Muddat</span><span className="tg-meta-v">{fmtDate(o.dueDate)}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">Keyingi eslatma</span><span className="tg-meta-v">{fmtDate(o.nextReminderAt)}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("businessLine")}</span><span className="tg-meta-v">{o.businessLine}</span></div>
+              {!!orderTuman(o) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("colDistrict")}</span><span className="tg-meta-v">{orderTuman(o)}</span></div>}
+              {!!orderMahalla(o) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("colMahalla")}</span><span className="tg-meta-v">{orderMahalla(o)}</span></div>}
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("address")}</span><span className="tg-meta-v">{o.deliveryAddress}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("totalAmount")}</span><span className="tg-meta-v">{rawDebt(o.totalUzs) ?? "—"}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("paid")}</span><span className="tg-meta-v">{rawDebt(o.paidUzs) ?? "—"}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("remaining")}</span><span className="tg-meta-v">{rawDebt(o.remainingDebtUzs) ?? "—"}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("overdueAmount")}</span><span className="tg-meta-v">{rawDebt(o.overdueAmountUzs) ?? "—"}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("deadline")}</span><span className="tg-meta-v">{fmtDate(o.dueDate)}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("nextReminder")}</span><span className="tg-meta-v">{fmtDate(o.nextReminderAt)}</span></div>
             </div>
           </Panel>
-          <Panel title="Loyiha tarkibi" icon="box" color="green" pad={false}>
+          <Panel title={comTx("projectPanel")} icon="box" color="green" pad={false}>
             <div className="tg-table-wrap">
               <table className="tg-table">
-                <thead><tr><th>Mahsulot</th><th>Soni</th><th>Narx</th></tr></thead>
+                <thead><tr><th>{comTx("productCol")}</th><th>{comTx("countCol")}</th><th>{comTx("priceCol")}</th></tr></thead>
                 <tbody>
-                  {(o.productItems || []).map((it, i) => <tr key={i}><td className="tg-cell-strong">{it.name}</td><td>{it.quantity}</td><td>{fmtUZS(debtNum(it.unitPriceUzs))}</td></tr>)}
+                  {(o.productItems || []).map((it, i) => <tr key={i}><td className="tg-cell-strong">{it.name}</td><td>{it.quantity}</td><td>{rawDebt(it.unitPriceUzs) ?? "—"}</td></tr>)}
                 </tbody>
               </table>
             </div>
           </Panel>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Panel title="Mijoz" icon="user" color="violet">
+          <Panel title={comTx("customerPanel")} icon="user" color="violet">
             {cust ? <div style={{ display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }} onClick={() => nav("/customers/" + cust.id)}><Avatar name={cust.fullName} size={40} /><div><div className="tg-cell-strong">{cust.fullName}</div><div className="tg-cell-sub">{cust.phone}</div></div></div> : <div>{o.customerName}</div>}
           </Panel>
-          <Panel title="Oxirgi to'lovlar" icon="chart" color="blue" pad={false}>
+          <Panel title={comTx("lastPaymentsPanel")} icon="chart" color="blue" pad={false}>
             <div className="tg-table-wrap">
               <table className="tg-table">
-                <thead><tr><th>Sana</th><th>Summa</th><th>Usul</th></tr></thead>
+                <thead><tr><th>{comTx("dateCol")}</th><th>{comTx("amountCol")}</th><th>{comTx("methodCol")}</th></tr></thead>
                 <tbody>
-                  {payments.length ? payments.map(p => <tr key={p.id}><td>{fmtDate(p.date)}</td><td style={{ fontWeight: 650 }}>{fmtUZS(p.amountUzs)}</td><td>{p.method}</td></tr>) : <tr><td colSpan="3">To'lov yozuvi yo'q</td></tr>}
+                  {payments.length ? payments.map(p => <tr key={p.id}><td>{fmtDate(p.date)}</td><td style={{ fontWeight: 650 }}>{fmtUZS(p.amountUzs)}</td><td>{p.method}</td></tr>) : <tr><td colSpan="3">{comTx("noPayments")}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -603,37 +736,37 @@ function PaymentsPage() {
   const income = data.payments.filter(p => p.direction === "income").reduce((s, p) => s + p.amountUzs, 0);
   const expense = data.payments.filter(p => p.direction === "expense").reduce((s, p) => s + p.amountUzs, 0);
   const columns = [
-    { key: "date", label: "Sana", sortVal: r => r.date, render: r => <span className="tg-cell-sub">{fmtDate(r.date)}</span> },
-    { key: "direction", label: "Yo'nalish", render: r => <Badge color={r.direction === "income" ? "green" : "red"} size="sm">{r.direction === "income" ? "Kirim" : "Chiqim"}</Badge> },
-    { key: "category", label: "Kategoriya", sortVal: r => r.category, render: r => r.category },
-    { key: "customer", label: "Subyekt", sortVal: r => r.customerName, render: r => r.customerName },
-    { key: "amount", label: "Summa", sortVal: r => r.amountUzs, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.amountUzs)}</span> },
-    { key: "method", label: "Usul", render: r => <Badge color="slate" size="sm">{r.method}</Badge> },
-    { key: "by", label: "Kiritdi", render: r => <span style={{ fontSize: 12.5 }}>{r.processedBy.split(" ")[0]}</span> },
+    { key: "date", label: comTx("dateCol"), sortVal: r => r.date, render: r => <span className="tg-cell-sub">{fmtDate(r.date)}</span> },
+    { key: "direction", label: comTx("direction"), render: r => <Badge color={r.direction === "income" ? "green" : "red"} size="sm">{r.direction === "income" ? comTx("income") : comTx("expense")}</Badge> },
+    { key: "category", label: comTx("category"), sortVal: r => r.category, render: r => r.category },
+    { key: "customer", label: comTx("subject"), sortVal: r => r.customerName, render: r => r.customerName },
+    { key: "amount", label: comTx("amountCol"), sortVal: r => r.amountUzs, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.amountUzs)}</span> },
+    { key: "method", label: comTx("methodCol"), render: r => <Badge color="slate" size="sm">{r.method}</Badge> },
+    { key: "by", label: comTx("by"), render: r => <span style={{ fontSize: 12.5 }}>{r.processedBy.split(" ")[0]}</span> },
     { key: "actions", label: "", width: 44, render: r => (
       <div onClick={e => e.stopPropagation()}>
-        <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label="Amallar" />} items={[
-          { label: "Ko'rish", icon: <I.eye size={16} />, onClick: () => setViewPayment(r) },
-          { label: "Tahrirlash", icon: <I.edit size={16} />, onClick: () => setEditPayment(r) },
+        <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label={comTx("actions")} />} items={[
+          { label: comTx("view"), icon: <I.eye size={16} />, onClick: () => setViewPayment(r) },
+          { label: comTx("edit"), icon: <I.edit size={16} />, onClick: () => setEditPayment(r) },
           { divider: true },
-          { label: "O'chirish", icon: <I.trash size={16} />, danger: true, onClick: () => setDeletePayment(r) },
+          { label: comTx("delete"), icon: <I.trash size={16} />, danger: true, onClick: () => setDeletePayment(r) },
         ]} />
       </div>
     ) },
   ];
   return (
     <div className="page fade-in">
-      <PageHeader title={t("page.payments")} desc="Kunlik kirim-chiqim va moliyaviy nazorat" crumbs={[{ label: "Katalog va moliya" }, { label: t("page.payments") }]}
-        actions={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>Yangi yozuv</Button>} />
+      <PageHeader title={t("page.payments")} desc={comTx("paymentsDesc")} crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.payments") }]}
+        actions={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{comTx("newRecord")}</Button>} />
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
-        <StatTile label="Kirim" value={fmtShort(income)} sub="so'm" color="green" />
-        <StatTile label="Chiqim" value={fmtShort(expense)} sub="so'm" color="red" />
-        <StatTile label="Sof oqim" value={fmtShort(income - expense)} sub="so'm" color={(income - expense) >= 0 ? "green" : "red"} />
-        <StatTile label="Yozuvlar" value={data.payments.length} color="blue" />
+        <StatTile label={comTx("income")} value={fmtShort(income)} sub="so'm" color="green" />
+        <StatTile label={comTx("expense")} value={fmtShort(expense)} sub="so'm" color="red" />
+        <StatTile label={comTx("netFlow")} value={fmtShort(income - expense)} sub="so'm" color={(income - expense) >= 0 ? "green" : "red"} />
+        <StatTile label={comTx("records")} value={data.payments.length} color="blue" />
       </div>
       <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Kategoriya, mijoz, ID..." width={260} />
-        <FilterSelect label="Yo'nalish" icon="chart" value={direction} onChange={setDirection} options={[{ value: "income", label: "Kirim" }, { value: "expense", label: "Chiqim" }]} />
+        <SearchInput value={q} onChange={setQ} placeholder={comTx("paymentsSearch")} width={260} />
+        <FilterSelect label={comTx("direction")} icon="chart" value={direction} onChange={setDirection} options={[{ value: "income", label: comTx("income") }, { value: "expense", label: comTx("expense") }]} />
         <div className="toolbar-spacer" />
       </div>
       <Card pad={false}>{loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewPayment(r)} defaultSort={{ key: "date", dir: "desc" }} />}</Card>
@@ -649,7 +782,7 @@ function PaymentsPage() {
         onClose={() => setCreateOpen(false)}
         onSave={async (payment) => {
           await upsert("payments", payment);
-          toast("Yozuv qo'shildi");
+          toast(comTx("paymentAdded"));
           setCreateOpen(false);
         }}
       />
@@ -659,7 +792,7 @@ function PaymentsPage() {
         initial={editPayment}
         onSave={async (payment) => {
           await upsert("payments", payment);
-          toast("Yozuv yangilandi");
+          toast(comTx("paymentUpdated"));
           setEditPayment(null);
         }}
       />
@@ -668,13 +801,13 @@ function PaymentsPage() {
         onClose={() => setDeletePayment(null)}
         onConfirm={async () => {
           await remove("payments", deletePayment.id);
-          toast("Yozuv o'chirildi");
+          toast(comTx("paymentDeleted"));
           setDeletePayment(null);
         }}
-        title="Moliyaviy yozuvni o'chirish"
+        title={comTx("deletePaymentTitle")}
         message={`"${deletePayment?.customerName || ""}" bo'yicha yozuvni o'chirmoqchimisiz?`}
-        details={deletePayment ? `Kategoriya: ${deletePayment.category}\nSumma: ${fmtUZS(deletePayment.amountUzs)}` : ""}
-        confirmLabel="O'chirish"
+        details={deletePayment ? `${comTx("detailsCat")} ${deletePayment.category}\n${comTx("detailsAmount")} ${fmtUZS(deletePayment.amountUzs)}` : ""}
+        confirmLabel={comTx("delete")}
         danger
       />
     </div>
@@ -685,20 +818,20 @@ window.PaymentsPage = PaymentsPage;
 function PaymentViewModal({ open, onClose, onEdit, onDelete, payment }) {
   if (!payment) return null;
   return (
-    <Modal open={open} onClose={onClose} title="Hisob-kitob yozuvi" icon={<I.chart size={18} />} width={480}
+    <Modal open={open} onClose={onClose} title={comTx("paymentViewTitle")} icon={<I.chart size={18} />} width={480}
       footer={<>
-        <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>Tahrirlash</Button>
-        <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>O'chirish</Button>
-        <Button variant="primary" onClick={onClose}>Yopish</Button>
+        <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{comTx("edit")}</Button>
+        <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{comTx("delete")}</Button>
+        <Button variant="primary" onClick={onClose}>{comTx("close")}</Button>
       </>}>
       <div className="tg-meta">
-        <div className="tg-meta-row"><span className="tg-meta-k">Sana</span><span className="tg-meta-v">{fmtDate(payment.date)}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Yo'nalish</span><span className="tg-meta-v">{payment.direction === "income" ? "Kirim" : "Chiqim"}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Kategoriya</span><span className="tg-meta-v">{payment.category}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Subyekt</span><span className="tg-meta-v">{payment.customerName}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Summa</span><span className="tg-meta-v">{fmtUZS(payment.amountUzs)}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Valyuta</span><span className="tg-meta-v">{payment.currency || payment.method || "UZS"}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">Tartib</span><span className="tg-meta-v">{payment.sortOrder || 0}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("dateCol")}</span><span className="tg-meta-v">{fmtDate(payment.date)}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("direction")}</span><span className="tg-meta-v">{payment.direction === "income" ? comTx("income") : comTx("expense")}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("category")}</span><span className="tg-meta-v">{payment.category}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("subject")}</span><span className="tg-meta-v">{payment.customerName}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("amountCol")}</span><span className="tg-meta-v">{fmtUZS(payment.amountUzs)}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("currency")}</span><span className="tg-meta-v">{payment.currency || payment.method || "UZS"}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("sortOrder")}</span><span className="tg-meta-v">{payment.sortOrder || 0}</span></div>
       </div>
     </Modal>
   );
@@ -710,8 +843,8 @@ function PaymentFormModal({ open, onClose, onSave, initial }) {
   React.useEffect(() => { setForm(initial || blank); }, [initial, open]);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
-    <Modal open={open} onClose={onClose} title={initial ? "Hisob-kitobni tahrirlash" : "Yangi hisob-kitob yozuvi"} icon={initial ? <I.edit size={18} /> : <I.plus size={18} />} width={520}
-      footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={async () => {
+    <Modal open={open} onClose={onClose} title={initial ? comTx("paymentFormEdit") : comTx("paymentFormNew")} icon={initial ? <I.edit size={18} /> : <I.plus size={18} />} width={520}
+      footer={<><Button variant="ghost" onClick={onClose}>{comTx("cancel")}</Button><Button variant="primary" onClick={async () => {
         const selectedCategory = ACCOUNTING_CATEGORY_OPTIONS.find((option) => option.value === form.rawCategory);
         await onSave({
           ...form,
@@ -719,23 +852,23 @@ function PaymentFormModal({ open, onClose, onSave, initial }) {
           category: selectedCategory?.label || form.category,
           rawCategory: form.rawCategory,
         });
-      }}>Saqlash</Button></>}>
+      }}>{comTx("save")}</Button></>}>
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Sana"><DatePickerInput value={(form.date || "").slice(0, 10)} onChange={(value) => set("date", value)} /></Field>
-          <Field label="Kategoriya"><Select value={form.rawCategory} onChange={v => {
+          <Field label={comTx("dateCol")}><DatePickerInput value={(form.date || "").slice(0, 10)} onChange={(value) => set("date", value)} /></Field>
+          <Field label={comTx("category")}><Select value={form.rawCategory} onChange={v => {
             const selected = ACCOUNTING_CATEGORY_OPTIONS.find((option) => option.value === v);
             set("rawCategory", v);
             set("category", selected?.label || "");
           }} options={ACCOUNTING_CATEGORY_OPTIONS} /></Field>
         </div>
-        <Field label="Subyekt"><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
+        <Field label={comTx("subject")}><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Summa"><Input type="number" value={form.amountUzs} onChange={e => set("amountUzs", e.target.value)} /></Field>
-          <Field label="Valyuta"><Input value={form.currency || form.method || ""} onChange={e => set("currency", e.target.value)} placeholder="UZS yoki USD" /></Field>
+          <Field label={comTx("amountCol")}><Input type="number" value={form.amountUzs} onChange={e => set("amountUzs", e.target.value)} /></Field>
+          <Field label={comTx("currency")}><Input value={form.currency || form.method || ""} onChange={e => set("currency", e.target.value)} placeholder={comTx("currencyPh")} /></Field>
         </div>
-        <Field label="Tartib"><Input type="number" value={form.sortOrder || 0} onChange={e => set("sortOrder", +e.target.value || 0)} /></Field>
-        <Field label="Izoh"><Textarea rows={3} value={form.note || ""} onChange={e => set("note", e.target.value)} /></Field>
+        <Field label={comTx("sortOrder")}><Input type="number" value={form.sortOrder || 0} onChange={e => set("sortOrder", +e.target.value || 0)} /></Field>
+        <Field label={comTx("note")}><Textarea rows={3} value={form.note || ""} onChange={e => set("note", e.target.value)} /></Field>
       </div>
     </Modal>
   );

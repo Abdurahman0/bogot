@@ -1,5 +1,94 @@
 /* pages/tasks.jsx */
 const { useState: tkS, useMemo: tkM, useEffect: tkE, useRef: tkR } = React;
+const TASKS_UI = {
+  uz: {
+    todo: "Navbat", inProgress: "Jarayonda", done: "Bajarilgan", canceled: "Bekor qilingan",
+    overdue: "Muddati o'tgan", noDesc: "Tavsif kiritilmagan", noTasks: "Vazifa yo'q",
+    noColumns: "Ustunlar topilmadi", noColumnsMsg: "Backenddan task ustunlari kelmadi.",
+    totalTasks: "Jami vazifalar", activeTasks: "Faol", overdueCount: "Muddati o'tgan", doneCount: "Bajarilgan",
+    newTask: "Yangi vazifa", newColumn: "Yangi ustun", addTask: "Vazifa qo'shish",
+    taskCreated: "Vazifa yaratildi", taskUpdated: "Vazifa yangilandi", taskDeleted: "Vazifa o'chirildi",
+    columnCreated: "Yangi ustun yaratildi", columnUpdated: "Ustun yangilandi", columnDeleted: "Ustun o'chirildi",
+    taskMoveError: "Vazifa ko'chirilmadi",
+    deleteTaskTitle: "Vazifani o'chirish", deleteTaskConfirm: "O'chirish",
+    deleteColTitle: "Ustunni o'chirish", deleteColConfirm: "O'chirish",
+    editColumn: "Ustunni tahrirlash", deleteColumn: "Ustunni o'chirish",
+    taskFormNew: "Yangi vazifa", taskFormEdit: "Vazifani tahrirlash",
+    colFormNew: "Yangi ustun", colFormEdit: "Ustunni tahrirlash",
+    viewTitle: "Vazifa ma'lumotlari",
+    fieldTitle: "Sarlavha", fieldDesc: "Tavsif", fieldColumn: "Ustun", fieldAssigned: "Mas'ul", fieldDeadline: "Muddat",
+    fieldColumnName: "Ustun nomi", fieldSlug: "Slug", fieldOrder: "Tartib", fieldColor: "Rang",
+    metaTitle: "Sarlavha", metaColumn: "Ustun", metaAssigned: "Mas'ul", metaDeadline: "Muddat", metaStatus: "Holat",
+    cancel: "Bekor qilish", save: "Saqlash", edit: "Tahrirlash", delete: "O'chirish",
+    taskPh: "Masalan, mijoz bilan bog'lanish", descPh: "Vazifa tafsilotlari...", columnPh: "Masalan, Tekshiruv", slugPh: "tekshiruv_bosqichi",
+    validColumn: "Vazifa uchun haqiqiy ustun tanlang", validUser: "Mas'ul foydalanuvchi UUID bilan kelmadi",
+    detailsDeadline: "Muddat:", detailsColumn: "Ustun:", detailsSlug: "Slug:", detailsOrder: "Tartib:",
+    unassigned: "Belgilanmagan",
+    crmCrumb: "CRM",
+    searchTasks: "Vazifa qidirish...", tasksBoardDesc: "ta vazifa • backend ustunlari bilan",
+    deleteTaskMsg: '"{0}" vazifasini o\'chirmoqchimisiz?', deleteColMsg: '"{0}" ustunini o\'chirmoqchimisiz?',
+    taskFallback: "Vazifa", unassignedUser: "Tayinlanmagan",
+  },
+  ru: {
+    todo: "В очереди", inProgress: "В процессе", done: "Выполнено", canceled: "Отменено",
+    overdue: "Просрочено", noDesc: "Описание не указано", noTasks: "Нет задач",
+    noColumns: "Колонки не найдены", noColumnsMsg: "Колонки задач не получены с бэкенда.",
+    totalTasks: "Всего задач", activeTasks: "Активных", overdueCount: "Просроченных", doneCount: "Выполнено",
+    newTask: "Новая задача", newColumn: "Новая колонка", addTask: "Добавить задачу",
+    taskCreated: "Задача создана", taskUpdated: "Задача обновлена", taskDeleted: "Задача удалена",
+    columnCreated: "Новая колонка создана", columnUpdated: "Колонка обновлена", columnDeleted: "Колонка удалена",
+    taskMoveError: "Задача не перемещена",
+    deleteTaskTitle: "Удалить задачу", deleteTaskConfirm: "Удалить",
+    deleteColTitle: "Удалить колонку", deleteColConfirm: "Удалить",
+    editColumn: "Редактировать колонку", deleteColumn: "Удалить колонку",
+    taskFormNew: "Новая задача", taskFormEdit: "Редактировать задачу",
+    colFormNew: "Новая колонка", colFormEdit: "Редактировать колонку",
+    viewTitle: "Информация о задаче",
+    fieldTitle: "Заголовок", fieldDesc: "Описание", fieldColumn: "Колонка", fieldAssigned: "Ответственный", fieldDeadline: "Срок",
+    fieldColumnName: "Название колонки", fieldSlug: "Slug", fieldOrder: "Порядок", fieldColor: "Цвет",
+    metaTitle: "Заголовок", metaColumn: "Колонка", metaAssigned: "Ответственный", metaDeadline: "Срок", metaStatus: "Статус",
+    cancel: "Отмена", save: "Сохранить", edit: "Редактировать", delete: "Удалить",
+    taskPh: "Напр., связаться с клиентом", descPh: "Детали задачи...", columnPh: "Напр., Проверка", slugPh: "etap_proverki",
+    validColumn: "Выберите действительную колонку для задачи", validUser: "Ответственный пользователь не имеет UUID",
+    detailsDeadline: "Срок:", detailsColumn: "Колонка:", detailsSlug: "Slug:", detailsOrder: "Порядок:",
+    unassigned: "Не указано",
+    crmCrumb: "CRM",
+    searchTasks: "Поиск задач...", tasksBoardDesc: "задач • с колонками бэкенда",
+    deleteTaskMsg: 'Удалить задачу "{0}"?', deleteColMsg: 'Удалить колонку "{0}"?',
+    taskFallback: "Задача", unassignedUser: "Не назначено",
+  },
+  en: {
+    todo: "Queue", inProgress: "In progress", done: "Done", canceled: "Canceled",
+    overdue: "Overdue", noDesc: "No description", noTasks: "No tasks",
+    noColumns: "No columns found", noColumnsMsg: "No task columns received from backend.",
+    totalTasks: "Total tasks", activeTasks: "Active", overdueCount: "Overdue", doneCount: "Done",
+    newTask: "New task", newColumn: "New column", addTask: "Add task",
+    taskCreated: "Task created", taskUpdated: "Task updated", taskDeleted: "Task deleted",
+    columnCreated: "New column created", columnUpdated: "Column updated", columnDeleted: "Column deleted",
+    taskMoveError: "Task not moved",
+    deleteTaskTitle: "Delete task", deleteTaskConfirm: "Delete",
+    deleteColTitle: "Delete column", deleteColConfirm: "Delete",
+    editColumn: "Edit column", deleteColumn: "Delete column",
+    taskFormNew: "New task", taskFormEdit: "Edit task",
+    colFormNew: "New column", colFormEdit: "Edit column",
+    viewTitle: "Task details",
+    fieldTitle: "Title", fieldDesc: "Description", fieldColumn: "Column", fieldAssigned: "Assigned", fieldDeadline: "Due date",
+    fieldColumnName: "Column name", fieldSlug: "Slug", fieldOrder: "Order", fieldColor: "Color",
+    metaTitle: "Title", metaColumn: "Column", metaAssigned: "Assigned", metaDeadline: "Due date", metaStatus: "Status",
+    cancel: "Cancel", save: "Save", edit: "Edit", delete: "Delete",
+    taskPh: "e.g. Contact customer", descPh: "Task details...", columnPh: "e.g. Review", slugPh: "review_stage",
+    validColumn: "Select a valid column for the task", validUser: "Responsible user has no UUID",
+    detailsDeadline: "Due:", detailsColumn: "Column:", detailsSlug: "Slug:", detailsOrder: "Order:",
+    unassigned: "Unassigned",
+    crmCrumb: "CRM",
+    searchTasks: "Search tasks...", tasksBoardDesc: "tasks • with backend columns",
+    deleteTaskMsg: 'Delete task "{0}"?', deleteColMsg: 'Delete column "{0}"?',
+    taskFallback: "Task", unassignedUser: "Unassigned",
+  },
+};
+function tskLang() { return window.__TG_LANG || "uz"; }
+function tskTx(key) { return TASKS_UI[tskLang()]?.[key] || TASKS_UI.uz[key] || key; }
+const SLUG_KEYS = { todo: "todo", in_progress: "inProgress", done: "done", canceled: "canceled" };
 
 const TASK_COLUMN_META = {
   todo: { label: "Navbat", color: "#2563eb", bg: "#eff6ff", icon: "clock" },
@@ -35,7 +124,7 @@ function getTaskColumns(data) {
     .sort((a, b) => Number(a.position || 0) - Number(b.position || 0))
     .map((column, index) => ({
       ...column,
-      name: column.name || TASK_COLUMN_META[column.slug]?.label || `Ustun ${index + 1}`,
+      name: column.name || (SLUG_KEYS[column.slug] ? tskTx(SLUG_KEYS[column.slug]) : null) || TASK_COLUMN_META[column.slug]?.label || `Ustun ${index + 1}`,
       color: column.color || TASK_COLUMN_META[column.slug]?.color || TASK_COLUMN_COLOR_OPTIONS[index % TASK_COLUMN_COLOR_OPTIONS.length],
       sortOrder: Number((column.sortOrder ?? column.position) || index + 1),
       position: Number((column.position ?? column.sortOrder) || index + 1),
@@ -65,7 +154,7 @@ function taskColumnSlugify(value) {
 function createTaskDraft(data, initial = null) {
   const columns = getTaskColumns(data);
   const assignees = taskAssignees(data);
-  const defaultColumn = columns.find((column) => isApiUuid(column.id)) || columns[0] || { id: "", slug: "todo", name: "Navbat" };
+  const defaultColumn = columns.find((column) => isApiUuid(column.id)) || columns[0] || { id: "", slug: "todo", name: tskTx("todo") };
   const defaultAssignee = assignees.find((user) => isApiUuid(user.id))?.id || "";
   if (initial) {
     return {
@@ -164,11 +253,11 @@ function TaskBoardCard({ task, user, meta, interactive = true }) {
     <>
       <div className="pk-card-tags">
         <span className="pk-tag-pill" style={{ background: overdue ? "#fef2f2" : meta.bg, color: overdue ? "#dc2626" : meta.color }}>
-          {overdue ? "Muddati o'tgan" : meta.name}
+          {overdue ? tskTx("overdue") : meta.name}
         </span>
       </div>
       <div className="pk-card-title">{task.title}</div>
-      <div className="pk-card-desc">{task.description || "Tavsif kiritilmagan"}</div>
+      <div className="pk-card-desc">{task.description || tskTx("noDesc")}</div>
       <div className="pk-card-footer">
         <span className="pk-card-date"><I.calendar size={11} />{fmtDate(task.dueDate, true)}</span>
         <div className="pk-footer-spacer" />
@@ -202,11 +291,11 @@ function TaskFormModal({ open, onClose, initial, initialColumnId = "" }) {
   const save = async () => {
     if (!form.title.trim()) return;
     if (!isApiUuid(form.columnId)) {
-      toast("Vazifa uchun haqiqiy ustun tanlang", "error");
+      toast(tskTx("validColumn"), "error");
       return;
     }
     if (form.assignedUserId && !isApiUuid(form.assignedUserId)) {
-      toast("Mas'ul foydalanuvchi UUID bilan kelmadi", "error");
+      toast(tskTx("validUser"), "error");
       return;
     }
     const columnTasks = (data.tasks || []).filter((task) => task.columnId === form.columnId && task.id !== initial?.id);
@@ -219,7 +308,7 @@ function TaskFormModal({ open, onClose, initial, initialColumnId = "" }) {
       createdAt: initial?.createdAt || new Date().toISOString(),
     };
     await upsert("tasks", payload);
-    toast(initial ? "Vazifa yangilandi" : "Vazifa yaratildi");
+    toast(initial ? tskTx("taskUpdated") : tskTx("taskCreated"));
     onClose();
   };
 
@@ -227,19 +316,19 @@ function TaskFormModal({ open, onClose, initial, initialColumnId = "" }) {
     <Modal
       open={open}
       onClose={onClose}
-      title={initial ? "Vazifani tahrirlash" : "Yangi vazifa"}
+      title={initial ? tskTx("taskFormEdit") : tskTx("taskFormNew")}
       icon={<I.checkCircle size={18} />}
       width={520}
-      footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={save}>Saqlash</Button></>}
+      footer={<><Button variant="ghost" onClick={onClose}>{tskTx("cancel")}</Button><Button variant="primary" onClick={save}>{tskTx("save")}</Button></>}
     >
       <div style={{ display: "grid", gap: 14 }}>
-        <Field label="Sarlavha" required><Input value={form.title} onChange={(event) => set("title", event.target.value)} placeholder="Masalan, mijoz bilan bog'lanish" /></Field>
-        <Field label="Tavsif"><Textarea value={form.description || ""} onChange={(event) => set("description", event.target.value)} placeholder="Vazifa tafsilotlari..." rows={4} /></Field>
+        <Field label={tskTx("fieldTitle")} required><Input value={form.title} onChange={(event) => set("title", event.target.value)} placeholder={tskTx("taskPh")} /></Field>
+        <Field label={tskTx("fieldDesc")}><Textarea value={form.description || ""} onChange={(event) => set("description", event.target.value)} placeholder={tskTx("descPh")} rows={4} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Ustun"><Select value={form.columnId} onChange={(value) => set("columnId", value)} options={columns.map((column) => ({ value: column.id, label: column.name }))} /></Field>
-          <Field label="Mas'ul"><Select value={form.assignedUserId} onChange={(value) => set("assignedUserId", value)} options={assignees.map((user) => ({ value: user.id, label: user.fullName }))} /></Field>
+          <Field label={tskTx("fieldColumn")}><Select value={form.columnId} onChange={(value) => set("columnId", value)} options={columns.map((column) => ({ value: column.id, label: column.name }))} /></Field>
+          <Field label={tskTx("fieldAssigned")}><Select value={form.assignedUserId} onChange={(value) => set("assignedUserId", value)} options={assignees.map((user) => ({ value: user.id, label: user.fullName }))} /></Field>
         </div>
-        <Field label="Muddat"><DatePickerInput mode="datetime" value={form.dueDate} onChange={(value) => set("dueDate", value)} /></Field>
+        <Field label={tskTx("fieldDeadline")}><DatePickerInput mode="datetime" value={form.dueDate} onChange={(value) => set("dueDate", value)} /></Field>
       </div>
     </Modal>
   );
@@ -292,16 +381,16 @@ function TaskColumnModal({ open, onClose, initialPosition = 0, initial = null, o
     <Modal
       open={open}
       onClose={onClose}
-      title={initial ? "Ustunni tahrirlash" : "Yangi ustun"}
+      title={initial ? tskTx("colFormEdit") : tskTx("colFormNew")}
       icon={<I.layers size={18} />}
       width={460}
-      footer={<><Button variant="ghost" onClick={onClose}>Bekor qilish</Button><Button variant="primary" onClick={save}>Saqlash</Button></>}
+      footer={<><Button variant="ghost" onClick={onClose}>{tskTx("cancel")}</Button><Button variant="primary" onClick={save}>{tskTx("save")}</Button></>}
     >
       <div style={{ display: "grid", gap: 14 }}>
-        <Field label="Ustun nomi" required><Input value={form.name} onChange={(event) => setName(event.target.value)} placeholder="Masalan, Tekshiruv" /></Field>
-        <Field label="Slug"><Input value={form.slug} onChange={(event) => setSlug(event.target.value)} placeholder="tekshiruv_bosqichi" /></Field>
-        <Field label="Tartib"><Input type="number" min="1" value={form.position} onChange={(event) => set("position", event.target.value)} /></Field>
-        <Field label="Rang">
+        <Field label={tskTx("fieldColumnName")} required><Input value={form.name} onChange={(event) => setName(event.target.value)} placeholder={tskTx("columnPh")} /></Field>
+        <Field label={tskTx("fieldSlug")}><Input value={form.slug} onChange={(event) => setSlug(event.target.value)} placeholder={tskTx("slugPh")} /></Field>
+        <Field label={tskTx("fieldOrder")}><Input type="number" min="1" value={form.position} onChange={(event) => set("position", event.target.value)} /></Field>
+        <Field label={tskTx("fieldColor")}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {TASK_COLUMN_COLOR_OPTIONS.map((color) => (
               <button
@@ -330,29 +419,29 @@ function TaskViewModal({ task, user, column, open, onClose, onEdit, onDelete }) 
     <Modal
       open={open}
       onClose={onClose}
-      title="Vazifa ma'lumotlari"
+      title={tskTx("viewTitle")}
       icon={<I.checkCircle size={18} />}
       width={520}
       footer={
         <>
-          <Button variant="default" onClick={onEdit} icon={<I.edit size={15} />}>Tahrirlash</Button>
-          <Button variant="danger" onClick={onDelete} icon={<I.trash size={15} />}>O'chirish</Button>
+          <Button variant="default" onClick={onEdit} icon={<I.edit size={15} />}>{tskTx("edit")}</Button>
+          <Button variant="danger" onClick={onDelete} icon={<I.trash size={15} />}>{tskTx("delete")}</Button>
         </>
       }
     >
       {task && (
         <div style={{ display: "grid", gap: 16 }}>
           <div className="tg-meta">
-            <div className="tg-meta-row"><span className="tg-meta-k">Sarlavha</span><span className="tg-meta-v">{task.title}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Ustun</span><span className="tg-meta-v">{column?.name || "Belgilanmagan"}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Mas'ul</span><span className="tg-meta-v">{user?.fullName || "Tayinlanmagan"}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Muddat</span><span className="tg-meta-v">{fmtDate(task.dueDate, true)}</span></div>
-            <div className="tg-meta-row"><span className="tg-meta-k">Holat</span><span className="tg-meta-v">{isTaskOverdue(task) ? "Muddati o'tgan" : column?.name || "Belgilanmagan"}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{tskTx("metaTitle")}</span><span className="tg-meta-v">{task.title}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{tskTx("metaColumn")}</span><span className="tg-meta-v">{column?.name || tskTx("unassigned")}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{tskTx("metaAssigned")}</span><span className="tg-meta-v">{user?.fullName || tskTx("unassignedUser")}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{tskTx("metaDeadline")}</span><span className="tg-meta-v">{fmtDate(task.dueDate, true)}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{tskTx("metaStatus")}</span><span className="tg-meta-v">{isTaskOverdue(task) ? tskTx("overdue") : column?.name || tskTx("unassigned")}</span></div>
           </div>
           <div>
-            <div className="tg-section-title">Tavsif</div>
+            <div className="tg-section-title">{tskTx("fieldDesc")}</div>
             <div style={{ padding: 14, borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)", fontSize: 13.5, lineHeight: 1.6 }}>
-              {task.description || "Tavsif kiritilmagan"}
+              {task.description || tskTx("noDesc")}
             </div>
           </div>
         </div>
@@ -481,7 +570,7 @@ function TasksPage() {
         await moveTask(activeDrag.id, nextColumnId, nextIndex);
       } catch (error) {
         setOptimisticTasks(null);
-        toast(error.message || "Vazifa ko'chirilmadi", "error");
+        toast(error.message || tskTx("taskMoveError"), "error");
       } finally {
         setMoving(false);
         window.setTimeout(() => { suppressClickRef.current = false; }, 0);
@@ -553,7 +642,7 @@ function TasksPage() {
     }
 
     await reloadData();
-    toast(draft.id ? "Ustun yangilandi" : "Yangi ustun yaratildi");
+    toast(draft.id ? tskTx("columnUpdated") : tskTx("columnCreated"));
     if (editColumn?.id === draft.id) setEditColumn(null);
   };
 
@@ -562,26 +651,26 @@ function TasksPage() {
       <div className="pk-page-head">
         <PageHeader
           title={t("page.tasks")}
-          desc={`${counts.total} ta vazifa • backend ustunlari bilan`}
-          crumbs={[{ label: "CRM" }, { label: t("page.tasks") }]}
+          desc={`${counts.total} ${tskTx("tasksBoardDesc")}`}
+          crumbs={[{ label: tskTx("crmCrumb") }, { label: t("page.tasks") }]}
           actions={<>
-            <SearchInput value={q} onChange={setQ} placeholder="Vazifa qidirish..." width={220} />
-            <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setColumnModalOpen(true)}>Yangi ustun</Button>
+            <SearchInput value={q} onChange={setQ} placeholder={tskTx("searchTasks")} width={220} />
+            <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setColumnModalOpen(true)}>{tskTx("newColumn")}</Button>
           </>}
         />
 
         <div className="pk-stats-row">
-          <div className="pk-stat-pill"><span>Jami vazifalar</span><strong>{counts.total}</strong></div>
-          <div className="pk-stat-pill pk-stat-pill-accent"><span>Faol</span><strong>{counts.open}</strong></div>
-          <div className="pk-stat-pill"><span>Muddati o'tgan</span><strong>{counts.overdue}</strong></div>
-          <div className="pk-stat-pill"><span>Bajarilgan</span><strong>{counts.done}</strong></div>
+          <div className="pk-stat-pill"><span>{tskTx("totalTasks")}</span><strong>{counts.total}</strong></div>
+          <div className="pk-stat-pill pk-stat-pill-accent"><span>{tskTx("activeTasks")}</span><strong>{counts.open}</strong></div>
+          <div className="pk-stat-pill"><span>{tskTx("overdueCount")}</span><strong>{counts.overdue}</strong></div>
+          <div className="pk-stat-pill"><span>{tskTx("doneCount")}</span><strong>{counts.done}</strong></div>
         </div>
       </div>
 
       <div className={`pk-board${dragState || moving || optimisticTasks ? " pk-board-dragging" : ""}`}>
         {!columns.length && (
           <Card style={{ padding: 24 }}>
-            <EmptyState icon={<I.layers size={24} />} title="Ustunlar topilmadi" message="Backenddan task ustunlari kelmadi." />
+            <EmptyState icon={<I.layers size={24} />} title={tskTx("noColumns")} message={tskTx("noColumnsMsg")} />
           </Card>
         )}
         {columns.map((column) => {
@@ -611,8 +700,8 @@ function TasksPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span className="pk-col-total">{rawItems.length} ta</span>
-                  <IconButton icon={<I.edit size={14} />} label="Ustunni tahrirlash" onClick={() => setEditColumn(column)} />
-                  <IconButton icon={<I.trash size={14} />} label="Ustunni o'chirish" onClick={() => setDeleteColumn(column)} />
+                  <IconButton icon={<I.edit size={14} />} label={tskTx("editColumn")} onClick={() => setEditColumn(column)} />
+                  <IconButton icon={<I.trash size={14} />} label={tskTx("deleteColumn")} onClick={() => setDeleteColumn(column)} />
                 </div>
               </div>
 
@@ -620,7 +709,7 @@ function TasksPage() {
                 {!items.length && !hasDropTarget && (
                   <div className="pk-empty-col">
                     <div className="pk-empty-icon" style={{ background: meta.bg, color: meta.color }}>{React.createElement(I[meta.icon], { size: 18 })}</div>
-                    <span>Vazifa yo'q</span>
+                    <span>{tskTx("noTasks")}</span>
                   </div>
                 )}
 
@@ -654,7 +743,7 @@ function TasksPage() {
               </div>
               <button type="button" className="pk-col-add" onClick={() => setCreateTaskColumnId(column.id)}>
                 <I.plus size={14} />
-                <span>Vazifa qo'shish</span>
+                <span>{tskTx("addTask")}</span>
               </button>
             </div>
           );
@@ -671,7 +760,7 @@ function TasksPage() {
               "--task-soft-strong": hexToSoftBg(columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, 0.2),
             }}
           >
-            <TaskBoardCard task={dragTask} user={userOf(dragTask.assignedUserId)} meta={{ ...(TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo), name: columnsById[dragTask.columnId]?.name || "Vazifa", color: columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, bg: hexToSoftBg(columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, 0.12) }} interactive={false} />
+            <TaskBoardCard task={dragTask} user={userOf(dragTask.assignedUserId)} meta={{ ...(TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo), name: columnsById[dragTask.columnId]?.name || tskTx("taskFallback"), color: columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, bg: hexToSoftBg(columnsById[dragTask.columnId]?.color || (TASK_COLUMN_META[dragTask.columnSlug] || TASK_COLUMN_META.todo).color, 0.12) }} interactive={false} />
           </div>
         </div>
       )}
@@ -694,13 +783,13 @@ function TasksPage() {
         onClose={() => setDeleteTask(null)}
         onConfirm={async () => {
           await remove("tasks", deleteTask.id);
-          toast("Vazifa o'chirildi");
+          toast(tskTx("taskDeleted"));
           setDeleteTask(null);
         }}
-        title="Vazifani o'chirish"
-        message={`"${deleteTask?.title || ""}" vazifasini o'chirmoqchimisiz?`}
-        details={deleteTask ? `Muddat: ${fmtDate(deleteTask.dueDate, true)}\nUstun: ${columnsById[deleteTask.columnId]?.name || "Belgilanmagan"}` : ""}
-        confirmLabel="O'chirish"
+        title={tskTx("deleteTaskTitle")}
+        message={tskTx("deleteTaskMsg").replace("{0}", deleteTask?.title || "")}
+        details={deleteTask ? `${tskTx("detailsDeadline")} ${fmtDate(deleteTask.dueDate, true)}\n${tskTx("detailsColumn")} ${columnsById[deleteTask.columnId]?.name || tskTx("unassigned")}` : ""}
+        confirmLabel={tskTx("deleteTaskConfirm")}
         danger
       />
       <ConfirmDialog
@@ -708,13 +797,13 @@ function TasksPage() {
         onClose={() => setDeleteColumn(null)}
         onConfirm={async () => {
           await remove("taskColumns", deleteColumn.id);
-          toast("Ustun o'chirildi");
+          toast(tskTx("columnDeleted"));
           setDeleteColumn(null);
         }}
-        title="Ustunni o'chirish"
-        message={`"${deleteColumn?.name || ""}" ustunini o'chirmoqchimisiz?`}
-        details={deleteColumn ? `Slug: ${deleteColumn.slug || "-"}\nTartib: ${deleteColumn.position || 1}` : ""}
-        confirmLabel="O'chirish"
+        title={tskTx("deleteColTitle")}
+        message={tskTx("deleteColMsg").replace("{0}", deleteColumn?.name || "")}
+        details={deleteColumn ? `${tskTx("detailsSlug")} ${deleteColumn.slug || "-"}\n${tskTx("detailsOrder")} ${deleteColumn.position || 1}` : ""}
+        confirmLabel={tskTx("deleteColConfirm")}
         danger
       />
 

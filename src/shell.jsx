@@ -144,7 +144,7 @@ function Sidebar({ route, nav, mobileOpen, setMobileOpen }) {
 // ---------- Header ----------
 // Sun/moon theme switch — circular reveal via View Transitions API
 function ThemeToggle() {
-  const { theme, setTheme } = useApp();
+  const { theme, setTheme, t } = useApp();
   const isLight = resolveLight(theme);
 
   const onToggle = (e) => {
@@ -166,7 +166,7 @@ function ThemeToggle() {
 
   return (
     <button className="tg-theme-toggle" data-light={isLight ? "1" : "0"} onClick={onToggle}
-      title={isLight ? "Tungi rejim" : "Kunduzgi rejim"} aria-label="Theme toggle">
+      title={isLight ? t("common.nightMode") : t("common.dayMode")} aria-label={isLight ? t("common.nightMode") : t("common.dayMode")}>
       <span className="tg-theme-icon">{isLight ? <I.sun size={16} /> : <I.moon size={15} />}</span>
     </button>
   );
@@ -178,16 +178,16 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
   const [notifOpen, setNotifOpen] = shS(false);
   const unread = data.notifications.filter(n => !n.read).length;
   const me = data.authUser || data.users.find(u => u.role === role) || data.users[0] || {
-    fullName: "Foydalanuvchi",
+    fullName: t("common.username") || "Foydalanuvchi",
     role,
-    label: role === "developer" ? "Dasturchi" : role === "admin" ? "Administrator" : "Operator",
+    label: t(`role.${role}`) || role,
     avatarHue: 220,
   };
 
   return (
     <header className="tg-header">
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <IconButton icon={<I.panelLeft size={19} />} label="Sidebar" onClick={() => { if (window.innerWidth <= 1024) onMenu(); else setSidebarCollapsed(!sidebarCollapsed); }} />
+        <IconButton icon={<I.panelLeft size={19} />} label={t("common.sidebar")} onClick={() => { if (window.innerWidth <= 1024) onMenu(); else setSidebarCollapsed(!sidebarCollapsed); }} />
         <button className="tg-cmdk-trigger" onClick={onCmdK}>
           <I.search size={16} />
           <span>{t("common.search")}</span>
@@ -205,7 +205,7 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
         <LangSelector />
         {/* notifications */}
         <div style={{ position: "relative" }}>
-          {canAccess(role, "/notifications", data) ? <><IconButton icon={<I.bell size={19} />} label="Bildirishnomalar" badge={unread} onClick={() => setNotifOpen(o => !o)} />
+          {canAccess(role, "/notifications", data) ? <><IconButton icon={<I.bell size={19} />} label={t("notifications.title")} badge={unread} onClick={() => setNotifOpen(o => !o)} />
           {notifOpen && <NotifPanel onClose={() => setNotifOpen(false)} nav={nav} />}</> : null}
         </div>
         {/* account */}
@@ -222,7 +222,7 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
           { label: me.label || t("role." + role), icon: <I.shield size={16} />, right: <I.check size={15} style={{ color: "var(--accent)" }} />, onClick: () => {} },
           { divider: true },
           ...(canAccess(role, "/settings", data) ? [{ label: t("page.settings"), icon: <I.settings size={16} />, onClick: () => nav("/settings") }] : []),
-          { label: "Chiqish", icon: <I.logout size={16} />, danger: true, onClick: logout },
+          { label: t("common.logout"), icon: <I.logout size={16} />, danger: true, onClick: logout },
         ]} />
       </div>
     </header>
@@ -236,8 +236,14 @@ const LANGS = [
   { value: "en", label: "English", flag: "🇬🇧" },
 ];
 
+const LANGUAGE_OPTIONS = [
+  { value: "uz", label: "O'zbek", flag: "UZ" },
+  { value: "ru", label: "Русский", flag: "RU" },
+  { value: "en", label: "English", flag: "EN" },
+];
+
 function LangSelector() {
-  const { lang, setLang } = useApp();
+  const { lang, setLang, t } = useApp();
   const [open, setOpen] = shS(false);
   const ref = shR(null);
   shE(() => {
@@ -246,16 +252,16 @@ function LangSelector() {
     document.addEventListener("mousedown", on);
     return () => document.removeEventListener("mousedown", on);
   }, [open]);
-  const current = LANGS.find(l => l.value === lang) || LANGS[0];
+  const current = LANGUAGE_OPTIONS.find(l => l.value === lang) || LANGUAGE_OPTIONS[0];
   return (
     <div style={{ position: "relative" }} ref={ref}>
-      <button className="tg-iconbtn" onClick={() => setOpen(o => !o)} title="Tilni o'zgartirish">
+      <button className="tg-iconbtn" onClick={() => setOpen(o => !o)} title={t("common.changeLanguage")}>
         <I.globe size={19} />
       </button>
       {open && (
         <div className="tg-dd-menu pop-in tg-dd-right"
           style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 172, zIndex: 200 }}>
-          {LANGS.map(l => (
+          {LANGUAGE_OPTIONS.map(l => (
             <button key={l.value} className="tg-dd-item"
               style={{ gap: 10 }}
               onClick={() => { setLang(l.value); setOpen(false); }}>
@@ -285,7 +291,7 @@ function QuickCreate() {
 }
 
 function NotifPanel({ onClose, nav }) {
-  const { data, markNotificationRead, markAllNotificationsRead } = useApp();
+  const { data, markNotificationRead, markAllNotificationsRead, t } = useApp();
   const ref = shR(null);
   const TYPE_ICON = { client_created: "users", task_assigned: "checkCircle", task_done: "checkCircle", system: "settings" };
   const TYPE_COLOR = { client_created: "blue", task_assigned: "violet", task_done: "green", system: "slate" };
@@ -298,8 +304,8 @@ function NotifPanel({ onClose, nav }) {
   return (
     <div className="tg-notif-panel pop-in" ref={ref}>
       <div className="tg-notif-head">
-        <strong>Bildirishnomalar</strong>
-        <button className="tg-link" onClick={() => markAllNotificationsRead().catch(() => null)}>Hammasini o'qilgan</button>
+        <strong>{t("notifications.title")}</strong>
+        <button className="tg-link" onClick={() => markAllNotificationsRead().catch(() => null)}>{t("common.markAllRead")}</button>
       </div>
       <div className="tg-notif-list">
         {notifs.map(n => {
@@ -318,7 +324,7 @@ function NotifPanel({ onClose, nav }) {
           );
         })}
       </div>
-      <button className="tg-notif-foot" onClick={() => { nav("/notifications"); onClose(); }}>Barchasini ko'rish</button>
+      <button className="tg-notif-foot" onClick={() => { nav("/notifications"); onClose(); }}>{t("notifications.viewAll")}</button>
     </div>
   );
 }
@@ -334,12 +340,12 @@ function CommandPalette({ open, onClose, nav }) {
   const results = shM(() => {
     const ql = q.toLowerCase().trim();
     const groups = [];
-    const pages = NAV.flatMap(g => g.items).filter(it => canAccess(role, it.path, data)).map(it => ({ type: "Sahifa", label: t(it.key), icon: it.icon, to: it.path }));
+    const pages = NAV.flatMap(g => g.items).filter(it => canAccess(role, it.path, data)).map(it => ({ type: t("common.page"), label: t(it.key), icon: it.icon, to: it.path }));
     const matchPages = pages.filter(p => !ql || p.label.toLowerCase().includes(ql)).slice(0, 6);
-    if (matchPages.length) groups.push({ title: "Sahifalar", items: matchPages });
+    if (matchPages.length) groups.push({ title: t("common.pages"), items: matchPages });
     if (ql) {
-      const custs = data.customers.filter(c => c.fullName.toLowerCase().includes(ql)).slice(0, 3).map(c => ({ type: "Mijoz", label: c.fullName, sub: [c.district, c.mahalla].filter(Boolean).join(" / "), icon: "user", to: "/customers/" + c.id }));
-      if (custs.length) groups.push({ title: "Mijozlar", items: custs });
+      const custs = data.customers.filter(c => c.fullName.toLowerCase().includes(ql)).slice(0, 3).map(c => ({ type: t("common.customer"), label: c.fullName, sub: [c.district, c.mahalla].filter(Boolean).join(" / "), icon: "user", to: "/customers/" + c.id }));
+      if (custs.length) groups.push({ title: t("common.customers"), items: custs });
       const prods = data.products
         .filter((p) => {
           const name = (window.productDisplayName ? window.productDisplayName(p) : (p.name || p.model || "")).toLowerCase();
@@ -348,22 +354,22 @@ function CommandPalette({ open, onClose, nav }) {
         })
         .slice(0, 4)
         .map((p) => ({
-          type: "Mahsulot",
-          label: window.productDisplayName ? window.productDisplayName(p) : (p.name || p.model || "Mahsulot"),
+          type: t("common.product"),
+          label: window.productDisplayName ? window.productDisplayName(p) : (p.name || p.model || t("common.product")),
           sub: `${window.productDisplayCategory ? window.productDisplayCategory(p) : (p.category || "Kategoriyasiz")} • ${fmtUZS(p.priceUzs)}`,
           icon: "box",
           to: "/products/" + p.id,
         }));
-      if (prods.length) groups.push({ title: "Mahsulotlar", items: prods });
-      const debtors = data.orders.filter(o => o.id.toLowerCase().includes(ql) || o.customerName.toLowerCase().includes(ql)).slice(0, 3).map(o => ({ type: "Qarzdor", label: o.customerName, sub: fmtUZS(o.remainingDebtUzs), icon: "wallet", to: "/debtors/" + o.id }));
-      if (debtors.length) groups.push({ title: "Qarzdorlar", items: debtors });
+      if (prods.length) groups.push({ title: t("common.products"), items: prods });
+      const debtors = data.orders.filter(o => o.id.toLowerCase().includes(ql) || o.customerName.toLowerCase().includes(ql)).slice(0, 3).map(o => ({ type: t("common.debtor"), label: o.customerName, sub: fmtUZS(o.remainingDebtUzs), icon: "wallet", to: "/debtors/" + o.id }));
+      if (debtors.length) groups.push({ title: t("common.debtors"), items: debtors });
     }
     const actions = [
-      { type: "Amal", label: "Yangi mijoz qo'shish", icon: "plus", to: "/customers" },
-      { type: "Amal", label: "Yangi qarzdor ochish", icon: "wallet", to: "/debtors" },
-      { type: "Amal", label: "Yangi vazifa ochish", icon: "checkCircle", to: "/tasks" },
+      { type: t("common.action"), label: t("qc.customer"), icon: "plus", to: "/customers" },
+      { type: t("common.action"), label: t("qc.order"), icon: "wallet", to: "/debtors" },
+      { type: t("common.action"), label: t("qc.task"), icon: "checkCircle", to: "/tasks" },
     ].filter(a => canAccess(role, a.to, data) && (!ql || a.label.toLowerCase().includes(ql)));
-    if (actions.length && (ql || groups.length < 2)) groups.push({ title: "Amallar", items: actions.slice(0, 3) });
+    if (actions.length && (ql || groups.length < 2)) groups.push({ title: t("common.actions"), items: actions.slice(0, 3) });
     return groups;
   }, [q, data, role]);
 
@@ -391,11 +397,11 @@ function CommandPalette({ open, onClose, nav }) {
       <div className="tg-cmdk pop-in" onMouseDown={e => e.stopPropagation()}>
         <div className="tg-cmdk-input">
           <I.search size={19} style={{ color: "var(--text-3)" }} />
-          <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)} placeholder="Sahifalar, mijozlar, mahsulotlar..." />
+          <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)} placeholder={t("common.searchAnything")} />
           <span className="tg-kbd">ESC</span>
         </div>
         <div className="tg-cmdk-results">
-          {flat.length === 0 && <div className="tg-cmdk-empty">Natija topilmadi</div>}
+          {flat.length === 0 && <div className="tg-cmdk-empty">{t("common.noResults")}</div>}
           {results.map(g => (
             <div key={g.title} className="tg-cmdk-group">
               <div className="tg-cmdk-grouptitle">{g.title}</div>
@@ -558,7 +564,7 @@ function Toasts() {
 
 // ---------- Login ----------
 function Login() {
-  const { login, dataLoading } = useApp();
+  const { login, dataLoading, t } = useApp();
   const [username, setUsername] = shS("");
   const [pw, setPw] = shS("");
   const submit = async (e) => {
@@ -574,24 +580,24 @@ function Login() {
       <div className="tg-login-art">
         <div className="tg-login-art-inner">
           <Logo />
-          <h1>Quyosh panel savdosini<br />bitta CRM da boshqaring</h1>
-          <p>Instagram AI, Telegram Web App leadlari, mijoz kartalari, qarzdorlar nazorati va kundalik hisob-kitob bitta panelda boshqariladi.</p>
+          <h1>{t("auth.heroTitle")}</h1>
+          <p>{t("auth.heroText")}</p>
           <div className="tg-login-stats">
-            <div><strong>CRM</strong><span>lead markaz</span></div>
-            <div><strong>AI</strong><span>Instagram agenti</span></div>
-            <div><strong>1</strong><span>moliyaviy panel</span></div>
+            <div><strong>CRM</strong><span>{t("auth.statCrm")}</span></div>
+            <div><strong>AI</strong><span>{t("auth.statAi")}</span></div>
+            <div><strong>1</strong><span>{t("auth.statFinance")}</span></div>
           </div>
         </div>
         <div className="tg-login-glow" />
       </div>
       <div className="tg-login-form">
         <form onSubmit={submit}>
-          <h2>Tizimga kirish</h2>
-          <Field label="Username"><Input value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" /></Field>
+          <h2>{t("auth.loginTitle")}</h2>
+          <Field label={t("common.username")}><Input value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" /></Field>
           <div style={{ height: 14 }} />
-          <Field label="Parol"><Input value={pw} onChange={e => setPw(e.target.value)} type="password" autoComplete="current-password" /></Field>
+          <Field label={t("common.password")}><Input value={pw} onChange={e => setPw(e.target.value)} type="password" autoComplete="current-password" /></Field>
           <div style={{ height: 20 }} />
-          <Button variant="primary" size="lg" full type="submit" disabled={dataLoading}>{dataLoading ? "Yuklanmoqda..." : <>Kirish <I.arrowRight size={17} /></>}</Button>
+          <Button variant="primary" size="lg" full type="submit" disabled={dataLoading}>{dataLoading ? t("common.loading") : <>{t("common.login")} <I.arrowRight size={17} /></>}</Button>
         </form>
       </div>
     </div>
@@ -601,9 +607,17 @@ function Login() {
 // ---------- time helpers ----------
 function timeAgo(iso) {
   const d = new Date(iso), now = new Date(), s = (now - d) / 1000;
-  if (s < 60) return "hozir"; if (s < 3600) return Math.floor(s / 60) + " daq oldin";
-  if (s < 86400) return Math.floor(s / 3600) + " soat oldin";
-  if (s < 604800) return Math.floor(s / 86400) + " kun oldin";
+  const lang = window.__TG_LANG || "uz";
+  const labels = {
+    uz: { now: "hozir", min: "daq oldin", hour: "soat oldin", day: "kun oldin" },
+    ru: { now: "только что", min: "мин назад", hour: "ч назад", day: "дн назад" },
+    en: { now: "just now", min: "min ago", hour: "h ago", day: "d ago" },
+  };
+  const copy = labels[lang] || labels.uz;
+  if (s < 60) return copy.now;
+  if (s < 3600) return Math.floor(s / 60) + " " + copy.min;
+  if (s < 86400) return Math.floor(s / 3600) + " " + copy.hour;
+  if (s < 604800) return Math.floor(s / 86400) + " " + copy.day;
   return window.formatUzDate ? window.formatUzDate(d, { day: "numeric", month: "short" }) : `${d.getDate()}-${d.getMonth() + 1}`;
 }
 function fmtDate(iso, withTime) {

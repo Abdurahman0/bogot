@@ -143,11 +143,12 @@ function Segmented({ options, value, onChange }) {
 
 // ---------- Inputs ----------
 function SearchInput({ value, onChange, placeholder, width }) {
+  const { t } = useApp();
   return (
     <div className="tg-search" style={width ? { width } : undefined}>
       <I.search size={16} />
-      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder || "Qidirish..."} />
-      {value && <button className="tg-search-clear" onClick={() => onChange("")} aria-label="clear"><I.x size={14} /></button>}
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder || t("common.search")} />
+      {value && <button className="tg-search-clear" onClick={() => onChange("")} aria-label={t("common.clear")}><I.x size={14} /></button>}
     </div>
   );
 }
@@ -162,9 +163,26 @@ function Field({ label, children, hint, required }) {
 }
 function Input(props) { return <input className="tg-input" {...props} />; }
 function Textarea(props) { return <textarea className="tg-input" rows={3} {...props} />; }
-const DATE_PICKER_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
-const DATE_PICKER_MONTHS_SHORT = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"];
-const DATE_PICKER_DAYS = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
+const DATE_PICKER_LOCALE = {
+  uz: {
+    months: ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"],
+    monthsShort: ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"],
+    days: ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"],
+  },
+  ru: {
+    months: ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"],
+    monthsShort: ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"],
+    days: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+  },
+  en: {
+    months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    monthsShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
+  },
+};
+const DATE_PICKER_MONTHS = DATE_PICKER_LOCALE.uz.months;
+const DATE_PICKER_MONTHS_SHORT = DATE_PICKER_LOCALE.uz.monthsShort;
+const DATE_PICKER_DAYS = DATE_PICKER_LOCALE.uz.days;
 
 function datePickerPad(value) {
   return String(value).padStart(2, "0");
@@ -190,8 +208,9 @@ function datePickerToDateTimeValue(date) {
 
 function formatUzDate(date, options = {}) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const locale = DATE_PICKER_LOCALE[window.__TG_LANG || "uz"] || DATE_PICKER_LOCALE.uz;
   const monthIndex = date.getMonth();
-  const monthName = options.month === "short" ? DATE_PICKER_MONTHS_SHORT[monthIndex] : DATE_PICKER_MONTHS[monthIndex];
+  const monthName = options.month === "short" ? locale.monthsShort[monthIndex] : locale.months[monthIndex];
   if (options.day && options.month && options.year) return `${datePickerPad(date.getDate())} ${monthName} ${date.getFullYear()}`;
   if (options.day && options.month) return `${date.getDate()} ${monthName}`;
   if (options.month && options.year) return `${monthName} ${date.getFullYear()}`;
@@ -230,6 +249,7 @@ function datePickerIsDisabled(date, min, max) {
 }
 
 function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled, min, max }) {
+  const { t, lang } = useApp();
   const ref = uR(null);
   const popRef = uR(null);
   const parsedValue = datePickerParse(value, mode);
@@ -296,6 +316,7 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
   const timeHours = datePickerPad((selectedDate || new Date()).getHours());
   const timeMinutes = datePickerPad((selectedDate || new Date()).getMinutes());
   const today = new Date();
+  const locale = DATE_PICKER_LOCALE[lang] || DATE_PICKER_LOCALE.uz;
 
   const moveMonth = (delta) => {
     setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
@@ -362,7 +383,7 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
         aria-expanded={open}
       >
         <span className="tg-date-trigger-value" data-empty={displayValue ? undefined : "1"}>
-          {displayValue || placeholder || (mode === "datetime" ? "Sana va vaqt tanlang" : "Sana tanlang")}
+          {displayValue || placeholder || (mode === "datetime" ? t("common.selectDateTime") : t("common.selectDate"))}
         </span>
         <span className="tg-date-trigger-icon"><I.calendar size={16} /></span>
       </button>
@@ -370,8 +391,8 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
         <div ref={popRef} className="tg-date-pop pop-in" style={popoverStyle}>
           <div className="tg-date-pop-head">
             <div>
-              <div className="tg-date-pop-title">{DATE_PICKER_MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}</div>
-              <div className="tg-date-pop-sub">{mode === "datetime" ? "Sana va vaqtni tanlang" : "Kerakli sanani tanlang"}</div>
+              <div className="tg-date-pop-title">{locale.months[viewDate.getMonth()]} {viewDate.getFullYear()}</div>
+              <div className="tg-date-pop-sub">{mode === "datetime" ? t("common.pickDateTime") : t("common.pickDate")}</div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <button type="button" className="tg-date-nav" onClick={() => moveMonth(-1)}><I.chevLeft size={15} /></button>
@@ -380,13 +401,13 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
           </div>
 
           <div className="tg-date-quick">
-            <button type="button" className="tg-date-chip" onClick={applyToday}>Bugun</button>
-            {mode === "datetime" && <button type="button" className="tg-date-chip" onClick={() => setDraft(datePickerToDateTimeValue(new Date()))}>Hozir</button>}
-            <button type="button" className="tg-date-chip" onClick={clearValue}>Tozalash</button>
+            <button type="button" className="tg-date-chip" onClick={applyToday}>{t("common.today")}</button>
+            {mode === "datetime" && <button type="button" className="tg-date-chip" onClick={() => setDraft(datePickerToDateTimeValue(new Date()))}>{t("common.now")}</button>}
+            <button type="button" className="tg-date-chip" onClick={clearValue}>{t("common.clear")}</button>
           </div>
 
           <div className="tg-date-weekdays">
-            {DATE_PICKER_DAYS.map((day) => <span key={day}>{day}</span>)}
+            {locale.days.map((day) => <span key={day}>{day}</span>)}
           </div>
 
           <div className="tg-date-grid">
@@ -419,7 +440,7 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
           {mode === "datetime" && (
             <div className="tg-date-time">
               <div className="tg-date-time-field">
-                <span>Soat</span>
+                <span>{t("common.hour")}</span>
                 <input
                   className="tg-input"
                   type="number"
@@ -431,7 +452,7 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
               </div>
               <div className="tg-date-time-sep">:</div>
               <div className="tg-date-time-field">
-                <span>Daqiqa</span>
+                <span>{t("common.minute")}</span>
                 <input
                   className="tg-input"
                   type="number"
@@ -446,8 +467,8 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
 
           {mode === "datetime" && (
             <div className="tg-date-actions">
-              <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Bekor qilish</Button>
-              <Button variant="primary" size="sm" onClick={saveDateTime}>Saqlash</Button>
+              <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+              <Button variant="primary" size="sm" onClick={saveDateTime}>{t("common.save")}</Button>
             </div>
           )}
         </div>,
@@ -457,6 +478,7 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
   );
 }
 function Select({ value, defaultValue, onChange, options, placeholder, style, disabled, ...rest }) {
+  const { t } = useApp();
   const [open, setOpen] = uS(false);
   const [innerValue, setInnerValue] = uS(defaultValue ?? options?.[0]?.value ?? "");
   const ref = uR(null);
@@ -491,7 +513,7 @@ function Select({ value, defaultValue, onChange, options, placeholder, style, di
         {...rest}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: selected ? "var(--text)" : "var(--text-3)" }}>
-          {selected ? selected.label : (placeholder || "Tanlang")}
+          {selected ? selected.label : (placeholder || t("common.select"))}
         </span>
         <I.chevDown size={15} style={{ color: "var(--text-3)", flexShrink: 0 }} />
       </button>
@@ -610,6 +632,7 @@ function Dropdown({ trigger, items, align = "right", width = 200, direction = "d
 
 // ---------- Modal ----------
 function Modal({ open, onClose, title, children, footer, width = 540, icon }) {
+  const { t } = useApp();
   uE(() => {
     if (!open) return;
     const prevOverflow = document.body.style.overflow;
@@ -630,7 +653,7 @@ function Modal({ open, onClose, title, children, footer, width = 540, icon }) {
             {icon && <span className="tg-card-icon">{icon}</span>}
             <h3>{title}</h3>
           </div>
-          <IconButton icon={<I.x size={18} />} label="Yopish" onClick={onClose} />
+          <IconButton icon={<I.x size={18} />} label={t("common.close")} onClick={onClose} />
         </div>
         <div className="tg-modal-body">{children}</div>
         {footer && <div className="tg-modal-foot">{footer}</div>}
@@ -641,6 +664,7 @@ function Modal({ open, onClose, title, children, footer, width = 540, icon }) {
 
 // ---------- Drawer ----------
 function Drawer({ open, onClose, title, children, footer, width = 460, side = "right" }) {
+  const { t } = useApp();
   uE(() => {
     if (!open) return;
     const on = (e) => e.key === "Escape" && onClose();
@@ -653,7 +677,7 @@ function Drawer({ open, onClose, title, children, footer, width = 460, side = "r
       <div className={"tg-drawer tg-drawer-" + side} style={{ maxWidth: width }} onMouseDown={e => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="tg-modal-head">
           <h3>{title}</h3>
-          <IconButton icon={<I.x size={18} />} label="Yopish" onClick={onClose} />
+          <IconButton icon={<I.x size={18} />} label={t("common.close")} onClick={onClose} />
         </div>
         <div className="tg-drawer-body">{children}</div>
         {footer && <div className="tg-modal-foot">{footer}</div>}
@@ -664,6 +688,7 @@ function Drawer({ open, onClose, title, children, footer, width = 460, side = "r
 
 // ---------- ConfirmDialog ----------
 function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel = "Tasdiqlash", danger, details }) {
+  const { t } = useApp();
   uE(() => {
     if (!open) return;
     const on = (e) => e.key === "Escape" && onClose();
@@ -681,7 +706,7 @@ function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel 
                 <I.alert size={17} />
               </span>
               <div style={{ fontSize: 11, fontWeight: 760, letterSpacing: ".14em", textTransform: "uppercase", color: danger ? "var(--red)" : "var(--amber)" }}>
-                {danger ? "Ogohlantirish" : "Tasdiqlash"}
+                {danger ? t("common.warning") : t("common.confirm")}
               </div>
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-.03em" }}>{title}</div>
@@ -693,8 +718,8 @@ function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel 
             </div>
           )}
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10 }}>
-            <Button variant="ghost" onClick={onClose}>Bekor qilish</Button>
-            <Button variant={danger ? "danger" : "primary"} onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
+            <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+            <Button variant={danger ? "danger" : "primary"} onClick={() => { onConfirm(); onClose(); }}>{confirmLabel === "Tasdiqlash" ? t("common.confirm") : confirmLabel}</Button>
           </div>
         </div>
       </section>
@@ -705,10 +730,11 @@ function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel 
 
 // ---------- EmptyState ----------
 function EmptyState({ icon, title, message, action }) {
+  const { t } = useApp();
   return (
     <div className="tg-empty">
       <div className="tg-empty-icon">{icon || <I.inbox size={26} />}</div>
-      <div className="tg-empty-title">{title || "Ma'lumot yo'q"}</div>
+      <div className="tg-empty-title">{title || t("common.noData")}</div>
       {message && <div className="tg-empty-msg">{message}</div>}
       {action && <div style={{ marginTop: 14 }}>{action}</div>}
     </div>

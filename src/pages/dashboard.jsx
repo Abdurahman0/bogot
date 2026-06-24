@@ -1,7 +1,88 @@
 /* pages/dashboard.jsx */
 const { useState: pS, useMemo: pM } = React;
-const DASHBOARD_STATUS_UZ = { new: "Yangi", active: "Faol", inactive: "Nofaol", pending: "Kutilmoqda", contacted: "Bog'langan", qualified: "Saralangan", confirmed: "Tasdiqlangan", closed: "Yopilgan", lost: "Yo'qotilgan" };
-const dashboardStatusLabel = (value) => DASHBOARD_STATUS_UZ[String(value || "").trim().toLowerCase()] || value || "Belgilanmagan";
+const DASHBOARD_UI = {
+  uz: {
+    heroSub: "Bogot Armada NRG ichki CRM • mijozlar, vazifalar, qarzdorlar va hisob-kitob bitta panelda",
+    kpiCustomers: "Jami mijozlar", kpiDebtors: "Qarzdorlar",
+    kpiOverdue: "Muddati o'tgan qarz", kpiActiveTasks: "Faol vazifalar",
+    panelCashflow: "Pul oqimi tendensiyasi", panelCashflowSub: "Kirim minus chiqim (mln so'm)",
+    panelStatus: "Mijoz holatlari", panelStatusSub: "Backend statuslari bo'yicha taqsimot",
+    statusNotFound: "Statuslar topilmadi",
+    panelDebtorTypes: "Qarzdor turlari", panelDebtorTypesSub: "Backend debtor type kesimi",
+    noDebtorTypes: "Qarzdor turlari yo'q", centerStatuses: "Holatlar", centerTypes: "Turlar",
+    panelAccDay: "Bugungi hisobot kuni", panelAccDaySub: "Accounting day overview",
+    accDaySana: "Sana", accDayIzoh: "Izoh", accDayYaratilgan: "Yaratilgan", accDayEmpty: "Kiritilmagan",
+    noAccDay: "Accounting day topilmadi", noAccDayMsg: "Backend bugungi hisob kunini hali qaytarmadi.",
+    panelOverdue: "Muddati o'tgan qarzdorlar", panelOverdueSub: "Tezkor undirish kerak bo'lgan mijozlar",
+    noOverdue: "Muddati o'tgan qarz yo'q",
+    panelUpcoming: "Yaqin vazifalar", panelUpcomingSub: "Pipeline o'rniga faol ish taxtasi",
+    taskFallback: "Vazifa", unassigned: "Tayinlanmagan", noTasks: "Vazifalar yo'q",
+    panelNewCustomers: "Yangi mijozlar", panelNewCustomersSub: "Oxirgi qo'shilgan kartalar",
+    colCustomer: "Mijoz", colPhone: "Telefon", colStatus: "Holat", colSubsidy: "Subsidya",
+    panelProducts: "Faol mahsulotlar", panelProductsSub: "Ombordagi asosiy pozitsiyalar",
+    panelTeamLoad: "Jamoa yuklamasi", panelTeamLoadSub: "Xodimlar bo'yicha vazifa taqsimoti",
+    colEmployee: "Xodim", colOpenTasks: "Ochiq vazifa", colDone: "Bajarilgan",
+    debtorTypeSolar: "Quyosh panel", debtorTypeOld: "Eski biznes", userFallback: "Foydalanuvchi",
+  },
+  ru: {
+    heroSub: "Bogot Armada NRG внутренняя CRM • клиенты, задачи, должники и расчёты в одной панели",
+    kpiCustomers: "Всего клиентов", kpiDebtors: "Должники",
+    kpiOverdue: "Просроченный долг", kpiActiveTasks: "Активные задачи",
+    panelCashflow: "Тенденция денежного потока", panelCashflowSub: "Доход минус расход (млн сум)",
+    panelStatus: "Статусы клиентов", panelStatusSub: "Распределение по статусам бэкенда",
+    statusNotFound: "Статусы не найдены",
+    panelDebtorTypes: "Типы должников", panelDebtorTypesSub: "Срез по типам должников бэкенда",
+    noDebtorTypes: "Нет типов должников", centerStatuses: "Статусы", centerTypes: "Типы",
+    panelAccDay: "Отчётный день", panelAccDaySub: "Обзор учётного дня",
+    accDaySana: "Дата", accDayIzoh: "Комментарий", accDayYaratilgan: "Создано", accDayEmpty: "Не указано",
+    noAccDay: "Отчётный день не найден", noAccDayMsg: "Бэкенд ещё не вернул данные за сегодня.",
+    panelOverdue: "Просроченные должники", panelOverdueSub: "Клиенты, требующие срочного взыскания",
+    noOverdue: "Нет просроченных долгов",
+    panelUpcoming: "Ближайшие задачи", panelUpcomingSub: "Активная доска задач",
+    taskFallback: "Задача", unassigned: "Не назначено", noTasks: "Нет задач",
+    panelNewCustomers: "Новые клиенты", panelNewCustomersSub: "Последние добавленные карточки",
+    colCustomer: "Клиент", colPhone: "Телефон", colStatus: "Статус", colSubsidy: "Субсидия",
+    panelProducts: "Активные товары", panelProductsSub: "Основные позиции на складе",
+    panelTeamLoad: "Нагрузка команды", panelTeamLoadSub: "Распределение задач по сотрудникам",
+    colEmployee: "Сотрудник", colOpenTasks: "Открытых задач", colDone: "Выполнено",
+    debtorTypeSolar: "Солнечная панель", debtorTypeOld: "Старый бизнес", userFallback: "Пользователь",
+  },
+  en: {
+    heroSub: "Bogot Armada NRG internal CRM • clients, tasks, debtors and payments in one panel",
+    kpiCustomers: "Total clients", kpiDebtors: "Debtors",
+    kpiOverdue: "Overdue debt", kpiActiveTasks: "Active tasks",
+    panelCashflow: "Cash flow trend", panelCashflowSub: "Income minus expense (mln UZS)",
+    panelStatus: "Customer statuses", panelStatusSub: "Distribution by backend statuses",
+    statusNotFound: "No statuses found",
+    panelDebtorTypes: "Debtor types", panelDebtorTypesSub: "Backend debtor type breakdown",
+    noDebtorTypes: "No debtor types", centerStatuses: "Statuses", centerTypes: "Types",
+    panelAccDay: "Today's accounting day", panelAccDaySub: "Accounting day overview",
+    accDaySana: "Date", accDayIzoh: "Notes", accDayYaratilgan: "Created", accDayEmpty: "Not set",
+    noAccDay: "Accounting day not found", noAccDayMsg: "Backend hasn't returned today's accounting day yet.",
+    panelOverdue: "Overdue debtors", panelOverdueSub: "Clients requiring urgent collection",
+    noOverdue: "No overdue debts",
+    panelUpcoming: "Upcoming tasks", panelUpcomingSub: "Active task board",
+    taskFallback: "Task", unassigned: "Unassigned", noTasks: "No tasks",
+    panelNewCustomers: "New clients", panelNewCustomersSub: "Recently added cards",
+    colCustomer: "Client", colPhone: "Phone", colStatus: "Status", colSubsidy: "Subsidy",
+    panelProducts: "Active products", panelProductsSub: "Key positions in stock",
+    panelTeamLoad: "Team workload", panelTeamLoadSub: "Task distribution by employees",
+    colEmployee: "Employee", colOpenTasks: "Open tasks", colDone: "Done",
+    debtorTypeSolar: "Solar panel", debtorTypeOld: "Old business", userFallback: "User",
+  },
+};
+function dashLang() { return window.__TG_LANG || "uz"; }
+function dashTx(key) { return DASHBOARD_UI[dashLang()]?.[key] || DASHBOARD_UI.uz[key] || key; }
+const DASHBOARD_STATUS_LABELS = {
+  uz: { new: "Yangi", active: "Faol", inactive: "Nofaol", pending: "Kutilmoqda", contacted: "Bog'langan", qualified: "Saralangan", confirmed: "Tasdiqlangan", closed: "Yopilgan", lost: "Yo'qotilgan" },
+  ru: { new: "Новый", active: "Активный", inactive: "Неактивный", pending: "Ожидание", contacted: "Связались", qualified: "Квалифицирован", confirmed: "Подтверждён", closed: "Закрыт", lost: "Потерян" },
+  en: { new: "New", active: "Active", inactive: "Inactive", pending: "Pending", contacted: "Contacted", qualified: "Qualified", confirmed: "Confirmed", closed: "Closed", lost: "Lost" },
+};
+const dashboardStatusLabel = (value) => {
+  const labels = DASHBOARD_STATUS_LABELS[dashLang()] || DASHBOARD_STATUS_LABELS.uz;
+  const key = String(value || "").trim().toLowerCase();
+  return labels[key] || DASHBOARD_STATUS_LABELS.uz[key] || value || dashTx("unassigned");
+};
 
 const heroAccentBg = (isLight) => (
   isLight
@@ -37,7 +118,7 @@ function DashboardPage() {
   const isLight = resolveLight(theme);
   const [range, setRange] = pS("30d");
   const loading = useLoading(320);
-  const me = data.users.find((user) => user.role === role) || data.authUser || data.users[0] || { fullName: "Foydalanuvchi" };
+  const me = data.users.find((user) => user.role === role) || data.authUser || data.users[0] || { fullName: dashTx("userFallback") };
   const overview = data.dashboardOverview || {};
   const clientSummary = overview.clients || {};
   const debtorSummary = overview.debtors || {};
@@ -53,10 +134,10 @@ function DashboardPage() {
   const taskColumnsById = Object.fromEntries((data.taskColumns || []).map((column) => [column.id, column]));
 
   const heroKpis = [
-    { label: "Jami mijozlar", value: customerCount, icon: "users", route: "/customers" },
-    { label: "Qarzdorlar", value: debtorCount, icon: "wallet", route: "/debtors" },
-    { label: "Muddati o'tgan qarz", value: `${fmtShort(overdueDebt)} so'm`, icon: "alert", route: "/debtors" },
-    { label: "Faol vazifalar", value: activeTasks.length, icon: "checkCircle", route: "/tasks" },
+    { label: dashTx("kpiCustomers"), value: customerCount, icon: "users", route: "/customers" },
+    { label: dashTx("kpiDebtors"), value: debtorCount, icon: "wallet", route: "/debtors" },
+    { label: dashTx("kpiOverdue"), value: `${fmtShort(overdueDebt)} so'm`, icon: "alert", route: "/debtors" },
+    { label: dashTx("kpiActiveTasks"), value: activeTasks.length, icon: "checkCircle", route: "/tasks" },
   ];
 
   const statusData = pM(() => {
@@ -72,7 +153,7 @@ function DashboardPage() {
   const debtorTypeData = pM(() => {
     const rows = dashboardEntries(debtorSummary.by_type, "debtor_type", "count");
     return rows.map((row) => ({
-      label: row.label === "solar_panel" ? "Quyosh panel" : row.label === "moto_business" ? "Eski biznes" : row.label,
+      label: row.label === "solar_panel" ? dashTx("debtorTypeSolar") : row.label === "moto_business" ? dashTx("debtorTypeOld") : row.label,
       value: row.value,
       color: row.label === "solar_panel" ? "#2563eb" : row.label === "moto_business" ? "#f59e0b" : "#06b6d4",
     }));
@@ -144,7 +225,7 @@ function DashboardPage() {
       <div className="dash-hero" style={{ background: heroAccentBg(isLight) }}>
         <div className="dash-hero-content">
           <h1 className="dash-hero-title">{greet}, {String(me.fullName || "Foydalanuvchi").split(" ")[0]}</h1>
-          <div className="dash-hero-sub">Bogot Armada NRG ichki CRM • mijozlar, vazifalar, qarzdorlar va hisob-kitob bitta panelda</div>
+          <div className="dash-hero-sub">{dashTx("heroSub")}</div>
           <div className="dash-hero-kpis">
             {heroKpis.map((kpi) => (
               <div key={kpi.label} className="dash-hero-tile" onClick={() => nav(kpi.route)}>
@@ -160,37 +241,37 @@ function DashboardPage() {
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
-        <Panel title="Pul oqimi tendensiyasi" subtitle="Kirim minus chiqim (mln so'm)" icon="chart" color="accent">
+        <Panel title={dashTx("panelCashflow")} subtitle={dashTx("panelCashflowSub")} icon="chart" color="accent">
           {loading ? <div className="skeleton" style={{ height: 220 }} /> : <AreaChart series={finance.series} labels={finance.labels} height={230} format={(value) => `${value} mln`} />}
         </Panel>
-        <Panel title="Mijoz holatlari" subtitle="Backend statuslari bo'yicha taqsimot" icon="users" color="violet">
-          {loading ? <div className="skeleton" style={{ height: 220 }} /> : statusData.length ? <Donut data={statusData} size={180} centerLabel="Holatlar" /> : <EmptyState icon={<I.users size={22} />} title="Statuslar topilmadi" />}
+        <Panel title={dashTx("panelStatus")} subtitle={dashTx("panelStatusSub")} icon="users" color="violet">
+          {loading ? <div className="skeleton" style={{ height: 220 }} /> : statusData.length ? <Donut data={statusData} size={180} centerLabel={dashTx("centerStatuses")} /> : <EmptyState icon={<I.users size={22} />} title={dashTx("statusNotFound")} />}
         </Panel>
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
-        <Panel title="Qarzdor turlari" subtitle="Backend debtor type kesimi" icon="layers" color="cyan">
-          {debtorTypeData.length ? <Donut data={debtorTypeData} size={180} centerLabel="Turlar" /> : <EmptyState icon={<I.wallet size={22} />} title="Qarzdor turlari yo'q" />}
+        <Panel title={dashTx("panelDebtorTypes")} subtitle={dashTx("panelDebtorTypesSub")} icon="layers" color="cyan">
+          {debtorTypeData.length ? <Donut data={debtorTypeData} size={180} centerLabel={dashTx("centerTypes")} /> : <EmptyState icon={<I.wallet size={22} />} title={dashTx("noDebtorTypes")} />}
         </Panel>
-        <Panel title="Bugungi hisobot kuni" subtitle="Accounting day overview" icon="calendar" color="amber">
+        <Panel title={dashTx("panelAccDay")} subtitle={dashTx("panelAccDaySub")} icon="calendar" color="amber">
           {accountingDay ? (
             <div className="tg-meta">
               {[
-                ["Sana", accountingDay.report_date || "—"],
-                ["Izoh", accountingDay.notes || "Kiritilmagan"],
-                ["Yaratilgan", accountingDay.created_at ? fmtDate(accountingDay.created_at, true) : "—"],
+                [dashTx("accDaySana"), accountingDay.report_date || "—"],
+                [dashTx("accDayIzoh"), accountingDay.notes || dashTx("accDayEmpty")],
+                [dashTx("accDayYaratilgan"), accountingDay.created_at ? fmtDate(accountingDay.created_at, true) : "—"],
               ].map(([key, value]) => (
                 <div key={key} className="tg-meta-row"><span className="tg-meta-k">{key}</span><span className="tg-meta-v">{value}</span></div>
               ))}
             </div>
           ) : (
-            <EmptyState icon={<I.calendar size={22} />} title="Accounting day topilmadi" message="Backend bugungi hisob kunini hali qaytarmadi." />
+            <EmptyState icon={<I.calendar size={22} />} title={dashTx("noAccDay")} message={dashTx("noAccDayMsg")} />
           )}
         </Panel>
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
-        <Panel title="Muddati o'tgan qarzdorlar" subtitle="Tezkor undirish kerak bo'lgan mijozlar" icon="wallet" color="red">
+        <Panel title={dashTx("panelOverdue")} subtitle={dashTx("panelOverdueSub")} icon="wallet" color="red">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {overdueDebtors.map((debtor) => (
               <div key={debtor.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => nav("/debtors/" + debtor.id)}>
@@ -202,35 +283,35 @@ function DashboardPage() {
                 <Badge color="red" size="sm">{fmtShort(debtor.overdueAmountUzs)}</Badge>
               </div>
             ))}
-            {!overdueDebtors.length && <EmptyState title="Muddati o'tgan qarz yo'q" />}
+            {!overdueDebtors.length && <EmptyState title={dashTx("noOverdue")} />}
           </div>
         </Panel>
-        <Panel title="Yaqin vazifalar" subtitle="Pipeline o'rniga faol ish taxtasi" icon="checkCircle" color="green">
+        <Panel title={dashTx("panelUpcoming")} subtitle={dashTx("panelUpcomingSub")} icon="checkCircle" color="green">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {upcomingTasks.map((task) => {
               const user = data.users.find((row) => row.id === task.assignedUserId);
               return (
                 <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => nav("/tasks")}>
                     <Badge color={new Date(task.dueDate).getTime() < Date.now() ? "red" : "blue"} size="sm">
-                      {taskColumnsById[task.columnId]?.name || "Vazifa"}
+                      {taskColumnsById[task.columnId]?.name || dashTx("taskFallback")}
                     </Badge>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tg-cell-strong">{task.title}</div>
-                    <div className="tg-cell-sub">{user?.fullName || "Tayinlanmagan"} • {fmtDate(task.dueDate, true)}</div>
+                    <div className="tg-cell-sub">{user?.fullName || dashTx("unassigned")} • {fmtDate(task.dueDate, true)}</div>
                   </div>
                 </div>
               );
             })}
-            {!upcomingTasks.length && <EmptyState title="Vazifalar yo'q" />}
+            {!upcomingTasks.length && <EmptyState title={dashTx("noTasks")} />}
           </div>
         </Panel>
       </div>
 
       <div className="grid-dash">
-        <Panel title="Yangi mijozlar" subtitle="Oxirgi qo'shilgan kartalar" icon="users" color="blue" pad={false}>
+        <Panel title={dashTx("panelNewCustomers")} subtitle={dashTx("panelNewCustomersSub")} icon="users" color="blue" pad={false}>
           <div className="tg-table-wrap">
             <table className="tg-table">
-              <thead><tr><th>Mijoz</th><th>Telefon</th><th>Holat</th><th>Subsidya</th></tr></thead>
+              <thead><tr><th>{dashTx("colCustomer")}</th><th>{dashTx("colPhone")}</th><th>{dashTx("colStatus")}</th><th>{dashTx("colSubsidy")}</th></tr></thead>
               <tbody>
                 {latestCustomers.map((customer) => (
                   <tr key={customer.id} data-clickable="1" onClick={() => nav("/customers/" + customer.id)}>
@@ -244,7 +325,7 @@ function DashboardPage() {
             </table>
           </div>
         </Panel>
-        <Panel title="Faol mahsulotlar" subtitle="Ombordagi asosiy pozitsiyalar" icon="box" color="green">
+        <Panel title={dashTx("panelProducts")} subtitle={dashTx("panelProductsSub")} icon="box" color="green">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {bestProducts.map((product) => (
               <div key={product.id} style={{ display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }} onClick={() => nav("/products/" + product.id)}>
@@ -262,10 +343,10 @@ function DashboardPage() {
 
       {taskLoad.length > 0 && (
         <div style={{ marginTop: 16 }}>
-          <Panel title="Jamoa yuklamasi" subtitle="Xodimlar bo'yicha vazifa taqsimoti" icon="users" color="violet" pad={false}>
+          <Panel title={dashTx("panelTeamLoad")} subtitle={dashTx("panelTeamLoadSub")} icon="users" color="violet" pad={false}>
             <div className="tg-table-wrap">
               <table className="tg-table">
-                <thead><tr><th>Xodim</th><th>Ochiq vazifa</th><th>Bajarilgan</th></tr></thead>
+                <thead><tr><th>{dashTx("colEmployee")}</th><th>{dashTx("colOpenTasks")}</th><th>{dashTx("colDone")}</th></tr></thead>
                 <tbody>
                   {taskLoad.map(({ user, openTasks, doneTasks }) => (
                     <tr key={user.id}>

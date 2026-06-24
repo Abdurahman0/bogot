@@ -1,5 +1,42 @@
 /* pages/pipeline.jsx */
 const { useState: piS, useMemo: piM, useCallback: piC, useEffect: piE, useRef: piR } = React;
+const PIPELINE_UI = {
+  uz: {
+    deleteTitle: "O'chirish", noLeads: "Lead yo'q",
+    totalLeads: "Jami leadlar", pipelineValue: "Jarayon qiymati",
+    conversion: "Konversiya", overdueTask: "Muddati o'tgan task",
+    allPriority: "Barcha prioritet", urgent: "Shoshilinch", high: "Yuqori", medium: "O'rta", low: "Past",
+    leadUpdated: "Lead bosqichi yangilandi", leadDeleted: "Lead o'chirildi",
+    deleteLeadTitle: "Leadni o'chirish", deleteConfirm: "O'chirish",
+    detailsPhone: "Telefon:", detailsStage: "Bosqich:",
+    desc: "Lidlarni tijoriy taklif va yopilish bosqichlari bo'yicha boshqarish",
+    crmCrumb: "CRM",
+  },
+  ru: {
+    deleteTitle: "Удалить", noLeads: "Нет лидов",
+    totalLeads: "Всего лидов", pipelineValue: "Стоимость воронки",
+    conversion: "Конверсия", overdueTask: "Просроченные задачи",
+    allPriority: "Все приоритеты", urgent: "Срочно", high: "Высокий", medium: "Средний", low: "Низкий",
+    leadUpdated: "Этап лида обновлён", leadDeleted: "Лид удалён",
+    deleteLeadTitle: "Удалить лид", deleteConfirm: "Удалить",
+    detailsPhone: "Телефон:", detailsStage: "Этап:",
+    desc: "Управление лидами по этапам продаж и закрытия",
+    crmCrumb: "CRM",
+  },
+  en: {
+    deleteTitle: "Delete", noLeads: "No leads",
+    totalLeads: "Total leads", pipelineValue: "Pipeline value",
+    conversion: "Conversion", overdueTask: "Overdue tasks",
+    allPriority: "All priorities", urgent: "Urgent", high: "High", medium: "Medium", low: "Low",
+    leadUpdated: "Lead stage updated", leadDeleted: "Lead deleted",
+    deleteLeadTitle: "Delete lead", deleteConfirm: "Delete",
+    detailsPhone: "Phone:", detailsStage: "Stage:",
+    desc: "Manage leads by commercial proposal and closing stages",
+    crmCrumb: "CRM",
+  },
+};
+function plLang() { return window.__TG_LANG || "uz"; }
+function plTx(key) { return PIPELINE_UI[plLang()]?.[key] || PIPELINE_UI.uz[key] || key; }
 
 const STAGE_CFG = {
   greeted: { color: "#6366f1", bg: "#eef2ff", icon: "zap" },
@@ -45,7 +82,7 @@ function PipelineCardBody({ lead, cfg, t, onDelete, interactive = true }) {
         {lead.nextFollowUpAt && <span className="pk-card-date"><I.calendar size={11} />{fmtDate(lead.nextFollowUpAt)}</span>}
         <div className="pk-footer-spacer" />
         {interactive && (
-          <button className="pk-card-del" title="O'chirish" onClick={onDelete}>
+          <button className="pk-card-del" title={plTx("deleteTitle")} onClick={onDelete}>
             <I.trash size={12} />
           </button>
         )}
@@ -162,7 +199,7 @@ function PipelinePage() {
       const nextStage = dragState.overStage || dragState.fromStage;
       const nextIndex = dragState.overIndex == null ? 0 : dragState.overIndex;
       update("leads", (leads) => moveLeadInList(leads, dragState.id, nextStage, nextIndex));
-      toast("Lead bosqichi yangilandi");
+      toast(plTx("leadUpdated"));
       setDragState(null);
 
       window.setTimeout(() => {
@@ -207,17 +244,17 @@ function PipelinePage() {
   return (
     <div className="pk-page fade-in">
       <div className="pk-page-head">
-        <PageHeader title={t("page.pipeline")} desc="Lidlarni tijoriy taklif va yopilish bosqichlari bo'yicha boshqarish" crumbs={[{ label: "CRM" }, { label: t("page.pipeline") }]}
+        <PageHeader title={t("page.pipeline")} desc={plTx("desc")} crumbs={[{ label: plTx("crmCrumb") }, { label: t("page.pipeline") }]}
           actions={<>
             <SearchInput value={q} onChange={setQ} placeholder="Lead qidirish..." width={210} />
-            <FilterSelect value={prioFilter} onChange={setPrioFilter} options={[{ value: "all", label: "Barcha prioritet" }, { value: "urgent", label: "Shoshilinch" }, { value: "high", label: "Yuqori" }, { value: "medium", label: "O'rta" }, { value: "low", label: "Past" }]} />
+            <FilterSelect value={prioFilter} onChange={setPrioFilter} options={[{ value: "all", label: plTx("allPriority") }, { value: "urgent", label: plTx("urgent") }, { value: "high", label: plTx("high") }, { value: "medium", label: plTx("medium") }, { value: "low", label: plTx("low") }]} />
           </>} />
 
         <div className="pk-stats-row">
-          <div className="pk-stat-pill"><span>Jami leadlar</span><strong>{data.leads.length}</strong></div>
-          <div className="pk-stat-pill pk-stat-pill-accent"><span>Jarayon qiymati</span><strong>{fmtShort(pipelineVal)}</strong></div>
-          <div className="pk-stat-pill"><span>Konversiya</span><strong>{convRate}%</strong></div>
-          <div className="pk-stat-pill"><span>Muddati o'tgan task</span><strong>{data.leads.filter((lead) => lead.hasOverdueTask).length}</strong></div>
+          <div className="pk-stat-pill"><span>{plTx("totalLeads")}</span><strong>{data.leads.length}</strong></div>
+          <div className="pk-stat-pill pk-stat-pill-accent"><span>{plTx("pipelineValue")}</span><strong>{fmtShort(pipelineVal)}</strong></div>
+          <div className="pk-stat-pill"><span>{plTx("conversion")}</span><strong>{convRate}%</strong></div>
+          <div className="pk-stat-pill"><span>{plTx("overdueTask")}</span><strong>{data.leads.filter((lead) => lead.hasOverdueTask).length}</strong></div>
         </div>
       </div>
 
@@ -248,7 +285,7 @@ function PipelinePage() {
                 {!items.length && !hasDropTarget && (
                   <div className="pk-empty-col">
                     <div className="pk-empty-icon" style={{ background: cfg.bg, color: cfg.color }}>{React.createElement(I[cfg.icon], { size: 18 })}</div>
-                    <span>Lead yo'q</span>
+                    <span>{plTx("noLeads")}</span>
                   </div>
                 )}
 
@@ -269,7 +306,7 @@ function PipelinePage() {
                         onDelete={(event) => {
                           event.stopPropagation();
                           remove("leads", lead.id);
-                          toast("Lead o'chirildi");
+                          toast(plTx("leadDeleted"));
                         }}
                       />
                     </div>
@@ -306,15 +343,15 @@ function PipelinePage() {
         lead={viewLead}
         ops={ops}
       />
-      <LeadFormModal open={!!editLead} onClose={() => setEditLead(null)} initial={editLead} onSave={(lead) => { upsert("leads", lead); toast("Lead yangilandi"); setEditLead(null); }} ops={ops} />
+      <LeadFormModal open={!!editLead} onClose={() => setEditLead(null)} initial={editLead} onSave={(lead) => { upsert("leads", lead); toast(plTx("leadUpdated")); setEditLead(null); }} ops={ops} />
       <ConfirmDialog
         open={!!deleteLead}
         onClose={() => setDeleteLead(null)}
-        onConfirm={() => { remove("leads", deleteLead.id); toast("Lead o'chirildi"); }}
-        title="Leadni o'chirish"
+        onConfirm={() => { remove("leads", deleteLead.id); toast(plTx("leadDeleted")); }}
+        title={plTx("deleteLeadTitle")}
         message={`"${deleteLead?.fullName || ""}" yozuvini o'chirmoqchimisiz?`}
-        details={deleteLead ? `Telefon: ${deleteLead.phone}\nBosqich: ${PIPELINE_STAGE_UZ[deleteLead.pipelineStage]}` : ""}
-        confirmLabel="O'chirish"
+        details={deleteLead ? `${plTx("detailsPhone")} ${deleteLead.phone}\n${plTx("detailsStage")} ${PIPELINE_STAGE_UZ[deleteLead.pipelineStage]}` : ""}
+        confirmLabel={plTx("deleteConfirm")}
         danger
       />
     </div>
