@@ -475,6 +475,7 @@ function CustomersPage() {
   const [viewMode, setViewMode] = cuS("clients");
   const [q, setQ] = cuS("");
   const [fDistrict, setFDistrict] = cuS("all");
+  const [fMahalla, setFMahalla] = cuS("all");
   const [fStatus, setFStatus] = cuS("all");
   const [exporting, setExporting] = cuS(false);
   const [dateFrom, setDateFrom] = cuS("");
@@ -488,6 +489,11 @@ function CustomersPage() {
   const [addOpen, setAddOpen] = cuS(false);
   const [deleteCustomer, setDeleteCustomer] = cuS(null);
   const districts = customerDistrictOptions(data.locations);
+  const mahallaOptions = cuM(() => {
+    if (fDistrict !== "all") return mahallaOptionsFor(fDistrict, data.locations);
+    const all = Object.values(data.locations || {}).flat();
+    return [...new Set(all)].sort((a, b) => a.localeCompare(b, "uz"));
+  }, [fDistrict, data.locations]);
   const statusOptions = [{ value: "all", label: ctx("allStatuses") }, ...(data.clientStatuses || []).map((status) => ({ value: status.id, label: localizeCustomerStatusName(status.name) }))];
   const defaultClientStatus = localizeCustomerStatusName((data.clientStatuses || []).find((status) => status.isDefault)?.name);
   const sortedStatuses = cuM(() => (data.clientStatuses || []).slice().sort((a, b) => {
@@ -499,10 +505,11 @@ function CustomersPage() {
   const filtered = cuM(() => data.customers.filter(c => {
     if (q && !c.fullName.toLowerCase().includes(q.toLowerCase()) && !c.phone.includes(q)) return false;
     if (fDistrict !== "all" && customerTuman(c) !== fDistrict) return false;
+    if (fMahalla !== "all" && customerMahalla(c) !== fMahalla) return false;
     if (fStatus !== "all" && c.statusId !== fStatus) return false;
     if (!dateMatchesRange(customerCreatedDate(c), dateFrom, dateTo)) return false;
     return true;
-  }), [data.customers, q, fDistrict, fStatus, dateFrom, dateTo]);
+  }), [data.customers, q, fDistrict, fMahalla, fStatus, dateFrom, dateTo]);
 
   const columns = [
     { key: "name", label: ctx("customer"), sortVal: r => r.fullName, render: r => <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar name={r.fullName} size={34} /><div><div className="tg-cell-strong">{r.fullName}</div><div className="tg-cell-sub">{r.phone}</div></div></div> },
@@ -661,7 +668,8 @@ function CustomersPage() {
         <>
           <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={ctx("searchCustomer")} width={260} />
-        <FilterSelect label={ctx("district")} icon="mapPin" value={fDistrict} onChange={setFDistrict} options={districts.map(d => ({ value: d, label: d }))} />
+        <FilterSelect label={ctx("district")} icon="mapPin" value={fDistrict} onChange={v => { setFDistrict(v); setFMahalla("all"); }} options={districts.map(d => ({ value: d, label: d }))} />
+        <FilterSelect label={ctx("mahalla")} icon="home" value={fMahalla} onChange={setFMahalla} options={mahallaOptions.map(m => ({ value: m, label: m }))} />
         <FilterSelect label={ctx("status")} icon="flag" value={fStatus} onChange={setFStatus} options={statusOptions} />
         <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder={ctx("startDate")} /></div>
         <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder={ctx("endDate")} /></div>
@@ -905,7 +913,9 @@ function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
 
 function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
   const { data } = useApp();
-  const districts = customerDistrictOptions(locations);
+  const apiDistricts = data.districts || [];
+  const apiNeighborhoods = data.neighborhoods || [];
+  const districts = apiDistricts.length ? apiDistricts.map(d => d.name) : customerDistrictOptions(locations);
   const statusOptions = (data.clientStatuses || []).map((status) => ({ value: status.id, label: localizeCustomerStatusName(status.name) }));
   const sourceOptions = Array.from(new Set([...(window.SOURCES || []), initial?.source || "manual"].filter(Boolean))).map((source) => ({ value: source, label: customerSourceLabel(source) }));
   const productOptions = [{ value: "", label: ctx("productNotSelected") }, ...(data.products || []).map((product) => ({ value: product.id, label: product.model || product.name || product.title || product.id }))];
@@ -1007,8 +1017,8 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
             <div className="tg-customer-form-sub">{ctx("locationProjectSub")}</div>
           </div>
           <div className="tg-customer-form-grid tg-customer-form-grid-2">
-            <Field label={ctx("tuman")}><Input value={form.district} onChange={e => set("district", e.target.value)} /></Field>
-            <Field label={ctx("mahalla")}><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} /></Field>
+            <Field label={ctx("tuman")}>{apiDistricts.length ? <Select value={form.district} onChange={v => { set("district", v); set("mahalla", ""); }} options={[{ value: "", label: "— tanlang —" }, ...apiDistricts.map(d => ({ value: d.name, label: d.name }))]} /> : <Input value={form.district} onChange={e => set("district", e.target.value)} />}</Field>
+            <Field label={ctx("mahalla")}>{apiDistricts.length ? <Select value={form.mahalla} onChange={v => set("mahalla", v)} options={[{ value: "", label: "— tanlang —" }, ...apiNeighborhoods.filter(n => { const d = apiDistricts.find(d => d.name === form.district); return d && n.district === d.id; }).map(n => ({ value: n.name, label: n.name }))]} /> : <Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} />}</Field>
             <div style={{ gridColumn: "1 / -1" }}><Field label={ctx("address")}><Input value={form.address} onChange={e => set("address", e.target.value)} /></Field></div>
             <Field label={ctx("systemPower")}><Input type="number" value={form.currentSystemKw} onChange={e => set("currentSystemKw", e.target.value)} /></Field>
             <Field label={ctx("annualConsumption")}><Input type="number" value={form.annualConsumptionKwh} onChange={e => set("annualConsumptionKwh", e.target.value)} /></Field>

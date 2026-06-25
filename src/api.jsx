@@ -65,6 +65,8 @@ function apiCreateEmptyData() {
     banners: [],
     referrals: [],
     locations: window.cloneLocationMap ? window.cloneLocationMap() : {},
+    districts: [],
+    neighborhoods: [],
     clientStatuses: [],
     accountingDays: [],
     productCategories: [],
@@ -353,6 +355,30 @@ async function apiDownloadDebtorsExcel(filters = {}) {
     params: filters,
     filename: "debtors_export.xlsx",
   });
+}
+
+async function apiDownloadAccountingExcel(filters = {}) {
+  return apiDownloadFile("/api/clients/accounting/export/excel/", {
+    params: filters,
+    filename: "accounting_export.xlsx",
+  });
+}
+
+async function apiSaveDistrict(district) {
+  const payload = { name: (district.name || "").trim() };
+  return isApiUuid(district.id)
+    ? apiRequest(`/api/clients/districts/${district.id}/`, { method: "PATCH", body: payload })
+    : apiRequest("/api/clients/districts/", { method: "POST", body: payload });
+}
+
+async function apiSaveNeighborhood(neighborhood) {
+  const payload = {
+    name: (neighborhood.name || "").trim(),
+    district: neighborhood.districtId || neighborhood.district || null,
+  };
+  return isApiUuid(neighborhood.id)
+    ? apiRequest(`/api/clients/neighborhoods/${neighborhood.id}/`, { method: "PATCH", body: payload })
+    : apiRequest("/api/clients/neighborhoods/", { method: "POST", body: payload });
 }
 
 function mapApiUser(user) {
@@ -724,6 +750,16 @@ async function apiLoadCollections(keys = [], currentData = {}) {
       data.users = users.map(mapApiUser);
     })
   );
+  if (wanted.has("districts")) jobs.push(
+    apiPaginateAll("/api/clients/districts/").catch(() => []).then((districts) => {
+      data.districts = districts;
+    })
+  );
+  if (wanted.has("neighborhoods")) jobs.push(
+    apiPaginateAll("/api/clients/neighborhoods/").catch(() => []).then((neighborhoods) => {
+      data.neighborhoods = neighborhoods;
+    })
+  );
   if (wanted.has("clientStatuses")) jobs.push(
     apiPaginateAll("/api/clients/statuses/").catch(() => []).then((clientStatuses) => {
       data.clientStatuses = clientStatuses.map(mapApiClientStatus);
@@ -840,6 +876,8 @@ const API_BOOTSTRAP_KEYS = [
   "permissionsAll",
   "roles",
   "users",
+  "districts",
+  "neighborhoods",
   "clientStatuses",
   "customers",
   "orders",
@@ -1207,6 +1245,9 @@ Object.assign(window, {
   apiDownloadFile,
   apiDownloadClientsExcel,
   apiDownloadDebtorsExcel,
+  apiDownloadAccountingExcel,
+  apiSaveDistrict,
+  apiSaveNeighborhood,
   apiSaveUser,
   apiSaveClient,
   apiSaveDebtor,

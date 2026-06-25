@@ -2,7 +2,7 @@
 const { createContext, useContext, useState, useEffect, useCallback, useRef } = React;
 
 const PREF_KEY = "tg_crm_prefs_v2";
-const REMOTE_COLLECTIONS = new Set(["users", "customers", "orders", "tasks", "taskColumns", "payments", "products", "productCategories", "clientStatuses", "aiSettings", "integrationConfigs"]);
+const REMOTE_COLLECTIONS = new Set(["users", "customers", "orders", "tasks", "taskColumns", "payments", "products", "productCategories", "clientStatuses", "aiSettings", "integrationConfigs", "districts", "neighborhoods"]);
 
 function loadPrefs() {
   try {
@@ -50,6 +50,19 @@ function buildLocationMap(customers = [], orders = []) {
   );
 }
 
+function buildLocationsFromApi(districts = [], neighborhoods = []) {
+  const map = {};
+  districts.forEach((d) => { map[d.id] = { name: d.name, mahallas: [] }; });
+  neighborhoods.forEach((n) => {
+    if (map[n.district]) map[n.district].mahallas.push(n.name);
+  });
+  const result = {};
+  Object.values(map).forEach(({ name, mahallas }) => {
+    if (name) result[name] = mahallas.sort((a, b) => a.localeCompare(b, "uz"));
+  });
+  return result;
+}
+
 function mergeRemoteData(remote, previous) {
   const seed = createLocalSeed();
   const prev = previous || seed;
@@ -58,8 +71,12 @@ function mergeRemoteData(remote, previous) {
     ...prev,
     ...remote,
   };
-  if ("customers" in remote || "orders" in remote) {
-    next.locations = buildLocationMap(next.customers || [], next.orders || []);
+  const hasApiLocations = "districts" in remote || "neighborhoods" in remote;
+  const hasClientLocations = "customers" in remote || "orders" in remote;
+  if (hasApiLocations || hasClientLocations) {
+    const apiLoc = buildLocationsFromApi(next.districts || [], next.neighborhoods || []);
+    const clientLoc = buildLocationMap(next.customers || [], next.orders || []);
+    next.locations = mergeLocationMaps(apiLoc, clientLoc);
   } else if ("locations" in remote) {
     next.locations = mergeLocationMaps(remote.locations || {}, prev.locations || seed.locations);
   } else {
@@ -79,7 +96,7 @@ function routeCollectionKeys(route) {
       return [...BASE_COLLECTIONS, "users", "customers", "orders", "tasks", "taskColumns", "payments", "accountingDays", "products", "dashboardOverview"];
     case "customers":
     case "leads":
-      return [...BASE_COLLECTIONS, "customers", "clientStatuses", "orders", "payments", "accountingDays"];
+      return [...BASE_COLLECTIONS, "customers", "clientStatuses", "orders", "payments", "accountingDays", "districts", "neighborhoods"];
     case "tasks":
     case "pipeline":
       return [...BASE_COLLECTIONS, "tasks", "taskColumns", "taskAssignees"];
@@ -89,7 +106,9 @@ function routeCollectionKeys(route) {
       return [...BASE_COLLECTIONS, "products", "productCategories"];
     case "debtors":
     case "orders":
-      return [...BASE_COLLECTIONS, "orders", "customers"];
+      return [...BASE_COLLECTIONS, "orders", "customers", "districts", "neighborhoods"];
+    case "locations":
+      return [...BASE_COLLECTIONS, "districts", "neighborhoods"];
     case "accounting":
     case "payments":
       return [...BASE_COLLECTIONS, "payments", "accountingDays", "orders", "customers"];
@@ -338,6 +357,14 @@ function AppProvider({ children }) {
       await apiSaveIntegrationConfig(item);
       await refreshCollections(["integrationConfigs"], ["integrationEvents"]);
     }
+    if (key === "districts") {
+      await apiSaveDistrict(item);
+      await refreshCollections(["districts"], ["neighborhoods"]);
+    }
+    if (key === "neighborhoods") {
+      await apiSaveNeighborhood(item);
+      await refreshCollections(["neighborhoods"]);
+    }
     return item;
   }, [refreshCollections]);
 
@@ -390,6 +417,14 @@ function AppProvider({ children }) {
     if (key === "integrationConfigs") {
       await apiDelete(`/api/settings/integrations/${id}/`);
       await refreshCollections(["integrationConfigs"], ["integrationEvents"]);
+    }
+    if (key === "districts") {
+      await apiDelete(`/api/clients/districts/${id}/`);
+      await refreshCollections(["districts", "neighborhoods"]);
+    }
+    if (key === "neighborhoods") {
+      await apiDelete(`/api/clients/neighborhoods/${id}/`);
+      await refreshCollections(["neighborhoods"]);
     }
   }, [refreshCollections]);
 

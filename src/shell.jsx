@@ -15,6 +15,7 @@ const NAV = [
       { path: "/products", key: "page.products", icon: "box" },
       { path: "/debtors", key: "page.orders", icon: "wallet" },
       { path: "/accounting", key: "page.payments", icon: "chart" },
+      { path: "/locations", key: "page.locations", icon: "mapPin" },
     ]
   },
   {
@@ -32,7 +33,7 @@ window.NAV = NAV;
 const ROLE_ACCESS = {
   developer: null,
   admin: null,
-  operator: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/debtors", "/accounting", "/notifications", "/integrations", "/settings"],
+  operator: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/debtors", "/accounting", "/locations", "/notifications", "/integrations", "/settings"],
 };
 window.ROLE_ACCESS = ROLE_ACCESS;
 const PAGE_PERMISSION_MAP = {
@@ -43,6 +44,7 @@ const PAGE_PERMISSION_MAP = {
   "/products": ["products.view", "products.manage"],
   "/debtors": ["clients.view", "clients.manage", "accounting.view", "accounting.manage"],
   "/accounting": ["accounting.view", "accounting.manage"],
+  "/locations": ["clients.view", "clients.manage"],
   "/users": ["users.view", "users.manage"],
   "/notifications": ["notifications.view", "notifications.manage"],
   "/integrations": ["integrations.view", "integrations.manage"],

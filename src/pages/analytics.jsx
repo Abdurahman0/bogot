@@ -38,7 +38,7 @@ const ANALYTICS_UI = {
     panelDebtDist: "Debt distribution", centerDebt: "Debt",
     panelByCategory: "Records by category",
     panelActiveProducts: "Active products",
-    bizOld: "Old business", bizSolar: "Solar panel business",
+    bizOld: "Moto business", bizSolar: "Solar panel business",
   },
 };
 function anLang() { return window.__TG_LANG || "uz"; }

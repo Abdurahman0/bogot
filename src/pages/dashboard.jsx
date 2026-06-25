@@ -74,7 +74,7 @@ const DASHBOARD_UI = {
     panelProducts: "Active products", panelProductsSub: "Key positions in stock",
     panelTeamLoad: "Team workload", panelTeamLoadSub: "Task distribution by employees",
     colEmployee: "Employee", colOpenTasks: "Open tasks", colDone: "Done",
-    debtorTypeSolar: "Solar panel", debtorTypeOld: "Old business", userFallback: "User",
+    debtorTypeSolar: "Solar panel", debtorTypeOld: "Moto business", userFallback: "User",
   },
 };
 function dashLang() { return window.__TG_LANG || "uz"; }

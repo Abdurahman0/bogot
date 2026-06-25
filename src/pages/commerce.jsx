@@ -114,7 +114,7 @@ const COMMERCE_UI = {
     tabAll: "All", tabOpen: "Has balance", tabOverdue: "Overdue", tabClosed: "Closed",
     remainingLabel: "Balance:", overdueLabel: "Overdue:",
     debtorsSearch: "Customer, ID, district or mahalla...", paymentsSearch: "Category, customer, ID...",
-    solar: "Solar panel business", oldBiz: "Old business",
+    solar: "Solar panel business", oldBiz: "Moto business",
     filterDebtorType: "Type", colStatus: "Status",
     notePlaceholder: "Payment agreement or note...", currencyPh: "UZS or USD",
     phoneRequired: "Enter phone number", phoneLabel: "Phone", debtorLabel: "Customer",
@@ -512,7 +512,9 @@ window.OrdersPage = OrdersPage;
 
 function OrderFormModal({ open, onClose, onSave, initial, locations }) {
   const { data, toast } = useApp();
-  const districts = orderDistrictOptions(locations);
+  const apiDistricts = data.districts || [];
+  const apiNeighborhoods = data.neighborhoods || [];
+  const districts = apiDistricts.length ? apiDistricts.map(d => d.name) : orderDistrictOptions(locations);
   const blank = {
     customerName: "",
     phone: "",
@@ -590,10 +592,10 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <Field label={comTx("debtorLabel")}><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
           <Field label={comTx("phoneLabel")} required><Input value={form.phone || ""} onChange={e => set("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
-          <Field label={comTx("colDistrict")}><Input value={form.district} onChange={e => set("district", e.target.value)} placeholder={comTx("districtPh")} /></Field>
+          <Field label={comTx("colDistrict")}>{apiDistricts.length ? <Select value={form.district} onChange={v => { set("district", v); set("mahalla", ""); }} options={[{ value: "", label: "— tanlang —" }, ...apiDistricts.map(d => ({ value: d.name, label: d.name }))]} /> : <Input value={form.district} onChange={e => set("district", e.target.value)} placeholder={comTx("districtPh")} />}</Field>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <Field label={comTx("colMahalla")}><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder={comTx("mahallaPh")} /></Field>
+          <Field label={comTx("colMahalla")}>{apiDistricts.length ? <Select value={form.mahalla} onChange={v => set("mahalla", v)} options={[{ value: "", label: "— tanlang —" }, ...apiNeighborhoods.filter(n => { const d = apiDistricts.find(d => d.name === form.district); return d && n.district === d.id; }).map(n => ({ value: n.name, label: n.name }))]} /> : <Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder={comTx("mahallaPh")} />}</Field>
           <Field label={comTx("direction")}><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: comTx("solar") }, { value: "Eski biznes", label: comTx("oldBiz") }]} /></Field>
           <Field label={comTx("paymentType")}><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: comTx("credit") }, { value: "cash", label: comTx("cash") }]} /></Field>
         </div>
@@ -732,6 +734,18 @@ function PaymentsPage() {
   const [q, setQ] = coS("");
   const [direction, setDirection] = coS("all");
   const [createOpen, setCreateOpen] = coS(false);
+  const [exporting, setExporting] = coS(false);
+  const exportAccountingExcel = async () => {
+    try {
+      setExporting(true);
+      await apiDownloadAccountingExcel();
+      toast(comTx("excelOk"));
+    } catch (e) {
+      toast(e.message || "Excel bajarilmadi", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
   const [viewPayment, setViewPayment] = coS(null);
   const [editPayment, setEditPayment] = coS(null);
   const [deletePayment, setDeletePayment] = coS(null);
@@ -764,7 +778,10 @@ function PaymentsPage() {
   return (
     <div className="page fade-in">
       <PageHeader title={t("page.payments")} desc={comTx("paymentsDesc")} crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.payments") }]}
-        actions={<Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{comTx("newRecord")}</Button>} />
+        actions={<>
+          <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportAccountingExcel} disabled={exporting}>Excel</Button>
+          <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{comTx("newRecord")}</Button>
+        </>} />
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("income")} value={fmtShort(income)} sub="so'm" color="green" />
         <StatTile label={comTx("expense")} value={fmtShort(expense)} sub="so'm" color="red" />
