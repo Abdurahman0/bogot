@@ -10,6 +10,8 @@ const DASHBOARD_UI = {
     statusNotFound: "Statuslar topilmadi",
     panelDebtorTypes: "Qarzdor turlari", panelDebtorTypesSub: "Backend debtor type kesimi",
     noDebtorTypes: "Qarzdor turlari yo'q", centerStatuses: "Holatlar", centerTypes: "Turlar",
+    panelDebtorStatus: "Qarzdor holatlari", panelDebtorStatusSub: "Holat bo'yicha taqsimot",
+    debtorHasBalance: "Qoldiq bor", debtorOverdue: "Muddati o'tgan", debtorClosed: "Yopilgan", noDebtorStatus: "Qarzdorlar topilmadi",
     panelAccDay: "Bugungi hisobot kuni", panelAccDaySub: "Accounting day overview",
     accDaySana: "Sana", accDayIzoh: "Izoh", accDayYaratilgan: "Yaratilgan", accDayEmpty: "Kiritilmagan",
     noAccDay: "Accounting day topilmadi", noAccDayMsg: "Backend bugungi hisob kunini hali qaytarmadi.",
@@ -33,6 +35,8 @@ const DASHBOARD_UI = {
     statusNotFound: "Статусы не найдены",
     panelDebtorTypes: "Типы должников", panelDebtorTypesSub: "Срез по типам должников бэкенда",
     noDebtorTypes: "Нет типов должников", centerStatuses: "Статусы", centerTypes: "Типы",
+    panelDebtorStatus: "Статусы должников", panelDebtorStatusSub: "Разбивка по статусам",
+    debtorHasBalance: "Есть остаток", debtorOverdue: "Просрочено", debtorClosed: "Закрыто", noDebtorStatus: "Должники не найдены",
     panelAccDay: "Отчётный день", panelAccDaySub: "Обзор учётного дня",
     accDaySana: "Дата", accDayIzoh: "Комментарий", accDayYaratilgan: "Создано", accDayEmpty: "Не указано",
     noAccDay: "Отчётный день не найден", noAccDayMsg: "Бэкенд ещё не вернул данные за сегодня.",
@@ -56,6 +60,8 @@ const DASHBOARD_UI = {
     statusNotFound: "No statuses found",
     panelDebtorTypes: "Debtor types", panelDebtorTypesSub: "Backend debtor type breakdown",
     noDebtorTypes: "No debtor types", centerStatuses: "Statuses", centerTypes: "Types",
+    panelDebtorStatus: "Debtor statuses", panelDebtorStatusSub: "Distribution by status",
+    debtorHasBalance: "Has balance", debtorOverdue: "Overdue", debtorClosed: "Closed", noDebtorStatus: "No debtors found",
     panelAccDay: "Today's accounting day", panelAccDaySub: "Accounting day overview",
     accDaySana: "Date", accDayIzoh: "Notes", accDayYaratilgan: "Created", accDayEmpty: "Not set",
     noAccDay: "Accounting day not found", noAccDayMsg: "Backend hasn't returned today's accounting day yet.",
@@ -141,12 +147,29 @@ function DashboardPage() {
   ];
 
   const statusData = pM(() => {
-    const rows = dashboardEntries(clientSummary.by_status, "status_name", "count");
-    const resolvedRows = rows.length && rows.some((row) => row.value > 0) ? rows : dashboardStatusFallback(data.customers);
-    return resolvedRows.map((row, index) => ({
+    const colorByName = {};
+    data.customers.forEach((c) => { if (c.statusName && c.statusColor) colorByName[c.statusName] = c.statusColor; });
+    const fallbackColors = ["#2563eb", "#7c3aed", "#0f766e", "#f59e0b", "#dc2626", "#64748b"];
+    const byStatus = clientSummary.by_status;
+    let rows;
+    if (Array.isArray(byStatus) && byStatus.length) {
+      rows = byStatus.map((row) => ({
+        label: row.status_name || row.label || "",
+        value: Number(row.count ?? 0),
+        color: row.status_color || colorByName[row.status_name] || null,
+      }));
+    } else {
+      rows = dashboardStatusFallback(data.customers).map((row) => ({
+        ...row,
+        color: colorByName[row.label] || null,
+      }));
+    }
+    const active = rows.filter((row) => row.value > 0);
+    const result = active.length ? active : rows;
+    return result.map((row, index) => ({
       label: dashboardStatusLabel(row.label),
       value: row.value,
-      color: ["#2563eb", "#7c3aed", "#0f766e", "#f59e0b", "#dc2626", "#64748b"][index % 6],
+      color: row.color || fallbackColors[index % fallbackColors.length],
     }));
   }, [clientSummary.by_status, data.customers]);
 
@@ -158,6 +181,17 @@ function DashboardPage() {
       color: row.label === "solar_panel" ? "#2563eb" : row.label === "moto_business" ? "#f59e0b" : "#06b6d4",
     }));
   }, [debtorSummary.by_type]);
+
+  const debtorStatusData = pM(() => {
+    const hasBalance = data.orders.filter(o => Number(o.remainingDebtUzs) > 0 && Number(o.overdueAmountUzs) <= 0).length;
+    const overdue = data.orders.filter(o => Number(o.overdueAmountUzs) > 0).length;
+    const closed = data.orders.filter(o => Number(o.remainingDebtUzs) <= 0).length;
+    return [
+      { label: dashTx("debtorHasBalance"), value: hasBalance, color: "#f59e0b" },
+      { label: dashTx("debtorOverdue"),    value: overdue,     color: "#dc2626" },
+      { label: dashTx("debtorClosed"),     value: closed,      color: "#10b981" },
+    ].filter(row => row.value > 0);
+  }, [data.orders]);
 
   const finance = pM(() => {
     const totalDays = days <= 1 ? 7 : days;
@@ -250,8 +284,8 @@ function DashboardPage() {
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
-        <Panel title={dashTx("panelDebtorTypes")} subtitle={dashTx("panelDebtorTypesSub")} icon="layers" color="cyan">
-          {debtorTypeData.length ? <Donut data={debtorTypeData} size={180} centerLabel={dashTx("centerTypes")} /> : <EmptyState icon={<I.wallet size={22} />} title={dashTx("noDebtorTypes")} />}
+        <Panel title={dashTx("panelDebtorStatus")} subtitle={dashTx("panelDebtorStatusSub")} icon="wallet" color="red">
+          {debtorStatusData.length ? <Donut data={debtorStatusData} size={180} centerLabel={dashTx("centerStatuses")} /> : <EmptyState icon={<I.wallet size={22} />} title={dashTx("noDebtorStatus")} />}
         </Panel>
         <Panel title={dashTx("panelAccDay")} subtitle={dashTx("panelAccDaySub")} icon="calendar" color="amber">
           {accountingDay ? (
@@ -317,7 +351,16 @@ function DashboardPage() {
                   <tr key={customer.id} data-clickable="1" onClick={() => nav("/customers/" + customer.id)}>
                     <td><div className="tg-cell-strong">{customer.fullName}</div></td>
                     <td>{customer.phone || "—"}</td>
-                    <td><StatusBadge status={customer.status || "active"} label={dashboardStatusLabel(customer.statusName || customer.status)} /></td>
+                    <td>
+                      {customer.statusColor ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 500, backgroundColor: customer.statusColor + "22", color: customer.statusColor, border: `1px solid ${customer.statusColor}55` }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: customer.statusColor, flexShrink: 0 }} />
+                          {customer.statusName || dashboardStatusLabel(customer.status)}
+                        </span>
+                      ) : (
+                        <StatusBadge status={customer.status || "active"} label={dashboardStatusLabel(customer.statusName || customer.status)} />
+                      )}
+                    </td>
                     <td>{fmtUZS(customer.debtBalanceUzs || 0)}</td>
                   </tr>
                 ))}

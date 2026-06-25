@@ -195,14 +195,12 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <QuickCreate />
-        {/* theme switch */}
-        <ThemeToggle />
-        {/* customize */}
-        <IconButton icon={<I.sliders size={19} />} label={t("customize.title")} onClick={onCustToggle} />
+        <span className="hide-header-mobile"><QuickCreate /></span>
+        <span className="hide-header-mobile"><ThemeToggle /></span>
+        <span className="hide-header-mobile"><IconButton icon={<I.sliders size={19} />} label={t("customize.title")} onClick={onCustToggle} /></span>
         {custOpen && <CustomizePanel onClose={onCustClose} />}
-        {/* language */}
-        <LangSelector />
+        <span className="hide-header-mobile"><LangSelector /></span>
+        <MobileHeaderMenu onCustToggle={onCustToggle} />
         {/* notifications */}
         <div style={{ position: "relative" }}>
           {canAccess(role, "/notifications", data) ? <><IconButton icon={<I.bell size={19} />} label={t("notifications.title")} badge={unread} onClick={() => setNotifOpen(o => !o)} />
@@ -221,7 +219,6 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
         } items={[
           { label: me.label || t("role." + role), icon: <I.shield size={16} />, right: <I.check size={15} style={{ color: "var(--accent)" }} />, onClick: () => {} },
           { divider: true },
-          ...(canAccess(role, "/settings", data) ? [{ label: t("page.settings"), icon: <I.settings size={16} />, onClick: () => nav("/settings") }] : []),
           { label: t("common.logout"), icon: <I.logout size={16} />, danger: true, onClick: logout },
         ]} />
       </div>
@@ -231,16 +228,16 @@ function Header({ route, nav, onMenu, onCmdK, custOpen, onCustToggle, onCustClos
 
 // ---------- Language selector ----------
 const LANGS = [
-  { value: "uz", label: "O'zbek",  flag: "🇺🇿" },
-  { value: "ru", label: "Русский", flag: "🇷🇺" },
-  { value: "en", label: "English", flag: "🇬🇧" },
+  { value: "uz", label: "O'zbek",  code: "UZ", color: "#1eb53a" },
+  { value: "ru", label: "Русский", code: "RU", color: "#d52b1e" },
+  { value: "en", label: "English", code: "GB", color: "#012169" },
 ];
 
-const LANGUAGE_OPTIONS = [
-  { value: "uz", label: "O'zbek", flag: "UZ" },
-  { value: "ru", label: "Русский", flag: "RU" },
-  { value: "en", label: "English", flag: "EN" },
-];
+function FlagIcon({ code, style }) {
+  const F = window.Flags && window.Flags[code];
+  if (!F) return <span style={{ fontSize: 18 }}>{code}</span>;
+  return React.createElement(F, { style: { width: 24, borderRadius: 3, display: "block", ...style } });
+}
 
 function LangSelector() {
   const { lang, setLang, t } = useApp();
@@ -252,24 +249,78 @@ function LangSelector() {
     document.addEventListener("mousedown", on);
     return () => document.removeEventListener("mousedown", on);
   }, [open]);
-  const current = LANGUAGE_OPTIONS.find(l => l.value === lang) || LANGUAGE_OPTIONS[0];
+  const current = LANGS.find(l => l.value === lang) || LANGS[0];
   return (
     <div style={{ position: "relative" }} ref={ref}>
       <button className="tg-iconbtn" onClick={() => setOpen(o => !o)} title={t("common.changeLanguage")}>
-        <I.globe size={19} />
+        <FlagIcon code={current.code} />
       </button>
       {open && (
         <div className="tg-dd-menu pop-in tg-dd-right"
-          style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 172, zIndex: 200 }}>
-          {LANGUAGE_OPTIONS.map(l => (
+          style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 182, zIndex: 200 }}>
+          {LANGS.map(l => (
             <button key={l.value} className="tg-dd-item"
-              style={{ gap: 10 }}
+              style={{ gap: 10, borderLeft: lang === l.value ? `3px solid ${l.color}` : "3px solid transparent" }}
               onClick={() => { setLang(l.value); setOpen(false); }}>
-              <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{l.flag}</span>
-              <span style={{ flex: 1 }}>{l.label}</span>
-              {lang === l.value && <I.check size={14} style={{ color: "var(--accent)" }} />}
+              <FlagIcon code={l.code} style={{ width: 26 }} />
+              <span style={{ flex: 1, color: lang === l.value ? l.color : undefined, fontWeight: lang === l.value ? 600 : undefined }}>{l.label}</span>
+              {lang === l.value && <I.check size={14} style={{ color: l.color }} />}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileHeaderMenu({ onCustToggle }) {
+  const { lang, setLang, theme, setTheme, t, role, data } = useApp();
+  const [open, setOpen] = shS(false);
+  const ref = shR(null);
+  const isLight = resolveLight(theme);
+  const qcItems = [
+    { key: "qc.customer", icon: "user", to: "/customers" },
+    { key: "qc.order", icon: "wallet", to: "/debtors" },
+    { key: "qc.task", icon: "checkCircle", to: "/tasks" },
+    { key: "qc.product", icon: "box", to: "/products" },
+  ].filter((item) => canAccess(role, item.to, data));
+  shE(() => {
+    if (!open) return;
+    const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", on);
+    return () => document.removeEventListener("mousedown", on);
+  }, [open]);
+  return (
+    <div style={{ position: "relative" }} ref={ref} className="show-header-mobile">
+      <IconButton icon={<I.dots size={19} />} onClick={() => setOpen(o => !o)} />
+      {open && (
+        <div className="tg-dd-menu pop-in tg-dd-right"
+          style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 210, zIndex: 200 }}>
+          <div className="tg-mobile-menu-section">{t("common.quickCreate")}</div>
+          {qcItems.map(it => { const Ico = I[it.icon]; return (
+            <button key={it.key} className="tg-dd-item" style={{ gap: 10 }} onClick={() => { window.navTo(it.to); setOpen(false); }}>
+              <Ico size={16} /><span>{t(it.key)}</span>
+            </button>
+          ); })}
+          <div className="tg-dd-divider" />
+          <div className="tg-mobile-menu-section">{t("common.changeLanguage")}</div>
+          {LANGS.map(l => (
+            <button key={l.value} className="tg-dd-item"
+              style={{ gap: 10, borderLeft: lang === l.value ? `3px solid ${l.color}` : "3px solid transparent" }}
+              onClick={() => { setLang(l.value); setOpen(false); }}>
+              <FlagIcon code={l.code} style={{ width: 22 }} />
+              <span style={{ flex: 1, color: lang === l.value ? l.color : undefined, fontWeight: lang === l.value ? 600 : undefined }}>{l.label}</span>
+              {lang === l.value && <I.check size={14} style={{ color: l.color }} />}
+            </button>
+          ))}
+          <div className="tg-dd-divider" />
+          <button className="tg-dd-item" style={{ gap: 10 }} onClick={() => { setTheme(isLight ? "dark" : "light"); setOpen(false); }}>
+            {isLight ? <I.moon size={16} /> : <I.sun size={16} />}
+            <span>{isLight ? (t("theme.dark") || "Qorong'u") : (t("theme.light") || "Yorug'")}</span>
+          </button>
+          <button className="tg-dd-item" style={{ gap: 10 }} onClick={() => { onCustToggle(); setOpen(false); }}>
+            <I.sliders size={16} /><span>{t("customize.title")}</span>
+          </button>
         </div>
       )}
     </div>

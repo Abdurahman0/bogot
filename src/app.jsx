@@ -20,7 +20,7 @@ function Placeholder({ label }) {
 }
 
 function Router() {
-  const { authed, role, dataLoading, data } = useApp();
+  const { authed, role, dataLoading, data, lang } = useApp();
   const [route, nav] = useRoute();
   const [mobileOpen, setMobileOpen] = aS(false);
   const [cmdOpen, setCmdOpen] = aS(false);
@@ -119,7 +119,7 @@ function Router() {
       <Sidebar route={route} nav={nav} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="main-col">
         <Header route={route} nav={nav} onMenu={() => setMobileOpen(true)} onCmdK={() => setCmdOpen(true)} custOpen={custOpen} onCustToggle={() => setCustOpen(o => !o)} onCustClose={() => setCustOpen(false)} />
-        <div className="content" key={main}>{page}</div>
+        <div className="content" key={main + lang}>{page}</div>
       </div>
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} nav={nav} />
       <Toasts />

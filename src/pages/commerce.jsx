@@ -31,6 +31,7 @@ const COMMERCE_UI = {
     remainingLabel: "Qoldiq:", overdueLabel: "Muddati o'tgan:",
     debtorsSearch: "Mijoz, ID, tuman yoki mahalla...", paymentsSearch: "Kategoriya, mijoz, ID...",
     solar: "Quyosh panel biznesi", oldBiz: "Eski biznes",
+    filterDebtorType: "Tur", colStatus: "Holat",
     notePlaceholder: "To'lov kelishuvi yoki eslatma...", currencyPh: "UZS yoki USD",
     phoneRequired: "Telefon raqamini kiriting", phoneLabel: "Telefon", debtorLabel: "Mijoz",
     debtorFormNew: "Yangi qarzdor", debtorFormEdit: "Qarzdor yozuvini tahrirlash",
@@ -72,6 +73,7 @@ const COMMERCE_UI = {
     remainingLabel: "Остаток:", overdueLabel: "Просрочено:",
     debtorsSearch: "Клиент, ID, район или махалля...", paymentsSearch: "Категория, клиент, ID...",
     solar: "Бизнес солнечных панелей", oldBiz: "Старый бизнес",
+    filterDebtorType: "Тип", colStatus: "Статус",
     notePlaceholder: "Договор об оплате или примечание...", currencyPh: "UZS или USD",
     phoneRequired: "Введите номер телефона", phoneLabel: "Телефон", debtorLabel: "Клиент",
     debtorFormNew: "Новый должник", debtorFormEdit: "Редактировать запись должника",
@@ -113,6 +115,7 @@ const COMMERCE_UI = {
     remainingLabel: "Balance:", overdueLabel: "Overdue:",
     debtorsSearch: "Customer, ID, district or mahalla...", paymentsSearch: "Category, customer, ID...",
     solar: "Solar panel business", oldBiz: "Old business",
+    filterDebtorType: "Type", colStatus: "Status",
     notePlaceholder: "Payment agreement or note...", currencyPh: "UZS or USD",
     phoneRequired: "Enter phone number", phoneLabel: "Phone", debtorLabel: "Customer",
     debtorFormNew: "New debtor", debtorFormEdit: "Edit debtor record",
@@ -238,6 +241,7 @@ function OrdersPage() {
   const [exporting, setExporting] = coS(false);
   const [dateFrom, setDateFrom] = coS("");
   const [dateTo, setDateTo] = coS("");
+  const [debtorTypeFilter, setDebtorTypeFilter] = coS("all");
   const [createOpen, setCreateOpen] = coS(false);
   const [editOrder, setEditOrder] = coS(null);
   const [deleteOrder, setDeleteOrder] = coS(null);
@@ -285,11 +289,12 @@ function OrdersPage() {
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
     if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
+    if (debtorTypeFilter !== "all" && o.debtorType !== debtorTypeFilter) return false;
     if (showLocationFilters && districtFilter !== "all" && orderTuman(o) !== districtFilter) return false;
     if (showLocationFilters && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
     if (!orderDateMatchesRange(orderTakenDate(o), dateFrom, dateTo)) return false;
     return true;
-  }), [data.orders, q, statusTab, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
+  }), [data.orders, q, statusTab, debtorTypeFilter, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
 
   const grouped = coM(() => {
     const map = new Map();
@@ -359,6 +364,7 @@ function OrdersPage() {
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("debtorsSearch")} width={260} />
+        <FilterSelect label={comTx("filterDebtorType")} icon="layers" value={debtorTypeFilter} onChange={setDebtorTypeFilter} options={[{ value: "moto_business", label: comTx("oldBiz") }, { value: "solar_panel", label: comTx("solar") }]} />
         {showLocationFilters && <FilterSelect label={comTx("colDistrict")} icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
         {showLocationFilters && <FilterSelect label={comTx("colMahalla")} icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
         <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder={comTx("startDate")} /></div>
@@ -381,8 +387,9 @@ function OrdersPage() {
               { key: "name", label: comTx("colCustomer"), sortVal: (row) => row.customerName, render: (row) => <div><div className="tg-cell-strong">{row.customerName}</div><div className="tg-cell-sub">{row.phone || row.id}</div></div> },
               { key: "district", label: comTx("colDistrict"), sortVal: (row) => orderTuman(row), render: (row) => orderTuman(row) || <span className="tg-cell-sub">—</span> },
               { key: "mahalla", label: comTx("colMahalla"), sortVal: (row) => orderMahalla(row), render: (row) => orderMahalla(row) || <span className="tg-cell-sub">—</span> },
+              { key: "type", label: comTx("filterDebtorType"), sortVal: (row) => row.debtorType || "", render: (row) => row.debtorType === "solar_panel" ? <Badge color="blue" size="sm">{comTx("solar")}</Badge> : row.debtorType === "moto_business" ? <Badge color="amber" size="sm">{comTx("oldBiz")}</Badge> : <span className="tg-cell-sub">—</span> },
+              { key: "status", label: comTx("colStatus"), sortVal: (row) => debtNum(row.overdueAmountUzs) > 0 ? 2 : debtNum(row.remainingDebtUzs) > 0 ? 1 : 0, render: (row) => { const ov = debtNum(row.overdueAmountUzs); const rem = debtNum(row.remainingDebtUzs); return <Badge color={ov > 0 ? "red" : rem > 0 ? "amber" : "green"} size="sm">{ov > 0 ? comTx("overdue") : rem > 0 ? comTx("withDebt") : comTx("closed")}</Badge>; } },
               { key: "debt", label: comTx("colDebt"), sortVal: (row) => debtNum(row.remainingDebtUzs), render: (row) => <span style={{ fontWeight: 700 }}>{rawDebt(row.remainingDebtUzs) ?? "—"}</span> },
-              { key: "overdue", label: comTx("tabOverdue"), sortVal: (row) => debtNum(row.overdueAmountUzs), render: (row) => <Badge color={debtNum(row.overdueAmountUzs) > 0 ? "red" : "slate"} size="sm">{rawDebt(row.overdueAmountUzs) ?? "—"}</Badge> },
             ]}
             rows={filtered}
             onRowClick={(row) => nav("/debtors/" + row.id)}

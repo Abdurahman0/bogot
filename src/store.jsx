@@ -121,7 +121,12 @@ function AppProvider({ children }) {
 
   const [theme, setTheme] = useState(savedPrefs.theme || "dark");
   const [accent, setAccent] = useState(savedPrefs.accent || "#6366f1");
-  const [lang, setLang] = useState(savedPrefs.lang || "uz");
+  const [lang, setLang_] = useState(() => {
+    const l = savedPrefs.lang || "uz";
+    window.__TG_LANG = l;
+    return l;
+  });
+  const setLang = useCallback((l) => { window.__TG_LANG = l; setLang_(l); }, []);
   const [density, setDensity] = useState(savedPrefs.density || "comfortable");
   const [layout, setLayout] = useState(savedPrefs.layout || "sidebar");
   const [container, setContainer] = useState(savedPrefs.container || "fluid");
@@ -140,9 +145,6 @@ function AppProvider({ children }) {
     window.TUMAN_MAHALLA = data.locations;
   }, [data]);
 
-  useEffect(() => {
-    window.__TG_LANG = lang;
-  }, [lang]);
 
   useEffect(() => {
     localStorage.setItem(PREF_KEY, JSON.stringify({

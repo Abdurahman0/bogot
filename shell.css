@@ -39,9 +39,16 @@
 @media (max-width: 860px){ .tg-account-info { display: none; } }
 .tg-flag { font-size: 10px; font-weight: 800; letter-spacing: .04em; color: var(--text-2); background: var(--surface-3); padding: 2px 5px; border-radius: 5px; }
 .hide-sm { } @media (max-width: 560px){ .hide-sm { display: none; } }
+.hide-header-mobile { } .show-header-mobile { display: none !important; }
+@media (max-width: 640px) { .hide-header-mobile { display: none !important; } .show-header-mobile { display: flex !important; } }
+.tg-mobile-menu-section { padding: 5px 12px 3px; font-size: 10.5px; color: var(--text-3); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 
 /* ---- Notification panel ---- */
 .tg-notif-panel { position: absolute; top: calc(100% + 8px); right: 0; width: 360px; max-width: 92vw; background: var(--elevated); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); z-index: 90; overflow: hidden; }
+@media (max-width: 640px) {
+  .tg-notif-panel { position: fixed; top: var(--header-h); left: 0; right: 0; width: 100%; max-width: 100%; border-radius: 0 0 16px 16px; border-left: none; border-right: none; border-top: none; }
+  .tg-notif-list { max-height: calc(100dvh - var(--header-h) - 100px); }
+}
 .tg-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .tg-link { background: none; border: none; color: var(--accent); font-size: 12.5px; font-weight: 560; }
 .tg-link:hover { text-decoration: underline; }

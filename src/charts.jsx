@@ -191,7 +191,7 @@ function Donut({ data, size = 180, thickness = 26, centerLabel, centerValue }) {
             onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
             <span style={{ width: 10, height: 10, borderRadius: 3, background: d.color, flexShrink: 0 }} />
             <span style={{ flex: 1, color: "var(--text-2)" }}>{d.label}</span>
-            <span style={{ fontWeight: 650 }}>{Math.round(d.value / total * 100)}%</span>
+            <span style={{ fontWeight: 650 }}>{d.value}</span>
           </div>
         ))}
       </div>
