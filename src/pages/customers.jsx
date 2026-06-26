@@ -517,7 +517,7 @@ function CustomersPage() {
     { key: "system", label: ctx("system"), sortVal: r => r.currentSystemKw, render: r => <span>{r.currentSystemKw} kW</span> },
     { key: "payment", label: ctx("payment"), render: r => <Badge color={r.paymentType === "credit" ? "amber" : "green"} size="sm">{r.paymentTypeLabel}</Badge> },
     { key: "spent", label: ctx("amountReceived"), sortVal: r => r.totalSpent, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.totalSpent)}</span> },
-    { key: "debt", label: ctx("remainingDebt"), sortVal: r => r.debtBalanceUzs, render: r => <Badge color={r.debtBalanceUzs > 0 ? "red" : "green"} size="sm">{fmtShort(r.debtBalanceUzs)}</Badge> },
+    { key: "subsidy", label: ctx("subsidyAmount"), sortVal: r => r.subsidyAmount, render: r => <span style={{ fontWeight: 650 }}>{fmtShort(r.subsidyAmount)}</span> },
     { key: "status", label: ctx("status"), render: r => <StatusColorBadge color={customerStatusColor(r)} tone={customerStatusTone(r)} label={localizeCustomerStatusName(r.statusName || r.status)} /> },
     { key: "actions", label: "", width: 44, render: r => (
       <div onClick={e => e.stopPropagation()}>
@@ -678,7 +678,7 @@ function CustomersPage() {
             <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{filtered.length} ta</span>
           </div>
           <Card pad={false}>
-            {loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={{ key: "debt", dir: "desc" }} />}
+            {loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={{ key: "subsidy", dir: "desc" }} />}
           </Card>
         </>
       )}
@@ -840,7 +840,7 @@ function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
           </div>
           <div className="tg-customer-view-kpis">
             <div className="tg-customer-view-kpi"><span>{ctx("amountReceived")}</span><strong>{fmtUZS(customer.totalSpent)}</strong></div>
-            <div className="tg-customer-view-kpi"><span>{ctx("remainingDebt")}</span><strong>{fmtUZS(customer.debtBalanceUzs)}</strong></div>
+            <div className="tg-customer-view-kpi"><span>{ctx("subsidyAmount")}</span><strong>{fmtUZS(customer.subsidyAmount)}</strong></div>
             <div className="tg-customer-view-kpi"><span>{ctx("requestedPower")}</span><strong>{customer.currentSystemKw || 0} kW</strong></div>
           </div>
         </section>
@@ -875,7 +875,7 @@ function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
             <div className="tg-customer-view-meta">
               <div className="tg-customer-view-row"><span>{ctx("paymentType")}</span><strong>{customerTextValue(customer.paymentTypeLabel)}</strong></div>
               <div className="tg-customer-view-row"><span>{ctx("deposit")}</span><strong>{fmtUZS(customer.totalSpent)}</strong></div>
-              <div className="tg-customer-view-row"><span>{ctx("subsidyAmount")}</span><strong>{fmtUZS(customer.debtBalanceUzs)}</strong></div>
+              <div className="tg-customer-view-row"><span>{ctx("subsidyAmount")}</span><strong>{fmtUZS(customer.subsidyAmount)}</strong></div>
               <div className="tg-customer-view-row"><span>{ctx("contractId")}</span><strong>{customerTextValue(customer.contractId)}</strong></div>
               <div className="tg-customer-view-row"><span>{ctx("cardNumber")}</span><strong>{customerTextValue(customer.cardNumber)}</strong></div>
               <div className="tg-customer-view-row"><span>{ctx("bankBranchCode")}</span><strong>{customerTextValue(customer.bankBranchCode)}</strong></div>
@@ -938,6 +938,7 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
     statusId: defaultStatus?.id || null,
     statusName: defaultStatus?.name || "",
     totalSpent: 0,
+    subsidyAmount: 0,
     debtBalanceUzs: 0,
     contractId: "",
     pnfl: "",
@@ -966,24 +967,25 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
       ...initial,
       ...form,
       paymentTypeLabel: PAYMENT_TYPE_UZ[form.paymentType],
-      debtBalanceUzs: +form.debtBalanceUzs,
+      subsidyAmount: +form.subsidyAmount,
       totalSpent: +form.totalSpent,
       currentSystemKw: +form.currentSystemKw,
       statusId: form.statusId || null,
       statusName: data.clientStatuses.find((status) => status.id === form.statusId)?.name || form.statusName || "",
-      lifetimeValue: +form.totalSpent + +form.debtBalanceUzs,
+      lifetimeValue: +form.totalSpent + +form.subsidyAmount,
     } : {
       id: "C" + Math.floor(Math.random() * 9000 + 1000),
       ...form,
       paymentTypeLabel: PAYMENT_TYPE_UZ[form.paymentType],
       currentSystemKw: +form.currentSystemKw,
       totalSpent: +form.totalSpent,
-      debtBalanceUzs: +form.debtBalanceUzs,
+      subsidyAmount: +form.subsidyAmount,
+      debtBalanceUzs: 0,
       overdueDebtUzs: 0,
       ordersCount: 1,
       lastPurchase: new Date().toISOString(),
       lastActivity: new Date().toISOString(),
-      lifetimeValue: +form.totalSpent + +form.debtBalanceUzs,
+      lifetimeValue: +form.totalSpent + +form.subsidyAmount,
       source: "manual",
       preferredChannel: "manual",
       createdAt: new Date().toISOString(),
@@ -1087,7 +1089,7 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
             <Field label={ctx("paymentType")}><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={PAYMENT_TYPES.map(v => ({ value: v, label: PAYMENT_TYPE_UZ[v] }))} /></Field>
             <Field label={ctx("contractId")}><Input value={form.contractId} onChange={e => set("contractId", e.target.value)} /></Field>
             <Field label={ctx("amountReceived")}><Input type="number" value={form.totalSpent} onChange={e => set("totalSpent", e.target.value)} /></Field>
-            <Field label={ctx("remainingDebt")}><Input type="number" value={form.debtBalanceUzs} onChange={e => set("debtBalanceUzs", e.target.value)} /></Field>
+            <Field label={ctx("subsidyAmount")}><Input type="number" value={form.subsidyAmount} onChange={e => set("subsidyAmount", e.target.value)} /></Field>
             <Field label={ctx("cardNumber")}><Input value={form.cardNumber} onChange={e => set("cardNumber", e.target.value)} /></Field>
             <Field label={ctx("bankBranchCode")}><Input value={form.bankBranchCode} onChange={e => set("bankBranchCode", e.target.value)} /></Field>
             <div style={{ gridColumn: "1 / -1" }}><Field label={ctx("bankAccountNumber")}><Input value={form.bankAccountNumber} onChange={e => set("bankAccountNumber", e.target.value)} /></Field></div>
@@ -1152,7 +1154,7 @@ function CustomerDetailPage({ id }) {
           </div>
           <div style={{ display: "flex", gap: 22 }}>
             <div style={{ textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 760, color: "var(--teal)" }}>{fmtShort(c.totalSpent)}</div><div style={{ fontSize: 11, color: "var(--text-3)" }}>{ctx("amountReceived")}</div></div>
-            <div style={{ textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 760, color: c.debtBalanceUzs > 0 ? "var(--red)" : "var(--green)" }}>{fmtShort(c.debtBalanceUzs)}</div><div style={{ fontSize: 11, color: "var(--text-3)" }}>{ctx("remainingDebt")}</div></div>
+            <div style={{ textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 760, color: "var(--teal)" }}>{fmtShort(c.subsidyAmount)}</div><div style={{ fontSize: 11, color: "var(--text-3)" }}>{ctx("subsidyAmount")}</div></div>
           </div>
         </div>
       </Card>
