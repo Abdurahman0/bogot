@@ -42,6 +42,7 @@ const COMMERCE_UI = {
     startDate: "Boshlanish sanasi", endDate: "Tugash sanasi",
     districtPh: "Masalan, Bog'ot", mahallaPh: "Masalan, Yangiobod",
     catalogCrumb: "Katalog va moliya", actions: "Amallar", edit: "Tahrirlash", delete: "O'chirish", view: "Ko'rish", cancel: "Bekor qilish", save: "Saqlash", create: "Yaratish", close: "Yopish", clear: "Tozalash",
+    incomeUzs: "Kirim (so'm)", incomeUsd: "Dollar kirim", expenseUzs: "Chiqim (so'm)", expenseUsd: "Dollar chiqim", netUzs: "Sof oqim (so'm)", netUsd: "Sof oqim ($)",
   },
   ru: {
     overdue: "Просрочено", withDebt: "Есть остаток", closed: "Закрыто",
@@ -84,6 +85,7 @@ const COMMERCE_UI = {
     startDate: "Дата начала", endDate: "Дата окончания",
     districtPh: "Напр., Богот", mahallaPh: "Напр., Янгиобод",
     catalogCrumb: "Каталог и финансы", actions: "Действия", edit: "Редактировать", delete: "Удалить", view: "Просмотр", cancel: "Отмена", save: "Сохранить", create: "Создать", close: "Закрыть", clear: "Очистить",
+    incomeUzs: "Приход (сум)", incomeUsd: "Приход ($)", expenseUzs: "Расход (сум)", expenseUsd: "Расход ($)", netUzs: "Чистый поток (сум)", netUsd: "Чистый поток ($)",
   },
   en: {
     overdue: "Overdue", withDebt: "Has balance", closed: "Closed",
@@ -126,6 +128,7 @@ const COMMERCE_UI = {
     startDate: "Start date", endDate: "End date",
     districtPh: "e.g. Bogot", mahallaPh: "e.g. Yangiobod",
     catalogCrumb: "Catalog & Finance", actions: "Actions", edit: "Edit", delete: "Delete", view: "View", cancel: "Cancel", save: "Save", create: "Create", close: "Close", clear: "Clear",
+    incomeUzs: "Income (UZS)", incomeUsd: "Dollar income", expenseUzs: "Expense (UZS)", expenseUsd: "Dollar expense", netUzs: "Net flow (UZS)", netUsd: "Net flow ($)",
   },
 };
 function comLang() { return window.__TG_LANG || "uz"; }
@@ -156,6 +159,14 @@ const orderMahalla = (order) => order?.mahalla || "";
 const orderLocationLabel = (order) => [orderTuman(order), orderMahalla(order)].filter(Boolean).join(" / ");
 const hasOrderLocation = (order) => !!orderLocationLabel(order);
 const debtorMahallasFor = (district, locations) => orderLocations(locations)[district] || [];
+const isDollarPayment = (p) => {
+  const m = String(p.method || p.currency || "").toLowerCase();
+  return m.includes("dollar") || p.rawCategory === "dollar_income" || p.rawCategory === "dollar_expense";
+};
+const fmtPaymentAmount = (p) => {
+  if (isDollarPayment(p)) return `$${Number(p.amountUzs || 0).toLocaleString("en-US")}`;
+  return fmtUZS(p.amountUzs);
+};
 const ACCOUNTING_CATEGORY_OPTIONS = [
   { value: "cash_income", label: "Naqd kirim" },
   { value: "card_income", label: "Karta kirimi" },
@@ -668,7 +679,8 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
 }
 
 function OrderDetailPage({ id }) {
-  const { data, nav, t } = useApp();
+  const { data, nav, t, upsert, toast } = useApp();
+  const [editOpen, setEditOpen] = coS(false);
   const o = data.orders.find(x => x.id === id);
   if (!o) return <div className="page"><Card><EmptyState title={comTx("debtorNotFound")} action={<Button onClick={() => nav("/debtors")}>{comTx("backToDebtors")}</Button>} /></Card></div>;
   const cust = data.customers.find(c => c.id === o.customerId);
@@ -679,7 +691,8 @@ function OrderDetailPage({ id }) {
   const overdueAmount = debtNum(o.overdueAmountUzs);
   return (
     <div className="page fade-in">
-      <PageHeader crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.orders"), to: "/debtors" }, { label: o.customerName }]} title={o.customerName} />
+      <PageHeader crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.orders"), to: "/debtors" }, { label: o.customerName }]} title={o.customerName}
+        actions={<Button variant="primary" size="sm" icon={<I.edit size={15} />} onClick={() => setEditOpen(true)}>{comTx("edit")}</Button>} />
       <div className="grid-dash">
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Panel title={comTx("debtPanel")} icon="wallet" color="amber">
@@ -723,6 +736,17 @@ function OrderDetailPage({ id }) {
           </Panel>
         </div>
       </div>
+      <OrderFormModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        initial={o}
+        locations={data.locations}
+        onSave={async (order) => {
+          await upsert("orders", order);
+          toast(comTx("debtorUpdated"));
+          setEditOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -754,14 +778,16 @@ function PaymentsPage() {
     if (direction !== "all" && p.direction !== direction) return false;
     return true;
   }), [data.payments, q, direction]);
-  const income = data.payments.filter(p => p.direction === "income").reduce((s, p) => s + p.amountUzs, 0);
-  const expense = data.payments.filter(p => p.direction === "expense").reduce((s, p) => s + p.amountUzs, 0);
+  const uzsIncome = data.payments.filter(p => p.direction === "income" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const usdIncome = data.payments.filter(p => p.direction === "income" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const uzsExpense = data.payments.filter(p => p.direction === "expense" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const usdExpense = data.payments.filter(p => p.direction === "expense" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const columns = [
     { key: "date", label: comTx("dateCol"), sortVal: r => r.date, render: r => <span className="tg-cell-sub">{fmtDate(r.date)}</span> },
     { key: "direction", label: comTx("direction"), render: r => <Badge color={r.direction === "income" ? "green" : "red"} size="sm">{r.direction === "income" ? comTx("income") : comTx("expense")}</Badge> },
     { key: "category", label: comTx("category"), sortVal: r => r.category, render: r => r.category },
     { key: "customer", label: comTx("subject"), sortVal: r => r.customerName, render: r => r.customerName },
-    { key: "amount", label: comTx("amountCol"), sortVal: r => r.amountUzs, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.amountUzs)}</span> },
+    { key: "amount", label: comTx("amountCol"), sortVal: r => r.amountUzs, render: r => <span style={{ fontWeight: 650 }}>{fmtPaymentAmount(r)}</span> },
     { key: "method", label: comTx("methodCol"), render: r => <Badge color="slate" size="sm">{r.method}</Badge> },
     { key: "by", label: comTx("by"), render: r => <span style={{ fontSize: 12.5 }}>{r.processedBy.split(" ")[0]}</span> },
     { key: "actions", label: "", width: 44, render: r => (
@@ -782,10 +808,15 @@ function PaymentsPage() {
           <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportAccountingExcel} disabled={exporting}>Excel</Button>
           <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{comTx("newRecord")}</Button>
         </>} />
+      <div className="grid-kpi" style={{ marginBottom: 10 }}>
+        <StatTile label={comTx("incomeUzs")} value={fmtShort(uzsIncome)} sub="so'm" color="green" />
+        <StatTile label={comTx("incomeUsd")} value={fmtShort(usdIncome)} sub="$" color="teal" />
+        <StatTile label={comTx("expenseUzs")} value={fmtShort(uzsExpense)} sub="so'm" color="red" />
+        <StatTile label={comTx("expenseUsd")} value={fmtShort(usdExpense)} sub="$" color="amber" />
+      </div>
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
-        <StatTile label={comTx("income")} value={fmtShort(income)} sub="so'm" color="green" />
-        <StatTile label={comTx("expense")} value={fmtShort(expense)} sub="so'm" color="red" />
-        <StatTile label={comTx("netFlow")} value={fmtShort(income - expense)} sub="so'm" color={(income - expense) >= 0 ? "green" : "red"} />
+        <StatTile label={comTx("netUzs")} value={fmtShort(uzsIncome - uzsExpense)} sub="so'm" color={(uzsIncome - uzsExpense) >= 0 ? "green" : "red"} />
+        <StatTile label={comTx("netUsd")} value={fmtShort(usdIncome - usdExpense)} sub="$" color={(usdIncome - usdExpense) >= 0 ? "green" : "red"} />
         <StatTile label={comTx("records")} value={data.payments.length} color="blue" />
       </div>
       <div className="toolbar">
@@ -853,7 +884,7 @@ function PaymentViewModal({ open, onClose, onEdit, onDelete, payment }) {
         <div className="tg-meta-row"><span className="tg-meta-k">{comTx("direction")}</span><span className="tg-meta-v">{payment.direction === "income" ? comTx("income") : comTx("expense")}</span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">{comTx("category")}</span><span className="tg-meta-v">{payment.category}</span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">{comTx("subject")}</span><span className="tg-meta-v">{payment.customerName}</span></div>
-        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("amountCol")}</span><span className="tg-meta-v">{fmtUZS(payment.amountUzs)}</span></div>
+        <div className="tg-meta-row"><span className="tg-meta-k">{comTx("amountCol")}</span><span className="tg-meta-v">{fmtPaymentAmount(payment)}</span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">{comTx("currency")}</span><span className="tg-meta-v">{payment.currency || payment.method || "UZS"}</span></div>
         <div className="tg-meta-row"><span className="tg-meta-k">{comTx("sortOrder")}</span><span className="tg-meta-v">{payment.sortOrder || 0}</span></div>
       </div>

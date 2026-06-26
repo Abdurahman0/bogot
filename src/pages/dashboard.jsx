@@ -25,6 +25,7 @@ const DASHBOARD_UI = {
     panelTeamLoad: "Jamoa yuklamasi", panelTeamLoadSub: "Xodimlar bo'yicha vazifa taqsimoti",
     colEmployee: "Xodim", colOpenTasks: "Ochiq vazifa", colDone: "Bajarilgan",
     debtorTypeSolar: "Quyosh panel", debtorTypeOld: "Eski biznes", userFallback: "Foydalanuvchi",
+    accIncomeUzs: "Kirim (so'm)", accIncomeUsd: "Dollar kirim", accExpenseUzs: "Chiqim (so'm)", accNetUzs: "Sof oqim",
   },
   ru: {
     heroSub: "Bogot Armada NRG внутренняя CRM • клиенты, задачи, должники и расчёты в одной панели",
@@ -50,6 +51,7 @@ const DASHBOARD_UI = {
     panelTeamLoad: "Нагрузка команды", panelTeamLoadSub: "Распределение задач по сотрудникам",
     colEmployee: "Сотрудник", colOpenTasks: "Открытых задач", colDone: "Выполнено",
     debtorTypeSolar: "Солнечная панель", debtorTypeOld: "Старый бизнес", userFallback: "Пользователь",
+    accIncomeUzs: "Приход (сум)", accIncomeUsd: "Приход ($)", accExpenseUzs: "Расход (сум)", accNetUzs: "Чистый поток",
   },
   en: {
     heroSub: "Bogot Armada NRG internal CRM • clients, tasks, debtors and payments in one panel",
@@ -75,6 +77,7 @@ const DASHBOARD_UI = {
     panelTeamLoad: "Team workload", panelTeamLoadSub: "Task distribution by employees",
     colEmployee: "Employee", colOpenTasks: "Open tasks", colDone: "Done",
     debtorTypeSolar: "Solar panel", debtorTypeOld: "Moto business", userFallback: "User",
+    accIncomeUzs: "Income (UZS)", accIncomeUsd: "Dollar income", accExpenseUzs: "Expense (UZS)", accNetUzs: "Net flow",
   },
 };
 function dashLang() { return window.__TG_LANG || "uz"; }
@@ -250,6 +253,12 @@ function DashboardPage() {
     .sort((a, b) => b.openTasks - a.openTasks)
     .slice(0, 5), [data.tasks, data.users]);
 
+  const accIsDollar = (p) => { const m = String(p.method || p.currency || "").toLowerCase(); return m.includes("dollar") || p.rawCategory === "dollar_income" || p.rawCategory === "dollar_expense"; };
+  const accUzsIncome = pM(() => data.payments.filter(p => p.direction === "income" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [data.payments]);
+  const accUsdIncome = pM(() => data.payments.filter(p => p.direction === "income" && accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [data.payments]);
+  const accUzsExpense = pM(() => data.payments.filter(p => p.direction === "expense" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [data.payments]);
+  const accUzsNet = accUzsIncome - accUzsExpense;
+
   return (
     <div className="page fade-in">
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
@@ -272,6 +281,13 @@ function DashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="grid-kpi" style={{ marginBottom: 16 }}>
+        <StatTile label={dashTx("accIncomeUzs")} value={fmtShort(accUzsIncome)} sub="so'm" color="green" />
+        <StatTile label={dashTx("accIncomeUsd")} value={fmtShort(accUsdIncome)} sub="$" color="teal" />
+        <StatTile label={dashTx("accExpenseUzs")} value={fmtShort(accUzsExpense)} sub="so'm" color="red" />
+        <StatTile label={dashTx("accNetUzs")} value={fmtShort(accUzsNet)} sub="so'm" color={accUzsNet >= 0 ? "green" : "red"} />
       </div>
 
       <div className="grid-dash" style={{ marginBottom: 16 }}>
