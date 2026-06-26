@@ -244,6 +244,7 @@ window.OrderRow = OrderRow;
 
 function OrdersPage() {
   const { data, t, nav, upsert, remove, toast } = useApp();
+  const canManage = canDo("accounting.manage", data);
   const loading = useLoading(320);
   const [q, setQ] = coS("");
   const [statusTab, setStatusTab] = coS("all");
@@ -425,13 +426,13 @@ function OrdersPage() {
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {group.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+                {group.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
               </div>
             </Card>
           ))}
           {!!grouped.ungrouped.length && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
             </div>
           )}
         </div>
@@ -467,7 +468,7 @@ function OrdersPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {mahallaGroup.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+                      {mahallaGroup.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
                     </div>
                   </Card>
                 ))}
@@ -476,7 +477,7 @@ function OrdersPage() {
           ))}
           {!!grouped.ungrouped.length && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={() => setEditOrder(o)} onDelete={() => setDeleteOrder(o)} />)}
+              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
             </div>
           )}
         </div>
@@ -754,15 +755,40 @@ window.OrderDetailPage = OrderDetailPage;
 
 function PaymentsPage() {
   const { data, t, upsert, remove, toast } = useApp();
+  const canManagePayments = canDo("accounting.manage", data);
   const loading = useLoading(320);
   const [q, setQ] = coS("");
   const [direction, setDirection] = coS("all");
+  const [categoryFilter, setCategoryFilter] = coS("all");
+  const [currencyFilter, setCurrencyFilter] = coS("all");
+  const [dateRange, setDateRange] = coS("all");
+  const { dateFrom, dateTo } = coM(() => {
+    if (!dateRange || dateRange === "all") return { dateFrom: "", dateTo: "" };
+    const today = new Date();
+    const toStr = d => d.toISOString().slice(0, 10);
+    const todayStr = toStr(today);
+    if (dateRange === "today") return { dateFrom: todayStr, dateTo: todayStr };
+    const days = { "7d": 6, "30d": 29, "90d": 89 }[dateRange];
+    if (days !== undefined) {
+      const from = new Date(today); from.setDate(from.getDate() - days);
+      return { dateFrom: toStr(from), dateTo: todayStr };
+    }
+    if (dateRange && typeof dateRange === "object" && dateRange.from) {
+      return { dateFrom: toStr(dateRange.from), dateTo: dateRange.to ? toStr(dateRange.to) : toStr(today) };
+    }
+    return { dateFrom: "", dateTo: "" };
+  }, [dateRange]);
   const [createOpen, setCreateOpen] = coS(false);
   const [exporting, setExporting] = coS(false);
   const exportAccountingExcel = async () => {
     try {
       setExporting(true);
-      await apiDownloadAccountingExcel();
+      await apiDownloadAccountingExcel({
+        ...(dateFrom ? { date_from: dateFrom } : {}),
+        ...(dateTo ? { date_to: dateTo } : {}),
+        ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
+        ...(currencyFilter !== "all" ? { currency: currencyFilter } : {}),
+      });
       toast(comTx("excelOk"));
     } catch (e) {
       toast(e.message || "Excel bajarilmadi", "error");
@@ -776,8 +802,12 @@ function PaymentsPage() {
   const filtered = coM(() => data.payments.filter(p => {
     if (q && !p.customerName.toLowerCase().includes(q.toLowerCase()) && !(p.orderId || "").toLowerCase().includes(q.toLowerCase()) && !p.category.toLowerCase().includes(q.toLowerCase())) return false;
     if (direction !== "all" && p.direction !== direction) return false;
+    if (categoryFilter !== "all" && p.rawCategory !== categoryFilter) return false;
+    if (currencyFilter !== "all" && String(p.method || "").toUpperCase() !== currencyFilter) return false;
+    if (dateFrom && (p.date || "").slice(0, 10) < dateFrom) return false;
+    if (dateTo && (p.date || "").slice(0, 10) > dateTo) return false;
     return true;
-  }), [data.payments, q, direction]);
+  }), [data.payments, q, direction, categoryFilter, currencyFilter, dateFrom, dateTo, dateRange]);
   const uzsIncome = data.payments.filter(p => p.direction === "income" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const usdIncome = data.payments.filter(p => p.direction === "income" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const uzsExpense = data.payments.filter(p => p.direction === "expense" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
@@ -794,9 +824,11 @@ function PaymentsPage() {
       <div onClick={e => e.stopPropagation()}>
         <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label={comTx("actions")} />} items={[
           { label: comTx("view"), icon: <I.eye size={16} />, onClick: () => setViewPayment(r) },
-          { label: comTx("edit"), icon: <I.edit size={16} />, onClick: () => setEditPayment(r) },
-          { divider: true },
-          { label: comTx("delete"), icon: <I.trash size={16} />, danger: true, onClick: () => setDeletePayment(r) },
+          ...(canManagePayments ? [
+            { label: comTx("edit"), icon: <I.edit size={16} />, onClick: () => setEditPayment(r) },
+            { divider: true },
+            { label: comTx("delete"), icon: <I.trash size={16} />, danger: true, onClick: () => setDeletePayment(r) },
+          ] : []),
         ]} />
       </div>
     ) },
@@ -820,16 +852,20 @@ function PaymentsPage() {
         <StatTile label={comTx("records")} value={data.payments.length} color="blue" />
       </div>
       <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder={comTx("paymentsSearch")} width={260} />
+        <SearchInput value={q} onChange={setQ} placeholder={comTx("paymentsSearch")} width={240} />
         <FilterSelect label={comTx("direction")} icon="chart" value={direction} onChange={setDirection} options={[{ value: "income", label: comTx("income") }, { value: "expense", label: comTx("expense") }]} />
+        <FilterSelect label={comTx("category")} icon="layers" value={categoryFilter} onChange={setCategoryFilter} options={ACCOUNTING_CATEGORY_OPTIONS} />
+        <FilterSelect label={comTx("currency")} icon="wallet" value={currencyFilter} onChange={setCurrencyFilter} options={[{ value: "UZS", label: "UZS" }, { value: "USD", label: "USD" }]} />
+        <DateRange value={dateRange} onChange={setDateRange} />
+        {(dateRange !== "all" || categoryFilter !== "all" || currencyFilter !== "all") && <Button variant="ghost" size="sm" onClick={() => { setDateRange("all"); setCategoryFilter("all"); setCurrencyFilter("all"); }}>{comTx("clear")}</Button>}
         <div className="toolbar-spacer" />
       </div>
       <Card pad={false}>{loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewPayment(r)} defaultSort={{ key: "date", dir: "desc" }} />}</Card>
       <PaymentViewModal
         open={!!viewPayment}
         onClose={() => setViewPayment(null)}
-        onEdit={() => { setEditPayment(viewPayment); setViewPayment(null); }}
-        onDelete={() => { setDeletePayment(viewPayment); setViewPayment(null); }}
+        onEdit={canManagePayments ? () => { setEditPayment(viewPayment); setViewPayment(null); } : undefined}
+        onDelete={canManagePayments ? () => { setDeletePayment(viewPayment); setViewPayment(null); } : undefined}
         payment={viewPayment}
       />
       <PaymentFormModal
@@ -875,8 +911,8 @@ function PaymentViewModal({ open, onClose, onEdit, onDelete, payment }) {
   return (
     <Modal open={open} onClose={onClose} title={comTx("paymentViewTitle")} icon={<I.chart size={18} />} width={480}
       footer={<>
-        <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{comTx("edit")}</Button>
-        <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{comTx("delete")}</Button>
+        {onEdit && <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{comTx("edit")}</Button>}
+        {onDelete && <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{comTx("delete")}</Button>}
         <Button variant="primary" onClick={onClose}>{comTx("close")}</Button>
       </>}>
       <div className="tg-meta">

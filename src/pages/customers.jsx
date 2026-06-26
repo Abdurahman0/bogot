@@ -471,6 +471,7 @@ function StatusColorBadge({ label, color, tone = "blue", suffix = null }) {
 
 function CustomersPage() {
   const { data, t, nav, upsert, remove, toast } = useApp();
+  const canManage = canDo("clients.manage", data);
   const loading = useLoading(300);
   const [viewMode, setViewMode] = cuS("clients");
   const [q, setQ] = cuS("");
@@ -706,8 +707,8 @@ function CustomersPage() {
       <CustomerViewModal
         open={!!viewCustomer}
         onClose={() => setViewCustomer(null)}
-        onEdit={() => { setEditCustomer(viewCustomer); setViewCustomer(null); }}
-        onDelete={() => { setDeleteCustomer(viewCustomer); setViewCustomer(null); }}
+        onEdit={canManage ? () => { setEditCustomer(viewCustomer); setViewCustomer(null); } : undefined}
+        onDelete={canManage ? () => { setDeleteCustomer(viewCustomer); setViewCustomer(null); } : undefined}
         customer={viewCustomer}
       />
       <CustomerFormModal
@@ -812,14 +813,15 @@ function CustomerStatusModal({ open, onClose, onSave, form, setField, defaultCli
 
 function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
   const { data } = useApp();
+  const canManage = canDo("clients.manage", data);
   if (!customer) return null;
   const product = (data.products || []).find((row) => row.id === customer.productId);
   const productLabel = product?.model || product?.name || product?.title || customer.productId || "";
   return (
     <Modal open={open} onClose={onClose} title={ctx("customerDetails")} icon={<I.users size={18} />} width={760}
       footer={<>
-        <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ctx("edit")}</Button>
-        <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ctx("delete")}</Button>
+        {canManage && <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ctx("edit")}</Button>}
+        {canManage && <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ctx("delete")}</Button>}
         <Button variant="primary" onClick={onClose}>{window.TRANSLATIONS?.[customerLang()]?.["common.close"] || "Yopish"}</Button>
       </>}>
       <div className="tg-customer-view-shell">

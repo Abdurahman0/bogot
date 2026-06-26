@@ -48,7 +48,7 @@ const PAGE_PERMISSION_MAP = {
   "/users": ["users.view", "users.manage"],
   "/notifications": ["notifications.view", "notifications.manage"],
   "/integrations": ["integrations.view", "integrations.manage"],
-  "/settings": ["clients.view", "clients.manage", "ai.view", "ai.manage", "integrations.view", "integrations.manage"],
+  "/settings": ["ai.view", "ai.manage"],
 };
 function permissionKeysFrom(items) {
   return [...new Set((items || []).map((item) => {
@@ -57,6 +57,12 @@ function permissionKeysFrom(items) {
     return "";
   }).filter(Boolean))];
 }
+function canDo(permKey, data) {
+  const keys = permissionKeysFrom(data?.authUser?.permissions || data?.permissions || []);
+  return keys.includes(permKey);
+}
+window.canDo = canDo;
+
 function routeBasePath(path) {
   const normalized = String(path || "").trim();
   if (!normalized.startsWith("/")) return "/" + normalized.split("/")[0];

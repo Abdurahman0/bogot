@@ -97,6 +97,7 @@ function ldTx(key) { return LEADS_UI[ldLang()]?.[key] || LEADS_UI.uz[key] || key
 
 function LeadsPage() {
   const { data, t, nav, toast, update, upsert, remove } = useApp();
+  const canManage = canDo("clients.manage", data);
   const loading = useLoading(300);
   const [q, setQ] = lS("");
   const [fSource, setFSource] = lS([]);
@@ -218,8 +219,8 @@ function LeadsPage() {
       <LeadViewModal
         open={!!viewLead}
         onClose={() => setViewLead(null)}
-        onEdit={() => { setEditLead(viewLead); setViewLead(null); }}
-        onDelete={() => { setDeleteLead(viewLead); setViewLead(null); }}
+        onEdit={canManage ? () => { setEditLead(viewLead); setViewLead(null); } : undefined}
+        onDelete={canManage ? () => { setDeleteLead(viewLead); setViewLead(null); } : undefined}
         lead={viewLead}
         ops={ops}
       />
@@ -263,8 +264,8 @@ function LeadViewModal({ open, onClose, onEdit, onDelete, lead, ops }) {
   return (
     <Modal open={open} onClose={onClose} title={ldTx("viewTitle")} icon={<I.target size={18} />} width={520}
       footer={<>
-        <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ldTx("edit")}</Button>
-        <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ldTx("delete")}</Button>
+        {onEdit && <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ldTx("edit")}</Button>}
+        {onDelete && <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ldTx("delete")}</Button>}
         <Button variant="primary" onClick={onClose}>{window.TRANSLATIONS?.[window.__TG_LANG || "uz"]?.["common.close"] || "Yopish"}</Button>
       </>}>
       <div className="tg-meta">

@@ -295,6 +295,7 @@ window.ProductCard = ProductCard;
 
 function ProductsPage() {
   const { data, t, toast, upsert, remove } = useApp();
+  const canManage = canDo("products.manage", data);
   const loading = useLoading(320);
   const [section, setSection] = prS("products");
   const [view, setView] = prS("table");
@@ -510,8 +511,8 @@ function ProductsPage() {
       <ProductViewModal
         open={!!viewProduct}
         onClose={() => setViewProduct(null)}
-        onEdit={() => { setEditProduct(viewProduct); setViewProduct(null); }}
-        onDelete={() => { setDeleteProduct(viewProduct); setViewProduct(null); }}
+        onEdit={canManage ? () => { setEditProduct(viewProduct); setViewProduct(null); } : undefined}
+        onDelete={canManage ? () => { setDeleteProduct(viewProduct); setViewProduct(null); } : undefined}
         product={viewProduct}
       />
       <ProductFormModal
@@ -586,8 +587,8 @@ function ProductViewModal({ open, onClose, onEdit, onDelete, product }) {
         icon={<I.box size={18} />}
         width={760}
         footer={<>
-          <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ptx("edit")}</Button>
-          <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ptx("delete")}</Button>
+          {onEdit && <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ptx("edit")}</Button>}
+          {onDelete && <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ptx("delete")}</Button>}
           <Button variant="primary" onClick={onClose}>{ptx("close")}</Button>
         </>}
       >

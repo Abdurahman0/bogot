@@ -424,8 +424,8 @@ function TaskViewModal({ task, user, column, open, onClose, onEdit, onDelete }) 
       width={520}
       footer={
         <>
-          <Button variant="default" onClick={onEdit} icon={<I.edit size={15} />}>{tskTx("edit")}</Button>
-          <Button variant="danger" onClick={onDelete} icon={<I.trash size={15} />}>{tskTx("delete")}</Button>
+          {onEdit && <Button variant="default" onClick={onEdit} icon={<I.edit size={15} />}>{tskTx("edit")}</Button>}
+          {onDelete && <Button variant="danger" onClick={onDelete} icon={<I.trash size={15} />}>{tskTx("delete")}</Button>}
         </>
       }
     >
@@ -452,6 +452,7 @@ function TaskViewModal({ task, user, column, open, onClose, onEdit, onDelete }) 
 
 function TasksPage() {
   const { data, t, toast, moveTask, remove, reloadData } = useApp();
+  const canManage = canDo("tasks.manage", data);
   const [q, setQ] = tkS("");
   const [createTaskColumnId, setCreateTaskColumnId] = tkS("");
   const [columnModalOpen, setColumnModalOpen] = tkS(false);
@@ -771,8 +772,8 @@ function TasksPage() {
         column={viewTask ? columnsById[viewTask.columnId] : null}
         open={!!viewTask}
         onClose={() => setViewTask(null)}
-        onEdit={() => { setEditTask(viewTask); setViewTask(null); }}
-        onDelete={() => { setDeleteTask(viewTask); setViewTask(null); }}
+        onEdit={canManage ? () => { setEditTask(viewTask); setViewTask(null); } : undefined}
+        onDelete={canManage ? () => { setDeleteTask(viewTask); setViewTask(null); } : undefined}
       />
       <TaskFormModal open={!!createTaskColumnId} onClose={() => setCreateTaskColumnId("")} initialColumnId={createTaskColumnId} />
       <TaskFormModal open={!!editTask} onClose={() => setEditTask(null)} initial={editTask} />
