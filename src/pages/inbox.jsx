@@ -107,7 +107,7 @@ const inboxPauseDefault = () => {
   return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`;
 };
 
-function InboxPage() {
+function InboxPage({ initialSessionId }) {
   const { data, toast, ensureConversationMessages, sendConversationMessage, deleteConversation, setConversationMode } = useApp();
   const [tab, setTab] = ibS("all");
   const [activeId, setActiveId] = ibS(null);
@@ -120,6 +120,7 @@ function InboxPage() {
   const [pauseValue, setPauseValue] = ibS(inboxPauseDefault());
   const [pauseBusy, setPauseBusy] = ibS(false);
   const [panelOpen, setPanelOpen] = ibS(true);
+  const [fetchedCustomer, setFetchedCustomer] = ibS(null);
   const msgEndRef = ibR(null);
 
   const convs = ibM(() => {
@@ -134,13 +135,29 @@ function InboxPage() {
   }, [data.conversations, tab, q]);
 
   const active = ibM(() => convs.find((conversation) => conversation.id === activeId) || null, [convs, activeId]);
-  const activeCustomer = ibM(() => active ? data.customers.find((customer) => customer.id === active.clientId) || null : null, [active, data.customers]);
   const activeUser = ibM(() => active ? data.users.find((user) => user.id === active.assignedUserId) : null, [active, data.users]);
 
   ibE(() => {
     if (!activeId) return;
     if (!convs.some((conversation) => conversation.id === activeId)) setActiveId(null);
   }, [convs, activeId]);
+
+  ibE(() => {
+    if (initialSessionId && convs.some(c => c.id === initialSessionId)) {
+      setActiveId(initialSessionId);
+    }
+  }, [initialSessionId, convs]);
+
+  ibE(() => {
+    if (!active?.clientId) { setFetchedCustomer(null); return; }
+    if (data.customers.find(c => c.id === active.clientId)) { setFetchedCustomer(null); return; }
+    apiGetClientById(active.clientId).then(c => setFetchedCustomer(c || null));
+  }, [active?.clientId, data.customers]);
+
+  const activeCustomer = ibM(() => {
+    if (!active) return null;
+    return data.customers.find(c => c.id === active.clientId) || fetchedCustomer || null;
+  }, [active, data.customers, fetchedCustomer]);
   ibE(() => { if (msgEndRef.current) msgEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [active?.messages?.length]);
   ibE(() => {
     if (!active?.id) return;

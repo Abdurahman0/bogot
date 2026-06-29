@@ -101,7 +101,7 @@ function Router() {
     case "pipeline": page = <TasksPage />; break;
     case "customers": page = id ? <CustomerDetailPage id={id} /> : <CustomersPage />; break;
     case "tasks": page = <TasksPage />; break;
-    case "inbox": page = <InboxPage />; break;
+    case "inbox": page = <InboxPage initialSessionId={id} />; break;
     case "products": page = id ? <ProductDetailPage id={id} /> : <ProductsPage />; break;
     case "orders":
     case "debtors": page = id ? <OrderDetailPage id={id} /> : <OrdersPage />; break;

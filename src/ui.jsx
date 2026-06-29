@@ -962,10 +962,31 @@ function ExportDropdown({ label = "Hisobot", size = "sm", filename = "export", r
   );
 }
 
+function PaginationBar({ page, total, pageSize, onChange }) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1) return null;
+  const pages = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - page) <= 2) pages.push(i);
+    else if (pages[pages.length - 1] !== "...") pages.push("...");
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "12px 0" }}>
+      <button className="tg-btn tg-btn-ghost" style={{ height: 32, padding: "0 10px", fontSize: 13 }} disabled={page <= 1} onClick={() => onChange(page - 1)}>‹</button>
+      {pages.map((p, i) => p === "..." ? <span key={"e"+i} style={{ padding: "0 4px", color: "var(--text-3)", fontSize: 13 }}>…</span> :
+        <button key={p} className="tg-btn" style={{ height: 32, minWidth: 32, padding: "0 8px", fontSize: 13, background: p === page ? "var(--accent)" : undefined, color: p === page ? "#fff" : undefined, border: p === page ? "none" : undefined }} onClick={() => onChange(p)}>{p}</button>
+      )}
+      <button className="tg-btn tg-btn-ghost" style={{ height: 32, padding: "0 10px", fontSize: 13 }} disabled={page >= totalPages} onClick={() => onChange(page + 1)}>›</button>
+      <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }}>{total} ta</span>
+    </div>
+  );
+}
+
 Object.assign(window, {
   Card, CardHead, Button, IconButton, Badge, StatusBadge, Avatar, Tabs, Segmented,
   SearchInput, Field, Input, Textarea, DatePickerInput, Select, Toggle, Dropdown, Modal, Drawer,
   ConfirmDialog, EmptyState, SkeletonRows, useLoading, Progress, Delta, ACUnit,
   productImages, productImageSrc, ProductPhoto, ProductImageModal,
   ExportDropdown, formatUzDate, DATE_PICKER_MONTHS, DATE_PICKER_MONTHS_SHORT,
+  PaginationBar,
 });

@@ -1,5 +1,5 @@
 /* pages/customers.jsx */
-const { useState: cuS, useMemo: cuM } = React;
+const { useState: cuS, useMemo: cuM, useEffect: cuE } = React;
 const CUSTOMER_UI = {
   uz: {
     unspecified: "Belgilanmagan",
@@ -10,7 +10,7 @@ const CUSTOMER_UI = {
     source: "Manba",
     system: "Tizim",
     payment: "To'lov",
-    amountReceived: "Tushgan summa",
+    amountReceived: "Zalog summa",
     remainingDebt: "Qoldiq qarz",
     status: "Holat",
     actions: "Amallar",
@@ -68,7 +68,7 @@ const CUSTOMER_UI = {
     availableDistricts: "Mavjud tumanlar",
     availableMahallas: "Mavjud mahallalar",
     paymentType: "To'lov turi",
-    deposit: "Depozit",
+    deposit: "Zalog summa",
     subsidyAmount: "Subsidiya",
     contractId: "Shartnoma ID",
     cardNumber: "Karta raqami",
@@ -123,6 +123,7 @@ const CUSTOMER_UI = {
     excelDownloaded: "Mijozlar Excel fayli yuklandi",
     excelFailed: "Excel eksport bajarilmadi",
     noteLabel: "Eslatma",
+    openChat: "Suhbatni ochish",
   },
   ru: {
     unspecified: "Не указано",
@@ -133,7 +134,7 @@ const CUSTOMER_UI = {
     source: "Источник",
     system: "Система",
     payment: "Оплата",
-    amountReceived: "Поступившая сумма",
+    amountReceived: "Залоговая сумма",
     remainingDebt: "Остаток долга",
     status: "Статус",
     actions: "Действия",
@@ -191,7 +192,7 @@ const CUSTOMER_UI = {
     availableDistricts: "Доступные районы",
     availableMahallas: "Доступные махалли",
     paymentType: "Тип оплаты",
-    deposit: "Депозит",
+    deposit: "Залоговая сумма",
     subsidyAmount: "Субсидия",
     contractId: "ID договора",
     cardNumber: "Номер карты",
@@ -246,6 +247,7 @@ const CUSTOMER_UI = {
     excelDownloaded: "Файл Excel клиентов загружен",
     excelFailed: "Экспорт Excel не выполнен",
     noteLabel: "Заметка",
+    openChat: "Открыть чат",
   },
   en: {
     unspecified: "Unspecified",
@@ -256,7 +258,7 @@ const CUSTOMER_UI = {
     source: "Source",
     system: "System",
     payment: "Payment",
-    amountReceived: "Amount received",
+    amountReceived: "Pledge amount",
     remainingDebt: "Remaining debt",
     status: "Status",
     actions: "Actions",
@@ -314,7 +316,7 @@ const CUSTOMER_UI = {
     availableDistricts: "Available districts",
     availableMahallas: "Available mahallas",
     paymentType: "Payment type",
-    deposit: "Deposit",
+    deposit: "Pledge amount",
     subsidyAmount: "Subsidy",
     contractId: "Contract ID",
     cardNumber: "Card number",
@@ -369,6 +371,7 @@ const CUSTOMER_UI = {
     excelDownloaded: "Customers Excel file downloaded",
     excelFailed: "Excel export failed",
     noteLabel: "Note",
+    openChat: "Open chat",
   },
 };
 
@@ -479,7 +482,6 @@ function StatusColorBadge({ label, color, tone = "blue", suffix = null }) {
 function CustomersPage() {
   const { data, t, nav, upsert, remove, toast } = useApp();
   const canManage = canDo("clients.manage", data);
-  const loading = useLoading(300);
   const [viewMode, setViewMode] = cuS("clients");
   const [q, setQ] = cuS("");
   const [fDistrict, setFDistrict] = cuS("all");
@@ -496,6 +498,30 @@ function CustomersPage() {
   const [editCustomer, setEditCustomer] = cuS(null);
   const [addOpen, setAddOpen] = cuS(false);
   const [deleteCustomer, setDeleteCustomer] = cuS(null);
+  const [cusPage, setCusPage] = cuS(1);
+  const [cusTotal, setCusTotal] = cuS(0);
+  const [cusRows, setCusRows] = cuS([]);
+  const [cusLoading, setCusLoading] = cuS(false);
+
+  cuE(() => { setCusPage(1); }, [q]);
+
+  cuE(() => {
+    let cancelled = false;
+    setCusLoading(true);
+    apiGetClientsPage({
+      page: cusPage,
+      page_size: 50,
+      search: q || undefined,
+      ordering: "-created_at",
+    }).then(({ results, count }) => {
+      if (cancelled) return;
+      setCusRows(results);
+      setCusTotal(count);
+      setCusLoading(false);
+    }).catch(() => { if (!cancelled) setCusLoading(false); });
+    return () => { cancelled = true; };
+  }, [cusPage, q]);
+
   const districts = customerDistrictOptions(data.locations);
   const mahallaOptions = cuM(() => {
     if (fDistrict !== "all") return mahallaOptionsFor(fDistrict, data.locations);
@@ -510,14 +536,13 @@ function CustomersPage() {
     return String(a.name || "").localeCompare(String(b.name || ""), "uz");
   }), [data.clientStatuses]);
 
-  const filtered = cuM(() => data.customers.filter(c => {
-    if (q && !c.fullName.toLowerCase().includes(q.toLowerCase()) && !c.phone.includes(q)) return false;
+  const filtered = cuM(() => cusRows.filter(c => {
     if (fDistrict !== "all" && customerTuman(c) !== fDistrict) return false;
     if (fMahalla !== "all" && customerMahalla(c) !== fMahalla) return false;
     if (fStatus !== "all" && c.statusId !== fStatus) return false;
     if (!dateMatchesRange(customerCreatedDate(c), dateFrom, dateTo)) return false;
     return true;
-  }), [data.customers, q, fDistrict, fMahalla, fStatus, dateFrom, dateTo]);
+  }), [cusRows, fDistrict, fMahalla, fStatus, dateFrom, dateTo]);
 
   const columns = [
     { key: "name", label: ctx("customer"), sortVal: r => r.fullName, render: r => <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar name={r.fullName} size={34} /><div><div className="tg-cell-strong">{r.fullName}</div><div className="tg-cell-sub">{r.phone}</div></div></div> },
@@ -527,6 +552,7 @@ function CustomersPage() {
     { key: "spent", label: ctx("amountReceived"), sortVal: r => r.totalSpent, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.totalSpent)}</span> },
     { key: "subsidy", label: ctx("subsidyAmount"), sortVal: r => r.subsidyAmount, render: r => <span style={{ fontWeight: 650 }}>{fmtShort(r.subsidyAmount)}</span> },
     { key: "status", label: ctx("status"), render: r => (!r.statusId && !r.statusName) ? <Badge color="slate" size="sm">{ctx("unspecified")}</Badge> : <StatusColorBadge color={customerStatusColor(r)} tone={customerStatusTone(r)} label={localizeCustomerStatusName(r.statusName || r.status)} /> },
+    { key: "password", label: ctx("passwordField"), render: r => r.password ? <span className="tg-cell-sub" style={{ fontFamily: "monospace", fontSize: 12 }}>{r.password}</span> : <span style={{ color: "var(--text-4)" }}>—</span> },
     { key: "actions", label: "", width: 44, render: r => (
       <div onClick={e => e.stopPropagation()}>
         <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label={ctx("actions")} />} items={[
@@ -539,7 +565,7 @@ function CustomersPage() {
     ) },
   ];
 
-  const statusUsageCount = (statusId) => data.customers.filter((customer) => customer.statusId === statusId).length;
+  const statusUsageCount = (statusId) => cusRows.filter((customer) => customer.statusId === statusId).length;
 
   const openStatusCreate = () => {
     setEditStatus(null);
@@ -615,10 +641,10 @@ function CustomersPage() {
   ];
 
   const modeChips = [
-    { value: "clients", label: ctx("clients"), count: data.customers.length, icon: <I.users size={14} /> },
+    { value: "clients", label: ctx("clients"), count: cusTotal, icon: <I.users size={14} /> },
     { value: "statuses", label: ctx("statuses"), count: sortedStatuses.length, icon: <I.flag size={14} /> },
   ];
-  const pageDesc = viewMode === "statuses" ? `${sortedStatuses.length} ${ctx("countUnit")}${ctx("statusesWord")}` : `${data.customers.length} ${ctx("countUnit")}${ctx("customersWord")}`;
+  const pageDesc = viewMode === "statuses" ? `${sortedStatuses.length} ${ctx("countUnit")}${ctx("statusesWord")}` : `${cusTotal} ${ctx("countUnit")}${ctx("customersWord")}`;
 
   return (
     <div className="page fade-in">
@@ -683,10 +709,11 @@ function CustomersPage() {
         <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder={ctx("endDate")} /></div>
             {(dateFrom || dateTo) ? <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>{ctx("clearDates")}</Button> : null}
             <div className="toolbar-spacer" />
-            <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{filtered.length} ta</span>
+            <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{cusTotal} ta</span>
           </div>
           <Card pad={false}>
-            {loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={{ key: "subsidy", dir: "desc" }} />}
+            {cusLoading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={null} />}
+            <PaginationBar page={cusPage} total={cusTotal} pageSize={50} onChange={setCusPage} />
           </Card>
         </>
       )}
@@ -695,10 +722,10 @@ function CustomersPage() {
           <div className="grid-3">
             <StatTile label={ctx("totalStatuses")} value={sortedStatuses.length} color="blue" />
             <StatTile label={ctx("defaultStatus")} value={defaultClientStatus || ctx("noValue")} color="green" />
-            <StatTile label={ctx("customersWithStatus")} value={data.customers.filter((customer) => customer.statusId).length} color="amber" />
+            <StatTile label={ctx("customersWithStatus")} value={cusRows.filter((customer) => customer.statusId).length} color="amber" />
           </div>
           <Card pad={false}>
-            {loading ? <SkeletonRows rows={6} cols={5} /> : <DataTable columns={statusColumns} rows={sortedStatuses} onRowClick={openStatusEdit} defaultSort={{ key: "order", dir: "asc" }} />}
+            <DataTable columns={statusColumns} rows={sortedStatuses} onRowClick={openStatusEdit} defaultSort={{ key: "order", dir: "asc" }} />
           </Card>
         </div>
       )}
@@ -824,9 +851,11 @@ function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
   if (!customer) return null;
   const product = (data.products || []).find((row) => row.id === customer.productId);
   const productLabel = product?.model || product?.name || product?.title || customer.productId || "";
+  const customerSession = (data.conversations || []).find(s => s.clientId === customer.id);
   return (
     <Modal open={open} onClose={onClose} title={ctx("customerDetails")} icon={<I.users size={18} />} width={760}
       footer={<>
+        {customerSession && <Button variant="ghost" size="sm" icon={<I.message size={14} />} onClick={() => window.navTo("/inbox/" + customerSession.id)}>{ctx("openChat")}</Button>}
         {canManage && <Button variant="ghost" icon={<I.edit size={15} />} onClick={onEdit}>{ctx("edit")}</Button>}
         {canManage && <Button variant="danger" icon={<I.trash size={15} />} onClick={onDelete}>{ctx("delete")}</Button>}
         <Button variant="primary" onClick={onClose}>{window.TRANSLATIONS?.[customerLang()]?.["common.close"] || "Yopish"}</Button>
@@ -1135,12 +1164,27 @@ function CustomerFormModal({ open, onClose, onSave, initial, locations }) {
 
 function CustomerDetailPage({ id }) {
   const { data, t, nav } = useApp();
-  const c = data.customers.find(x => x.id === id);
+  const [detailCustomer, setDetailCustomer] = cuS(null);
+  const [detailDebtor, setDetailDebtor] = cuS(null);
+  const [detailLedger, setDetailLedger] = cuS([]);
   const [tab, setTab] = cuS("overview");
+  cuE(() => {
+    apiGetClientById(id).then(c => {
+      if (!c) return;
+      setDetailCustomer(c);
+      apiGetDebtorsPage({ page: 1, page_size: 1, search: c.fullName }).then(r => { if (r.results.length) setDetailDebtor(r.results[0]); }).catch(() => {});
+      apiGetPaymentsPage({ page: 1, page_size: 8, ordering: "-date", search: c.fullName }).then(r => {
+        const dayMap = Object.fromEntries((data.accountingDays || []).map(d => [d.id, d]));
+        setDetailLedger((r.results || []).map(e => mapApiAccountingEntry(e, dayMap)));
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [id]);
+  const c = detailCustomer || data.customers.find(x => x.id === id);
   if (!c) return <div className="page"><Card><EmptyState title={ctx("customerNotFound")} action={<Button onClick={() => nav("/customers")}>{ctx("toCustomers")}</Button>} /></Card></div>;
 
-  const debtor = data.orders.find(o => o.customerId === c.id || o.customerName === c.fullName);
-  const ledger = data.payments.filter(p => p.customerName === c.fullName).slice(0, 8);
+  const debtor = detailDebtor;
+  const ledger = detailLedger;
+  const customerSession = (data.conversations || []).find(s => s.clientId === c.id);
   const tabs = [
     { value: "overview", label: ctx("tabOverview"), icon: <I.user size={15} /> },
     { value: "debt", label: ctx("tabDebt"), icon: <I.wallet size={15} /> },
@@ -1149,7 +1193,8 @@ function CustomerDetailPage({ id }) {
 
   return (
     <div className="page fade-in">
-      <PageHeader crumbs={[{ label: "CRM" }, { label: t("page.customers"), to: "/customers" }, { label: c.fullName }]} title={c.fullName} />
+      <PageHeader crumbs={[{ label: "CRM" }, { label: t("page.customers"), to: "/customers" }, { label: c.fullName }]} title={c.fullName}
+        actions={customerSession ? <Button variant="ghost" size="sm" icon={<I.message size={14} />} onClick={() => window.navTo("/inbox/" + customerSession.id)}>{ctx("openChat")}</Button> : null} />
       <Card style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
           <Avatar name={c.fullName} size={62} />

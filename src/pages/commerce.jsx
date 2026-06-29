@@ -15,8 +15,11 @@ const COMMERCE_UI = {
     totalAmount: "Jami summa", paid: "To'langan", remaining: "Qoldiq",
     overdueAmount: "Muddati o'tgan", deadline: "Muddat", nextReminder: "Keyingi eslatma",
     projectPanel: "Loyiha tarkibi", productCol: "Mahsulot", countCol: "Soni", priceCol: "Narx",
-    customerPanel: "Mijoz", lastPaymentsPanel: "Oxirgi to'lovlar",
-    dateCol: "Sana", amountCol: "Summa", methodCol: "Usul", noPayments: "To'lov yozuvi yo'q",
+    customerPanel: "Mijoz", lastPaymentsPanel: "To'lovlar tarixi",
+    addPayment: "To'lov yozish", editPaymentEntry: "To'lovni tahrirlash", deleteDebtorPayment: "To'lovni o'chirish",
+    debtorPaymentAdded: "To'lov yozildi", debtorPaymentUpdated: "To'lov yangilandi", debtorPaymentDeleted: "To'lov o'chirildi",
+    openingPaid: "Boshlang'ich to'lov", amountRequired: "Summani kiriting",
+    dateCol: "Sana", amountCol: "Summa", methodCol: "Izoh", noPayments: "To'lov yozuvi yo'q",
     paymentAdded: "Yozuv qo'shildi", paymentUpdated: "Yozuv yangilandi", paymentDeleted: "Yozuv o'chirildi",
     deletePaymentTitle: "Moliyaviy yozuvni o'chirish",
     paymentFormNew: "Yangi hisob-kitob yozuvi", paymentFormEdit: "Hisob-kitobni tahrirlash",
@@ -58,8 +61,11 @@ const COMMERCE_UI = {
     totalAmount: "Общая сумма", paid: "Оплачено", remaining: "Остаток",
     overdueAmount: "Просрочено", deadline: "Срок", nextReminder: "Следующее напоминание",
     projectPanel: "Состав проекта", productCol: "Продукт", countCol: "Кол-во", priceCol: "Цена",
-    customerPanel: "Клиент", lastPaymentsPanel: "Последние платежи",
-    dateCol: "Дата", amountCol: "Сумма", methodCol: "Метод", noPayments: "Нет записей о платежах",
+    customerPanel: "Клиент", lastPaymentsPanel: "История платежей",
+    addPayment: "Добавить платёж", editPaymentEntry: "Редактировать платёж", deleteDebtorPayment: "Удалить платёж",
+    debtorPaymentAdded: "Платёж добавлен", debtorPaymentUpdated: "Платёж обновлён", debtorPaymentDeleted: "Платёж удалён",
+    openingPaid: "Начальный платёж", amountRequired: "Введите сумму",
+    dateCol: "Дата", amountCol: "Сумма", methodCol: "Примечание", noPayments: "Нет записей о платежах",
     paymentAdded: "Запись добавлена", paymentUpdated: "Запись обновлена", paymentDeleted: "Запись удалена",
     deletePaymentTitle: "Удалить финансовую запись",
     paymentFormNew: "Новая финансовая запись", paymentFormEdit: "Редактировать финансы",
@@ -101,8 +107,11 @@ const COMMERCE_UI = {
     totalAmount: "Total amount", paid: "Paid", remaining: "Balance",
     overdueAmount: "Overdue", deadline: "Due date", nextReminder: "Next reminder",
     projectPanel: "Project items", productCol: "Product", countCol: "Qty", priceCol: "Price",
-    customerPanel: "Customer", lastPaymentsPanel: "Recent payments",
-    dateCol: "Date", amountCol: "Amount", methodCol: "Method", noPayments: "No payment records",
+    customerPanel: "Customer", lastPaymentsPanel: "Payment history",
+    addPayment: "Add payment", editPaymentEntry: "Edit payment", deleteDebtorPayment: "Delete payment",
+    debtorPaymentAdded: "Payment added", debtorPaymentUpdated: "Payment updated", debtorPaymentDeleted: "Payment deleted",
+    openingPaid: "Opening payment", amountRequired: "Enter amount",
+    dateCol: "Date", amountCol: "Amount", methodCol: "Notes", noPayments: "No payment records",
     paymentAdded: "Record added", paymentUpdated: "Record updated", paymentDeleted: "Record deleted",
     deletePaymentTitle: "Delete financial record",
     paymentFormNew: "New accounting entry", paymentFormEdit: "Edit accounting entry",
@@ -203,7 +212,7 @@ function OrderRow({ o, onClick }) {
 }
 window.OrderRow = OrderRow;
 
-OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete }) {
+OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete, onAddPayment }) {
   const overdueAmount = debtNum(o.overdueAmountUzs);
   const remainingDebt = debtNum(o.remainingDebtUzs);
   const locationText = orderLocationLabel(o);
@@ -222,12 +231,13 @@ OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete }) {
         <Badge color={overdueAmount > 0 ? "red" : remainingDebt > 0 ? "amber" : "green"} size="sm">
           {overdueAmount > 0 ? comTx("overdue") : remainingDebt > 0 ? comTx("withDebt") : comTx("closed")}
         </Badge>
-        {(onEdit || onDelete) && (
+        {(onAddPayment || onEdit || onDelete) && (
           <div onClick={(event) => event.stopPropagation()}>
             <Dropdown
               align="right"
               trigger={<IconButton icon={<I.dots size={16} />} label={comTx("actions")} />}
               items={[
+                { label: comTx("addPayment"), icon: <I.plus size={16} />, onClick: onAddPayment },
                 { label: comTx("edit"), icon: <I.edit size={16} />, onClick: onEdit },
                 { divider: true },
                 { label: comTx("delete"), icon: <I.trash size={16} />, danger: true, onClick: onDelete },
@@ -245,7 +255,6 @@ window.OrderRow = OrderRow;
 function OrdersPage() {
   const { data, t, nav, upsert, remove, toast } = useApp();
   const canManage = canDo("accounting.manage", data);
-  const loading = useLoading(320);
   const [q, setQ] = coS("");
   const [statusTab, setStatusTab] = coS("all");
   const [districtFilter, setDistrictFilter] = coS("all");
@@ -257,16 +266,42 @@ function OrdersPage() {
   const [createOpen, setCreateOpen] = coS(false);
   const [editOrder, setEditOrder] = coS(null);
   const [deleteOrder, setDeleteOrder] = coS(null);
-  const districts = coM(() => [...new Set(data.orders.map((order) => orderTuman(order)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "uz")), [data.orders]);
+  const [addPaymentOrder, setAddPaymentOrder] = coS(null);
+  const [ordPage, setOrdPage] = coS(1);
+  const [ordTotal, setOrdTotal] = coS(0);
+  const [ordRows, setOrdRows] = coS([]);
+  const [ordLoading, setOrdLoading] = coS(false);
+  const [listRefreshTick, setListRefreshTick] = coS(0);
+
+  coE(() => { setOrdPage(1); }, [q, debtorTypeFilter]);
+
+  coE(() => {
+    let cancelled = false;
+    setOrdLoading(true);
+    apiGetDebtorsPage({
+      page: ordPage,
+      page_size: 50,
+      search: q || undefined,
+      debtor_type: debtorTypeFilter !== "all" ? debtorTypeFilter : undefined,
+    }).then(({ results, count }) => {
+      if (cancelled) return;
+      setOrdRows(results);
+      setOrdTotal(count);
+      setOrdLoading(false);
+    }).catch(() => { if (!cancelled) setOrdLoading(false); });
+    return () => { cancelled = true; };
+  }, [ordPage, q, debtorTypeFilter, listRefreshTick]);
+
+  const districts = coM(() => [...new Set(ordRows.map((order) => orderTuman(order)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "uz")), [ordRows]);
   const districtOptions = coM(() => districts.map((district) => ({ value: district, label: district })), [districts]);
   const mahallaOptions = coM(() => {
     const source = districtFilter === "all"
-      ? data.orders
-      : data.orders.filter((order) => orderTuman(order) === districtFilter);
+      ? ordRows
+      : ordRows.filter((order) => orderTuman(order) === districtFilter);
     return [...new Set(source.map((order) => orderMahalla(order)).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, "uz"))
       .map((mahalla) => ({ value: mahalla, label: mahalla }));
-  }, [data.orders, districtFilter]);
+  }, [ordRows, districtFilter]);
   const showLocationFilters = statusTab === "all";
   const showFullGrouped = showLocationFilters && districtFilter === "all" && mahallaFilter === "all";
   const showDistrictGrouped = showLocationFilters && districtFilter !== "all" && mahallaFilter === "all";
@@ -295,18 +330,15 @@ function OrdersPage() {
     }
   };
 
-  const filtered = coM(() => data.orders.filter(o => {
-    const query = q.toLowerCase();
-    if (q && !o.id.toLowerCase().includes(query) && !o.customerName.toLowerCase().includes(query) && !orderTuman(o).toLowerCase().includes(query) && !orderMahalla(o).toLowerCase().includes(query)) return false;
+  const filtered = coM(() => ordRows.filter(o => {
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
     if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
-    if (debtorTypeFilter !== "all" && o.debtorType !== debtorTypeFilter) return false;
     if (showLocationFilters && districtFilter !== "all" && orderTuman(o) !== districtFilter) return false;
     if (showLocationFilters && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
     if (!orderDateMatchesRange(orderTakenDate(o), dateFrom, dateTo)) return false;
     return true;
-  }), [data.orders, q, statusTab, debtorTypeFilter, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
+  }), [ordRows, statusTab, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
 
   const grouped = coM(() => {
     const map = new Map();
@@ -353,26 +385,26 @@ function OrdersPage() {
     };
   }, [filtered]);
 
-  const totalDebt = data.orders.reduce((sum, o) => sum + debtNum(o.remainingDebtUzs), 0);
-  const overdue = data.orders.reduce((sum, o) => sum + debtNum(o.overdueAmountUzs), 0);
+  const totalDebt = ordRows.reduce((sum, o) => sum + debtNum(o.remainingDebtUzs), 0);
+  const overdue = ordRows.reduce((sum, o) => sum + debtNum(o.overdueAmountUzs), 0);
   const tabs = [
-    { value: "all", label: comTx("tabAll"), count: data.orders.length },
-    { value: "open", label: comTx("tabOpen"), count: data.orders.filter(o => debtNum(o.remainingDebtUzs) > 0).length },
-    { value: "overdue", label: comTx("tabOverdue"), count: data.orders.filter(o => debtNum(o.overdueAmountUzs) > 0).length },
-    { value: "closed", label: comTx("tabClosed"), count: data.orders.filter(o => debtNum(o.remainingDebtUzs) === 0).length },
+    { value: "all", label: comTx("tabAll"), count: ordTotal },
+    { value: "open", label: comTx("tabOpen"), count: ordRows.filter(o => debtNum(o.remainingDebtUzs) > 0).length },
+    { value: "overdue", label: comTx("tabOverdue"), count: ordRows.filter(o => debtNum(o.overdueAmountUzs) > 0).length },
+    { value: "closed", label: comTx("tabClosed"), count: ordRows.filter(o => debtNum(o.remainingDebtUzs) === 0).length },
   ];
 
   return (
     <div className="page fade-in">
-      <PageHeader title={t("page.orders")} desc={`${data.orders.length} ${comTx("debtorsDescUnit")}`} crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.orders") }]}
+      <PageHeader title={t("page.orders")} desc={`${ordTotal} ${comTx("debtorsDescUnit")}`} crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.orders") }]}
         actions={<>
           <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{comTx("newDebtor")}</Button>
         </>} />
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("totalDebtKpi")} value={fmtShort(totalDebt)} sub="so'm" color="red" />
         <StatTile label={comTx("tabOverdue")} value={fmtShort(overdue)} sub="so'm" color="amber" />
-        <StatTile label={comTx("creditCustomers")} value={data.orders.filter(o => o.paymentType === "credit").length} color="blue" />
-        <StatTile label={comTx("districts")} value={new Set(data.orders.map(o => orderTuman(o)).filter(Boolean)).size} color="violet" />
+        <StatTile label={comTx("creditCustomers")} value={ordRows.filter(o => o.paymentType === "credit").length} color="blue" />
+        <StatTile label={comTx("districts")} value={new Set(ordRows.map(o => orderTuman(o)).filter(Boolean)).size} color="violet" />
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("debtorsSearch")} width={260} />
@@ -386,7 +418,7 @@ function OrdersPage() {
         <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportDebtorsExcel} disabled={exporting}>Excel</Button>
       </div>
       <div style={{ marginBottom: 16 }}><Tabs tabs={tabs} active={statusTab} onChange={setStatusTab} /></div>
-      {loading ? (
+      {ordLoading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 76, borderRadius: 14 }} />)}
         </div>
@@ -405,9 +437,9 @@ function OrdersPage() {
             ]}
             rows={filtered}
             onRowClick={(row) => nav("/debtors/" + row.id)}
-            pageSize={12}
             defaultSort={{ key: "debt", dir: "desc" }}
           />
+          <PaginationBar page={ordPage} total={ordTotal} pageSize={50} onChange={setOrdPage} />
         </Card>
       ) : showDistrictGrouped ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -426,13 +458,13 @@ function OrdersPage() {
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {group.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
+                {group.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} onAddPayment={canManage ? () => setAddPaymentOrder(o) : undefined} />)}
               </div>
             </Card>
           ))}
           {!!grouped.ungrouped.length && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
+              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} onAddPayment={canManage ? () => setAddPaymentOrder(o) : undefined} />)}
             </div>
           )}
         </div>
@@ -468,7 +500,7 @@ function OrdersPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {mahallaGroup.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
+                      {mahallaGroup.orders.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} onAddPayment={canManage ? () => setAddPaymentOrder(o) : undefined} />)}
                     </div>
                   </Card>
                 ))}
@@ -477,7 +509,7 @@ function OrdersPage() {
           ))}
           {!!grouped.ungrouped.length && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} />)}
+              {grouped.ungrouped.map(o => <OrderRow key={o.id} o={o} onClick={() => nav("/debtors/" + o.id)} onEdit={canManage ? () => setEditOrder(o) : undefined} onDelete={canManage ? () => setDeleteOrder(o) : undefined} onAddPayment={canManage ? () => setAddPaymentOrder(o) : undefined} />)}
             </div>
           )}
         </div>
@@ -490,6 +522,7 @@ function OrdersPage() {
           await upsert("orders", order);
           toast(comTx("debtorCreated"));
           setCreateOpen(false);
+          setListRefreshTick(t => t + 1);
         }}
       />
       <OrderFormModal
@@ -501,6 +534,17 @@ function OrdersPage() {
           await upsert("orders", order);
           toast(comTx("debtorUpdated"));
           setEditOrder(null);
+          setListRefreshTick(t => t + 1);
+        }}
+      />
+      <DebtorPaymentModal
+        open={!!addPaymentOrder}
+        onClose={() => setAddPaymentOrder(null)}
+        onSave={async (pay) => {
+          await apiSaveDebtorPayment({ ...pay, debtorId: addPaymentOrder.id });
+          toast(comTx("debtorPaymentAdded"));
+          setAddPaymentOrder(null);
+          setListRefreshTick(t => t + 1);
         }}
       />
       <ConfirmDialog
@@ -663,17 +707,43 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             </div>
           </div>
         )}
-        <Field label={comTx("address")}><Input value={form.deliveryAddress} onChange={e => set("deliveryAddress", e.target.value)} /></Field>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: initial ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14 }}>
           <Field label={comTx("totalAmount")}><Input type="number" value={form.totalUzs} onChange={e => set("totalUzs", e.target.value)} /></Field>
-          <Field label={comTx("paid")}><Input type="number" value={form.paidUzs} onChange={e => set("paidUzs", e.target.value)} /></Field>
-          <Field label={comTx("overdueAmount")}><Input type="number" value={form.overdueAmountUzs} onChange={e => set("overdueAmountUzs", e.target.value)} /></Field>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {!initial && <Field label={comTx("openingPaid")}><Input type="number" value={form.paidUzs} onChange={e => set("paidUzs", e.target.value)} placeholder="0" /></Field>}
           <Field label={comTx("deadline")}><DatePickerInput value={(form.dueDate || "").slice(0, 10)} onChange={(value) => set("dueDate", value)} /></Field>
-          <Field label={comTx("nextReminder")}><DatePickerInput value={(form.nextReminderAt || "").slice(0, 10)} onChange={(value) => set("nextReminderAt", value)} /></Field>
         </div>
         <Field label={comTx("note")}><Textarea rows={4} value={form.note || ""} onChange={e => set("note", e.target.value)} placeholder={comTx("notePlaceholder")} /></Field>
+      </div>
+    </Modal>
+  );
+}
+
+function DebtorPaymentModal({ open, onClose, onSave, initial }) {
+  const { toast } = useApp();
+  const blank = { amount: "", paid_on: new Date().toISOString().slice(0, 10), notes: "" };
+  const [form, setForm] = coS(initial || blank);
+  const [saving, setSaving] = coS(false);
+  coE(() => { setForm(initial || blank); }, [initial, open]);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  return (
+    <Modal open={open} onClose={onClose}
+      title={initial?.id ? comTx("editPaymentEntry") : comTx("addPayment")}
+      icon={initial?.id ? <I.edit size={18} /> : <I.plus size={18} />}
+      width={420}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>{comTx("cancel")}</Button>
+        <Button variant="primary" disabled={saving} onClick={async () => {
+          const amt = apiParseNumber(form.amount);
+          if (!amt) { toast(comTx("amountRequired"), "error"); return; }
+          setSaving(true);
+          try { await onSave({ ...form, amount: amt }); }
+          finally { setSaving(false); }
+        }}>{initial?.id ? comTx("save") : comTx("create")}</Button>
+      </>}>
+      <div style={{ display: "grid", gap: 14 }}>
+        <Field label={comTx("amountCol")} required><Input type="number" value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="8000000" /></Field>
+        <Field label={comTx("dateCol")} required><DatePickerInput value={(form.paid_on || "").slice(0, 10)} onChange={v => set("paid_on", v)} /></Field>
+        <Field label={comTx("methodCol")}><Textarea rows={2} value={form.notes || ""} onChange={e => set("notes", e.target.value)} placeholder={comTx("notePlaceholder")} /></Field>
       </div>
     </Modal>
   );
@@ -682,14 +752,32 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
 function OrderDetailPage({ id }) {
   const { data, nav, t, upsert, toast } = useApp();
   const [editOpen, setEditOpen] = coS(false);
-  const o = data.orders.find(x => x.id === id);
+  const [addPayOpen, setAddPayOpen] = coS(false);
+  const [editPayment, setEditPayment] = coS(null);
+  const [deletePayment, setDeletePayment] = coS(null);
+  const [detailOrder, setDetailOrder] = coS(null);
+  const [detailCust, setDetailCust] = coS(null);
+  const [detailPayments, setDetailPayments] = coS([]);
+  const [refreshTick, setRefreshTick] = coS(0);
+
+  coE(() => {
+    apiGetDebtorById(id).then(o => { if (o) setDetailOrder(o); }).catch(() => {});
+  }, [id, refreshTick]);
+
+  coE(() => {
+    if (!id) return;
+    apiGetDebtorPayments(id).then(rows => setDetailPayments(rows)).catch(() => {});
+  }, [id, refreshTick]);
+
+  const o = detailOrder || (data.orders || []).find(x => x.id === id);
+  coE(() => { if (o?.customerId) apiGetClientById(o.customerId).then(c => c && setDetailCust(c)).catch(() => {}); }, [o?.customerId]);
+
+  const refresh = () => setRefreshTick(t => t + 1);
+
+  const cust = detailCust;
   if (!o) return <div className="page"><Card><EmptyState title={comTx("debtorNotFound")} action={<Button onClick={() => nav("/debtors")}>{comTx("backToDebtors")}</Button>} /></Card></div>;
-  const cust = data.customers.find(c => c.id === o.customerId);
-  const payments = data.payments.filter(p => p.orderId === o.id).slice(0, 8);
-  const totalUzs = debtNum(o.totalUzs);
-  const paidUzs = debtNum(o.paidUzs);
-  const remainingDebt = debtNum(o.remainingDebtUzs);
-  const overdueAmount = debtNum(o.overdueAmountUzs);
+  const payments = detailPayments;
+
   return (
     <div className="page fade-in">
       <PageHeader crumbs={[{ label: comTx("catalogCrumb") }, { label: t("page.orders"), to: "/debtors" }, { label: o.customerName }]} title={o.customerName}
@@ -699,44 +787,49 @@ function OrderDetailPage({ id }) {
           <Panel title={comTx("debtPanel")} icon="wallet" color="amber">
             <div className="tg-meta">
               <div className="tg-meta-row"><span className="tg-meta-k">{comTx("businessLine")}</span><span className="tg-meta-v">{o.businessLine}</span></div>
+              {!!o.phone && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("phoneLabel")}</span><span className="tg-meta-v">{o.phone}</span></div>}
               {!!orderTuman(o) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("colDistrict")}</span><span className="tg-meta-v">{orderTuman(o)}</span></div>}
               {!!orderMahalla(o) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("colMahalla")}</span><span className="tg-meta-v">{orderMahalla(o)}</span></div>}
-              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("address")}</span><span className="tg-meta-v">{o.deliveryAddress}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("totalAmount")}</span><span className="tg-meta-v">{rawDebt(o.totalUzs) ?? "—"}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("paid")}</span><span className="tg-meta-v">{rawDebt(o.paidUzs) ?? "—"}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("remaining")}</span><span className="tg-meta-v">{rawDebt(o.remainingDebtUzs) ?? "—"}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("overdueAmount")}</span><span className="tg-meta-v">{rawDebt(o.overdueAmountUzs) ?? "—"}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("totalAmount")}</span><span className="tg-meta-v" style={{ fontWeight: 700 }}>{fmtUZS(debtNum(o.totalUzs))}</span></div>
+              {!!debtNum(o.openingPaidUzs) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("openingPaid")}</span><span className="tg-meta-v">{fmtUZS(debtNum(o.openingPaidUzs))}</span></div>}
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("paid")}</span><span className="tg-meta-v" style={{ color: "var(--green)" }}>{fmtUZS(debtNum(o.paidUzs))}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("remaining")}</span><span className="tg-meta-v" style={{ color: debtNum(o.remainingDebtUzs) > 0 ? "var(--red)" : "var(--green)", fontWeight: 700 }}>{fmtUZS(debtNum(o.remainingDebtUzs))}</span></div>
+              {!!debtNum(o.overdueAmountUzs) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("overdueAmount")}</span><span className="tg-meta-v" style={{ color: "var(--red)" }}>{fmtUZS(debtNum(o.overdueAmountUzs))}</span></div>}
               <div className="tg-meta-row"><span className="tg-meta-k">{comTx("deadline")}</span><span className="tg-meta-v">{fmtDate(o.dueDate)}</span></div>
-              <div className="tg-meta-row"><span className="tg-meta-k">{comTx("nextReminder")}</span><span className="tg-meta-v">{fmtDate(o.nextReminderAt)}</span></div>
+              {!!o.note && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("note")}</span><span className="tg-meta-v">{o.note}</span></div>}
             </div>
           </Panel>
-          <Panel title={comTx("projectPanel")} icon="box" color="green" pad={false}>
-            <div className="tg-table-wrap">
-              <table className="tg-table">
-                <thead><tr><th>{comTx("productCol")}</th><th>{comTx("countCol")}</th><th>{comTx("priceCol")}</th></tr></thead>
-                <tbody>
-                  {(o.productItems || []).map((it, i) => <tr key={i}><td className="tg-cell-strong">{it.name}</td><td>{it.quantity}</td><td>{rawDebt(it.unitPriceUzs) ?? "—"}</td></tr>)}
-                </tbody>
-              </table>
-            </div>
+          <Panel title={comTx("customerPanel")} icon="user" color="violet">
+            {cust ? <div style={{ display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }} onClick={() => nav("/customers/" + cust.id)}><Avatar name={cust.fullName} size={40} /><div><div className="tg-cell-strong">{cust.fullName}</div><div className="tg-cell-sub">{cust.phone}</div></div></div> : <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar name={o.customerName} size={36} /><div><div className="tg-cell-strong">{o.customerName}</div><div className="tg-cell-sub">{o.phone}</div></div></div>}
           </Panel>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Panel title={comTx("customerPanel")} icon="user" color="violet">
-            {cust ? <div style={{ display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }} onClick={() => nav("/customers/" + cust.id)}><Avatar name={cust.fullName} size={40} /><div><div className="tg-cell-strong">{cust.fullName}</div><div className="tg-cell-sub">{cust.phone}</div></div></div> : <div>{o.customerName}</div>}
-          </Panel>
-          <Panel title={comTx("lastPaymentsPanel")} icon="chart" color="blue" pad={false}>
+          <Panel title={comTx("lastPaymentsPanel")} icon="chart" color="blue" pad={false}
+            action={<Button variant="primary" size="sm" icon={<I.plus size={14} />} onClick={() => setAddPayOpen(true)}>{comTx("addPayment")}</Button>}>
             <div className="tg-table-wrap">
               <table className="tg-table">
-                <thead><tr><th>{comTx("dateCol")}</th><th>{comTx("amountCol")}</th><th>{comTx("methodCol")}</th></tr></thead>
+                <thead><tr><th>{comTx("dateCol")}</th><th>{comTx("amountCol")}</th><th>{comTx("methodCol")}</th><th style={{ width: 72 }}></th></tr></thead>
                 <tbody>
-                  {payments.length ? payments.map(p => <tr key={p.id}><td>{fmtDate(p.date)}</td><td style={{ fontWeight: 650 }}>{fmtUZS(p.amountUzs)}</td><td>{p.method}</td></tr>) : <tr><td colSpan="3">{comTx("noPayments")}</td></tr>}
+                  {payments.length ? payments.map(p => (
+                    <tr key={p.id}>
+                      <td>{fmtDate(p.paid_on)}</td>
+                      <td style={{ fontWeight: 700, color: "var(--green)" }}>{fmtUZS(apiParseNumber(p.amount))}</td>
+                      <td>{p.notes || "—"}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <IconButton icon={<I.edit size={13} />} label={comTx("edit")} onClick={() => setEditPayment(p)} />
+                          <IconButton icon={<I.trash size={13} />} label={comTx("delete")} onClick={() => setDeletePayment(p)} />
+                        </div>
+                      </td>
+                    </tr>
+                  )) : <tr><td colSpan="4" style={{ textAlign: "center", color: "var(--text-3)", padding: 16 }}>{comTx("noPayments")}</td></tr>}
                 </tbody>
               </table>
             </div>
           </Panel>
         </div>
       </div>
+
       <OrderFormModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
@@ -744,8 +837,42 @@ function OrderDetailPage({ id }) {
         locations={data.locations}
         onSave={async (order) => {
           await upsert("orders", order);
+          refresh();
           toast(comTx("debtorUpdated"));
           setEditOpen(false);
+        }}
+      />
+      <DebtorPaymentModal
+        open={addPayOpen}
+        onClose={() => setAddPayOpen(false)}
+        onSave={async (pay) => {
+          await apiSaveDebtorPayment({ ...pay, debtorId: id });
+          refresh();
+          toast(comTx("debtorPaymentAdded"));
+          setAddPayOpen(false);
+        }}
+      />
+      <DebtorPaymentModal
+        open={!!editPayment}
+        initial={editPayment}
+        onClose={() => setEditPayment(null)}
+        onSave={async (pay) => {
+          await apiSaveDebtorPayment({ ...editPayment, ...pay, debtorId: id });
+          refresh();
+          toast(comTx("debtorPaymentUpdated"));
+          setEditPayment(null);
+        }}
+      />
+      <ConfirmDialog
+        open={!!deletePayment}
+        onClose={() => setDeletePayment(null)}
+        title={comTx("deleteDebtorPayment")}
+        message={`${fmtUZS(apiParseNumber(deletePayment?.amount))} — ${comTx("deleteMsg")}`}
+        onConfirm={async () => {
+          await apiDeleteDebtorPayment(deletePayment.id);
+          refresh();
+          toast(comTx("debtorPaymentDeleted"));
+          setDeletePayment(null);
         }}
       />
     </div>
@@ -756,7 +883,6 @@ window.OrderDetailPage = OrderDetailPage;
 function PaymentsPage() {
   const { data, t, upsert, remove, toast } = useApp();
   const canManagePayments = canDo("accounting.manage", data);
-  const loading = useLoading(320);
   const [q, setQ] = coS("");
   const [direction, setDirection] = coS("all");
   const [categoryFilter, setCategoryFilter] = coS("all");
@@ -780,6 +906,45 @@ function PaymentsPage() {
   }, [dateRange]);
   const [createOpen, setCreateOpen] = coS(false);
   const [exporting, setExporting] = coS(false);
+  const [payPage, setPayPage] = coS(1);
+  const [payTotal, setPayTotal] = coS(0);
+  const [payRows, setPayRows] = coS([]);
+  const [payLoading, setPayLoading] = coS(false);
+  const [payStats, setPayStats] = coS(null);
+
+  coE(() => { setPayPage(1); }, [q, direction, categoryFilter, currencyFilter, dateFrom, dateTo]);
+
+  coE(() => {
+    apiGetAccountingStats({
+      search: q || undefined,
+      category: categoryFilter !== "all" ? categoryFilter : undefined,
+      currency: currencyFilter !== "all" ? currencyFilter : undefined,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+    }).then(stats => setPayStats(stats)).catch(() => {});
+  }, [q, categoryFilter, currencyFilter, dateFrom, dateTo]);
+
+  coE(() => {
+    let cancelled = false;
+    setPayLoading(true);
+    const dayMap = Object.fromEntries((data.accountingDays || []).map((day) => [day.id, day]));
+    apiGetPaymentsPage({
+      page: payPage,
+      page_size: 50,
+      search: q || undefined,
+      category: categoryFilter !== "all" ? categoryFilter : undefined,
+      currency: currencyFilter !== "all" ? currencyFilter : undefined,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+    }).then(({ results, count }) => {
+      if (cancelled) return;
+      setPayRows(results.map(r => mapApiAccountingEntry(r, dayMap)));
+      setPayTotal(count);
+      setPayLoading(false);
+    }).catch(() => { if (!cancelled) setPayLoading(false); });
+    return () => { cancelled = true; };
+  }, [payPage, q, categoryFilter, currencyFilter, dateFrom, dateTo, data.accountingDays]);
+
   const exportAccountingExcel = async () => {
     try {
       setExporting(true);
@@ -799,19 +964,28 @@ function PaymentsPage() {
   const [viewPayment, setViewPayment] = coS(null);
   const [editPayment, setEditPayment] = coS(null);
   const [deletePayment, setDeletePayment] = coS(null);
-  const filtered = coM(() => data.payments.filter(p => {
-    if (q && !p.customerName.toLowerCase().includes(q.toLowerCase()) && !(p.orderId || "").toLowerCase().includes(q.toLowerCase()) && !p.category.toLowerCase().includes(q.toLowerCase())) return false;
+  const filtered = coM(() => payRows.filter(p => {
     if (direction !== "all" && p.direction !== direction) return false;
-    if (categoryFilter !== "all" && p.rawCategory !== categoryFilter) return false;
-    if (currencyFilter !== "all" && String(p.method || "").toUpperCase() !== currencyFilter) return false;
-    if (dateFrom && (p.date || "").slice(0, 10) < dateFrom) return false;
-    if (dateTo && (p.date || "").slice(0, 10) > dateTo) return false;
     return true;
-  }), [data.payments, q, direction, categoryFilter, currencyFilter, dateFrom, dateTo, dateRange]);
-  const uzsIncome = data.payments.filter(p => p.direction === "income" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
-  const usdIncome = data.payments.filter(p => p.direction === "income" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
-  const uzsExpense = data.payments.filter(p => p.direction === "expense" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
-  const usdExpense = data.payments.filter(p => p.direction === "expense" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  }), [payRows, direction]);
+  const chipRows = coM(() => {
+    let rows = data.payments || [];
+    if (dateFrom || dateTo) {
+      const validIds = new Set(
+        (data.accountingDays || [])
+          .filter(d => (!dateFrom || d.report_date >= dateFrom) && (!dateTo || d.report_date <= dateTo))
+          .map(d => d.id)
+      );
+      rows = rows.filter(p => validIds.has(p.accountingDayId));
+    }
+    if (categoryFilter !== "all") rows = rows.filter(p => p.rawCategory === categoryFilter);
+    if (currencyFilter !== "all") rows = rows.filter(p => p.method === currencyFilter);
+    return rows;
+  }, [data.payments, data.accountingDays, dateFrom, dateTo, categoryFilter, currencyFilter]);
+  const uzsIncome = chipRows.filter(p => p.direction === "income" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const usdIncome = chipRows.filter(p => p.direction === "income" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const uzsExpense = chipRows.filter(p => p.direction === "expense" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const usdExpense = chipRows.filter(p => p.direction === "expense" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const columns = [
     { key: "date", label: comTx("dateCol"), sortVal: r => r.date, render: r => <span className="tg-cell-sub">{fmtDate(r.date)}</span> },
     { key: "direction", label: comTx("direction"), render: r => <Badge color={r.direction === "income" ? "green" : "red"} size="sm">{r.direction === "income" ? comTx("income") : comTx("expense")}</Badge> },
@@ -840,6 +1014,11 @@ function PaymentsPage() {
           <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportAccountingExcel} disabled={exporting}>Excel</Button>
           <Button variant="primary" size="sm" icon={<I.plus size={15} />} onClick={() => setCreateOpen(true)}>{comTx("newRecord")}</Button>
         </>} />
+      <div className="toolbar" style={{ marginBottom: 10 }}>
+        <DateRange value={dateRange} onChange={setDateRange} />
+        {dateRange !== "all" && <Button variant="ghost" size="sm" onClick={() => setDateRange("all")}>{comTx("clear")}</Button>}
+        <div className="toolbar-spacer" />
+      </div>
       <div className="grid-kpi" style={{ marginBottom: 10 }}>
         <StatTile label={comTx("incomeUzs")} value={fmtShort(uzsIncome)} sub="so'm" color="green" />
         <StatTile label={comTx("incomeUsd")} value={fmtShort(usdIncome)} sub="$" color="teal" />
@@ -849,18 +1028,20 @@ function PaymentsPage() {
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("netUzs")} value={fmtShort(uzsIncome - uzsExpense)} sub="so'm" color={(uzsIncome - uzsExpense) >= 0 ? "green" : "red"} />
         <StatTile label={comTx("netUsd")} value={fmtShort(usdIncome - usdExpense)} sub="$" color={(usdIncome - usdExpense) >= 0 ? "green" : "red"} />
-        <StatTile label={comTx("records")} value={data.payments.length} color="blue" />
+        <StatTile label={comTx("records")} value={payTotal} color="blue" />
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("paymentsSearch")} width={240} />
         <FilterSelect label={comTx("direction")} icon="chart" value={direction} onChange={setDirection} options={[{ value: "income", label: comTx("income") }, { value: "expense", label: comTx("expense") }]} />
         <FilterSelect label={comTx("category")} icon="layers" value={categoryFilter} onChange={setCategoryFilter} options={ACCOUNTING_CATEGORY_OPTIONS} />
         <FilterSelect label={comTx("currency")} icon="wallet" value={currencyFilter} onChange={setCurrencyFilter} options={[{ value: "UZS", label: "UZS" }, { value: "USD", label: "USD" }]} />
-        <DateRange value={dateRange} onChange={setDateRange} />
-        {(dateRange !== "all" || categoryFilter !== "all" || currencyFilter !== "all") && <Button variant="ghost" size="sm" onClick={() => { setDateRange("all"); setCategoryFilter("all"); setCurrencyFilter("all"); }}>{comTx("clear")}</Button>}
+        {(categoryFilter !== "all" || currencyFilter !== "all") && <Button variant="ghost" size="sm" onClick={() => { setCategoryFilter("all"); setCurrencyFilter("all"); }}>{comTx("clear")}</Button>}
         <div className="toolbar-spacer" />
       </div>
-      <Card pad={false}>{loading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewPayment(r)} defaultSort={{ key: "date", dir: "desc" }} />}</Card>
+      <Card pad={false}>
+        {payLoading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewPayment(r)} defaultSort={{ key: "date", dir: "desc" }} />}
+        <PaginationBar page={payPage} total={payTotal} pageSize={50} onChange={setPayPage} />
+      </Card>
       <PaymentViewModal
         open={!!viewPayment}
         onClose={() => setViewPayment(null)}

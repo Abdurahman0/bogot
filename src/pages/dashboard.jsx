@@ -1,5 +1,5 @@
 /* pages/dashboard.jsx */
-const { useState: pS, useMemo: pM } = React;
+const { useState: pS, useMemo: pM, useEffect: pE } = React;
 const DASHBOARD_UI = {
   uz: {
     heroSub: "Bogot Armada NRG ichki CRM • mijozlar, vazifalar, qarzdorlar va hisob-kitob bitta panelda",
@@ -146,13 +146,25 @@ function DashboardPage() {
   const clientSummary = overview.clients || {};
   const debtorSummary = overview.debtors || {};
   const accountingDay = overview.accounting_day || null;
+
+  const [dashClients, setDashClients] = pS([]);
+  const [dashOrders, setDashOrders] = pS([]);
+  const [dashPayments, setDashPayments] = pS([]);
+  pE(() => {
+    apiGetClientsPage({ page: 1, page_size: 5, ordering: "-created_at" }).then(r => setDashClients(r.results || [])).catch(() => {});
+    apiGetDebtorsPage({ page: 1, page_size: 5, ordering: "-overdue_amount_uzs" }).then(r => setDashOrders(r.results || [])).catch(() => {});
+    apiGetPaymentsPage({ page: 1, page_size: 200, ordering: "-date" }).then(r => setDashPayments((r.results || []).map(e => {
+      const dayMap = Object.fromEntries((data.accountingDays || []).map(d => [d.id, d]));
+      return mapApiAccountingEntry ? mapApiAccountingEntry(e, dayMap) : e;
+    }))).catch(() => {});
+  }, []);
   const days = typeof range === "object" ? Math.max(1, Math.round((range.to - range.from) / 86400000)) : ({ today: 1, "7d": 7, "30d": 30, "90d": 90 }[range] || 30);
   const hour = new Date().getHours();
   const greet = hour < 12 ? t("greeting.morning") : hour < 18 ? t("greeting.day") : t("greeting.evening");
 
-  const customerCount = clientSummary.total_clients ?? data.customers.length;
-  const debtorCount = debtorSummary.total_debtors ?? data.orders.length;
-  const overdueDebt = debtorSummary.overdue_amount ?? data.orders.reduce((sum, row) => sum + (row.overdueAmountUzs || 0), 0);
+  const customerCount = clientSummary.total_clients ?? dashClients.length;
+  const debtorCount = debtorSummary.total_debtors ?? dashOrders.length;
+  const overdueDebt = debtorSummary.overdue_amount ?? dashOrders.reduce((sum, row) => sum + (row.overdueAmountUzs || 0), 0);
   const activeTasks = data.tasks.filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled");
   const taskColumnsById = Object.fromEntries((data.taskColumns || []).map((column) => [column.id, column]));
 
@@ -165,7 +177,7 @@ function DashboardPage() {
 
   const statusData = pM(() => {
     const colorByName = {};
-    data.customers.forEach((c) => { if (c.statusName && c.statusColor) colorByName[c.statusName] = c.statusColor; });
+    dashClients.forEach((c) => { if (c.statusName && c.statusColor) colorByName[c.statusName] = c.statusColor; });
     const fallbackColors = ["#2563eb", "#7c3aed", "#0f766e", "#f59e0b", "#dc2626", "#64748b"];
     const byStatus = clientSummary.by_status;
     let rows;
@@ -176,7 +188,7 @@ function DashboardPage() {
         color: row.status_color || colorByName[row.status_name] || null,
       }));
     } else {
-      rows = dashboardStatusFallback(data.customers).map((row) => ({
+      rows = dashboardStatusFallback(dashClients).map((row) => ({
         ...row,
         color: colorByName[row.label] || null,
       }));
@@ -188,7 +200,7 @@ function DashboardPage() {
       value: row.value,
       color: row.color || fallbackColors[index % fallbackColors.length],
     }));
-  }, [clientSummary.by_status, data.customers]);
+  }, [clientSummary.by_status, dashClients]);
 
   const debtorTypeData = pM(() => {
     const rows = dashboardEntries(debtorSummary.by_type, "debtor_type", "count");
@@ -200,15 +212,25 @@ function DashboardPage() {
   }, [debtorSummary.by_type]);
 
   const debtorStatusData = pM(() => {
-    const hasBalance = data.orders.filter(o => Number(o.remainingDebtUzs) > 0 && Number(o.overdueAmountUzs) <= 0).length;
-    const overdue = data.orders.filter(o => Number(o.overdueAmountUzs) > 0).length;
-    const closed = data.orders.filter(o => Number(o.remainingDebtUzs) <= 0).length;
+    const byStatus = debtorSummary.by_status;
+    if (Array.isArray(byStatus) && byStatus.length) {
+      const colorMap = { with_debt: "#f59e0b", overdue: "#dc2626", closed: "#10b981" };
+      const labelMap = { with_debt: dashTx("debtorHasBalance"), overdue: dashTx("debtorOverdue"), closed: dashTx("debtorClosed") };
+      return byStatus.map(row => ({
+        label: labelMap[row.status] || row.status,
+        value: Number(row.count || row.value || 0),
+        color: colorMap[row.status] || "#64748b",
+      })).filter(row => row.value > 0);
+    }
+    const hasBalance = dashOrders.filter(o => Number(o.remainingDebtUzs) > 0 && Number(o.overdueAmountUzs) <= 0).length;
+    const overdue = dashOrders.filter(o => Number(o.overdueAmountUzs) > 0).length;
+    const closed = dashOrders.filter(o => Number(o.remainingDebtUzs) <= 0).length;
     return [
       { label: dashTx("debtorHasBalance"), value: hasBalance, color: "#f59e0b" },
       { label: dashTx("debtorOverdue"),    value: overdue,     color: "#dc2626" },
       { label: dashTx("debtorClosed"),     value: closed,      color: "#10b981" },
     ].filter(row => row.value > 0);
-  }, [data.orders]);
+  }, [debtorSummary.by_status, dashOrders]);
 
   const finance = pM(() => {
     const totalDays = days <= 1 ? 7 : days;
@@ -225,7 +247,7 @@ function DashboardPage() {
       };
     });
     const indexByKey = Object.fromEntries(buckets.map((bucket, index) => [bucket.key, index]));
-    data.payments.forEach((payment) => {
+    dashPayments.forEach((payment) => {
       const key = new Date(payment.date || payment.createdAt || payment.updatedAt || Date.now()).toISOString().slice(0, 10);
       const idx = indexByKey[key];
       if (idx == null) return;
@@ -236,21 +258,16 @@ function DashboardPage() {
       labels: buckets.map((bucket) => bucket.label),
       series: buckets.map((bucket) => Math.round((bucket.value / 1000000) * 10) / 10),
     };
-  }, [data.payments, days]);
+  }, [dashPayments, days]);
 
-  const overdueDebtors = pM(() => [...data.orders]
-    .filter((row) => row.overdueAmountUzs > 0)
-    .sort((a, b) => b.overdueAmountUzs - a.overdueAmountUzs)
-    .slice(0, 5), [data.orders]);
+  const overdueDebtors = dashOrders.filter((row) => row.overdueAmountUzs > 0).slice(0, 5);
 
   const upcomingTasks = pM(() => [...data.tasks]
     .filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled")
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
     .slice(0, 6), [data.tasks]);
 
-  const latestCustomers = pM(() => [...data.customers]
-    .sort((a, b) => new Date(b.createdAt || b.lastActivity || 0) - new Date(a.createdAt || a.lastActivity || 0))
-    .slice(0, 5), [data.customers]);
+  const latestCustomers = dashClients.slice(0, 5);
 
   const bestProducts = pM(() => [...data.products]
     .filter((product) => product.status === "active")
@@ -268,9 +285,9 @@ function DashboardPage() {
     .slice(0, 5), [data.tasks, data.users]);
 
   const accIsDollar = (p) => { const m = String(p.method || p.currency || "").toLowerCase(); return m.includes("dollar") || p.rawCategory === "dollar_income" || p.rawCategory === "dollar_expense"; };
-  const accUzsIncome = pM(() => data.payments.filter(p => p.direction === "income" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [data.payments]);
-  const accUsdIncome = pM(() => data.payments.filter(p => p.direction === "income" && accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [data.payments]);
-  const accUzsExpense = pM(() => data.payments.filter(p => p.direction === "expense" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [data.payments]);
+  const accUzsIncome = pM(() => dashPayments.filter(p => p.direction === "income" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dashPayments]);
+  const accUsdIncome = pM(() => dashPayments.filter(p => p.direction === "income" && accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dashPayments]);
+  const accUzsExpense = pM(() => dashPayments.filter(p => p.direction === "expense" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dashPayments]);
   const accUzsNet = accUzsIncome - accUzsExpense;
 
   return (

@@ -227,6 +227,7 @@ async function apiRefreshToken(refresh) {
   return next;
 }
 
+
 function apiBuildUrl(path, params) {
   const target = path.startsWith("http") ? path : `${API_BASE}${path}`;
   const url = new URL(apiNormalizeUrl(target));
@@ -364,6 +365,72 @@ async function apiDownloadAccountingExcel(filters = {}) {
   });
 }
 
+async function apiGetClientsPage(params = {}) {
+  const { page = 1, page_size = 50, search, ordering } = params;
+  const url = apiBuildUrl("/api/clients/", { page, page_size, search, ordering });
+  const res = apiUnwrap(await apiRequest(url, { auth: true }));
+  return { results: (res?.results || []).map(mapApiClient), count: res?.count || 0 };
+}
+
+async function apiGetDebtorsPage(params = {}) {
+  const { page = 1, page_size = 50, search, debtor_type, district, neighborhood, ordering } = params;
+  const url = apiBuildUrl("/api/clients/debtors/", { page, page_size, search, debtor_type, district, neighborhood, ordering });
+  const res = apiUnwrap(await apiRequest(url, { auth: true }));
+  return { results: (res?.results || []).map(mapApiDebtor), count: res?.count || 0 };
+}
+
+async function apiGetPaymentsPage(params = {}) {
+  const { page = 1, page_size = 50, search, category, currency, ordering, date_from, date_to } = params;
+  const url = apiBuildUrl("/api/clients/accounting/entries/", { page, page_size, search, category, currency, ordering, date_from, date_to });
+  const res = apiUnwrap(await apiRequest(url, { auth: true }));
+  return { results: (res?.results || []), count: res?.count || 0 };
+}
+
+async function apiGetClientById(id) {
+  try {
+    const res = apiUnwrap(await apiRequest(`/api/clients/${id}/`, { auth: true }));
+    return res ? mapApiClient(res) : null;
+  } catch { return null; }
+}
+
+async function apiGetAccountingStats(params = {}) {
+  try {
+    const url = apiBuildUrl("/api/clients/accounting/stats/", params);
+    return apiUnwrap(await apiRequest(url, { auth: true })) || {};
+  } catch { return {}; }
+}
+
+async function apiGetDebtorById(id) {
+  try {
+    const res = apiUnwrap(await apiRequest(`/api/clients/debtors/${id}/`, { auth: true }));
+    return res ? mapApiDebtor(res) : null;
+  } catch { return null; }
+}
+
+async function apiGetDebtorPayments(debtorId, params = {}) {
+  try {
+    const url = apiBuildUrl("/api/clients/debtor-payments/", { debtor: debtorId, page_size: 20, ordering: "-paid_on", ...params });
+    const res = apiUnwrap(await apiRequest(url, { auth: true }));
+    return res?.results || res || [];
+  } catch { return []; }
+}
+
+async function apiSaveDebtorPayment(payment) {
+  const payload = {
+    debtor: payment.debtorId || payment.debtor,
+    amount: String(apiParseNumber(payment.amount || 0)),
+    paid_on: apiDateOnly(payment.paid_on || new Date().toISOString()),
+    notes: payment.notes || "",
+  };
+  return isApiUuid(payment.id)
+    ? apiRequest(`/api/clients/debtor-payments/${payment.id}/`, { method: "PATCH", body: payload })
+    : apiRequest("/api/clients/debtor-payments/", { method: "POST", body: payload });
+}
+
+async function apiDeleteDebtorPayment(id) {
+  return apiRequest(`/api/clients/debtor-payments/${id}/`, { method: "DELETE" });
+}
+
 async function apiSaveDistrict(district) {
   const payload = { name: (district.name || "").trim() };
   return isApiUuid(district.id)
@@ -484,24 +551,27 @@ function mapApiClient(client) {
 
 function mapApiDebtor(debtor) {
   const debt = apiParseNumber(debtor.debt_amount);
+  const paid = apiParseNumber(debtor.total_paid_amount ?? debtor.paid_amount);
+  const remaining = apiParseNumber(debtor.remaining_debt_amount ?? (debt - paid));
   const dueDate = debtor.repayment_due_date || apiDateOnly(new Date().toISOString());
-  const overdue = dueDate < apiDateOnly(new Date().toISOString()) ? debt : 0;
+  const overdue = dueDate < apiDateOnly(new Date().toISOString()) ? remaining : 0;
   return {
     id: debtor.id,
     customerId: null,
     leadId: null,
     customerName: debtor.full_name || "",
-    businessLine: debtor.debtor_type === "solar_panel" ? "Quyosh panel biznesi" : "Eski biznes",
+    businessLine: (debtor.debtor_type === "solar_business" || debtor.debtor_type === "solar_panel") ? "Quyosh panel biznesi" : "Eski biznes",
     paymentType: "credit",
     productItems: [],
     status: overdue > 0 ? "processing" : "confirmed",
-    paymentStatus: debt > 0 ? "unpaid" : "paid",
+    paymentStatus: remaining <= 0 ? "paid" : "unpaid",
     deliveryAddress: apiToSentence([debtor.city, debtor.district, debtor.neighborhood]),
     district: debtor.district || "",
     mahalla: debtor.neighborhood || "",
     principalUzs: debt,
-    paidUzs: 0,
-    remainingDebtUzs: debt,
+    openingPaidUzs: apiParseNumber(debtor.opening_paid_amount),
+    paidUzs: paid,
+    remainingDebtUzs: remaining,
     overdueAmountUzs: overdue,
     nextReminderAt: dueDate,
     dueDate,
@@ -880,14 +950,11 @@ const API_BOOTSTRAP_KEYS = [
   "districts",
   "neighborhoods",
   "clientStatuses",
-  "customers",
-  "orders",
   "taskColumns",
   "tasks",
   "taskAssignees",
   "notifications",
   "accountingDays",
-  "payments",
   "products",
   "productCategories",
   "conversations",
@@ -978,19 +1045,25 @@ async function apiSaveClient(customer, data) {
 
 async function apiSaveDebtor(order) {
   const dueDate = apiDateOnly(order.dueDate || order.nextReminderAt);
+  const isUpdate = isApiUuid(order.id);
   const payload = {
-    debtor_type: order.businessLine === "Eski biznes" ? "moto_business" : "solar_panel",
+    debtor_type: order.businessLine === "Eski biznes" ? "moto_business" : "solar_business",
     full_name: (order.customerName || "").trim(),
     phone: (order.phone || "").trim(),
     city: order.city || "Toshkent",
     district: (order.district || "").trim(),
     neighborhood: (order.mahalla || "").trim(),
-    debt_amount: String(apiParseNumber(order.remainingDebtUzs || order.totalUzs || 0)),
+    address: (order.deliveryAddress || "").trim(),
+    debt_amount: String(apiParseNumber(order.principalUzs || order.totalUzs || 0)),
     debt_taken_on: apiDateOnly(order.createdAt || new Date().toISOString()),
     repayment_due_date: dueDate,
     notes: order.note || "",
   };
-  return isApiUuid(order.id)
+  if (!isUpdate) {
+    const openingPaid = apiParseNumber(order.paidUzs || 0);
+    if (openingPaid > 0) payload.paid_amount = String(openingPaid);
+  }
+  return isUpdate
     ? apiRequest(`/api/clients/debtors/${order.id}/`, { method: "PATCH", body: payload })
     : apiRequest("/api/clients/debtors/", { method: "POST", body: payload });
 }
@@ -1233,6 +1306,15 @@ Object.assign(window, {
   SESSION_KEY,
   isApiUuid,
   apiMediaUrl,
+  apiGetClientsPage,
+  apiGetDebtorsPage,
+  apiGetPaymentsPage,
+  apiGetClientById,
+  apiGetDebtorById,
+  apiGetDebtorPayments,
+  apiSaveDebtorPayment,
+  apiDeleteDebtorPayment,
+  apiGetAccountingStats,
   apiUiRole,
   apiLoadSession,
   apiSaveSession,
@@ -1274,5 +1356,6 @@ Object.assign(window, {
   mapApiConversation,
   mapApiMessage,
   mapApiNotification,
+  mapApiAccountingEntry,
   apiWebSocketBase,
 });
