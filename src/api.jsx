@@ -560,7 +560,7 @@ function mapApiDebtor(debtor) {
     customerId: null,
     leadId: null,
     customerName: debtor.full_name || "",
-    businessLine: (debtor.debtor_type === "solar_business" || debtor.debtor_type === "solar_panel") ? "Quyosh panel biznesi" : "Eski biznes",
+    businessLine: (debtor.debtor_type === "solar_business" || debtor.debtor_type === "solar_panel") ? "Quyosh panel biznesi" : "Moto biznes",
     paymentType: "credit",
     productItems: [],
     status: overdue > 0 ? "processing" : "confirmed",
@@ -1047,7 +1047,7 @@ async function apiSaveDebtor(order) {
   const dueDate = apiDateOnly(order.dueDate || order.nextReminderAt);
   const isUpdate = isApiUuid(order.id);
   const payload = {
-    debtor_type: order.businessLine === "Eski biznes" ? "moto_business" : "solar_business",
+    debtor_type: order.businessLine === "Moto biznes" ? "moto_business" : "solar_business",
     full_name: (order.customerName || "").trim(),
     phone: (order.phone || "").trim(),
     city: order.city || "Toshkent",

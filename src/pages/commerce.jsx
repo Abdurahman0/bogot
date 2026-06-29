@@ -33,7 +33,7 @@ const COMMERCE_UI = {
     tabAll: "Barchasi", tabOpen: "Qoldiq bor", tabOverdue: "Muddati o'tgan", tabClosed: "Yopilgan",
     remainingLabel: "Qoldiq:", overdueLabel: "Muddati o'tgan:",
     debtorsSearch: "Mijoz, ID, tuman yoki mahalla...", paymentsSearch: "Kategoriya, mijoz, ID...",
-    solar: "Quyosh panel biznesi", oldBiz: "Eski biznes",
+    solar: "Quyosh panel biznesi", oldBiz: "Moto biznes",
     filterDebtorType: "Tur", colStatus: "Holat",
     notePlaceholder: "To'lov kelishuvi yoki eslatma...", currencyPh: "UZS yoki USD",
     phoneRequired: "Telefon raqamini kiriting", phoneLabel: "Telefon", debtorLabel: "Mijoz",
@@ -79,7 +79,7 @@ const COMMERCE_UI = {
     tabAll: "Все", tabOpen: "Есть остаток", tabOverdue: "Просрочено", tabClosed: "Закрыто",
     remainingLabel: "Остаток:", overdueLabel: "Просрочено:",
     debtorsSearch: "Клиент, ID, район или махалля...", paymentsSearch: "Категория, клиент, ID...",
-    solar: "Бизнес солнечных панелей", oldBiz: "Старый бизнес",
+    solar: "Бизнес солнечных панелей", oldBiz: "Мото бизнес",
     filterDebtorType: "Тип", colStatus: "Статус",
     notePlaceholder: "Договор об оплате или примечание...", currencyPh: "UZS или USD",
     phoneRequired: "Введите номер телефона", phoneLabel: "Телефон", debtorLabel: "Клиент",
@@ -125,7 +125,7 @@ const COMMERCE_UI = {
     tabAll: "All", tabOpen: "Has balance", tabOverdue: "Overdue", tabClosed: "Closed",
     remainingLabel: "Balance:", overdueLabel: "Overdue:",
     debtorsSearch: "Customer, ID, district or mahalla...", paymentsSearch: "Category, customer, ID...",
-    solar: "Solar panel business", oldBiz: "Moto business",
+    solar: "Solar panel business", oldBiz: "Moto biznes",
     filterDebtorType: "Type", colStatus: "Status",
     notePlaceholder: "Payment agreement or note...", currencyPh: "UZS or USD",
     phoneRequired: "Enter phone number", phoneLabel: "Phone", debtorLabel: "Customer",
@@ -408,7 +408,7 @@ function OrdersPage() {
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("debtorsSearch")} width={260} />
-        <FilterSelect label={comTx("filterDebtorType")} icon="layers" value={debtorTypeFilter} onChange={setDebtorTypeFilter} options={[{ value: "moto_business", label: comTx("oldBiz") }, { value: "solar_panel", label: comTx("solar") }]} />
+        <FilterSelect label={comTx("filterDebtorType")} icon="layers" value={debtorTypeFilter} onChange={setDebtorTypeFilter} options={[{ value: "moto_business", label: comTx("oldBiz") }, { value: "solar_business", label: comTx("solar") }]} />
         {showLocationFilters && <FilterSelect label={comTx("colDistrict")} icon="mapPin" value={districtFilter} onChange={setDistrictFilter} options={districtOptions} />}
         {showLocationFilters && <FilterSelect label={comTx("colMahalla")} icon="home" value={mahallaFilter} onChange={setMahallaFilter} options={mahallaOptions} />}
         <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder={comTx("startDate")} /></div>
@@ -431,7 +431,7 @@ function OrdersPage() {
               { key: "name", label: comTx("colCustomer"), sortVal: (row) => row.customerName, render: (row) => <div><div className="tg-cell-strong">{row.customerName}</div><div className="tg-cell-sub">{row.phone || row.id}</div></div> },
               { key: "district", label: comTx("colDistrict"), sortVal: (row) => orderTuman(row), render: (row) => orderTuman(row) || <span className="tg-cell-sub">—</span> },
               { key: "mahalla", label: comTx("colMahalla"), sortVal: (row) => orderMahalla(row), render: (row) => orderMahalla(row) || <span className="tg-cell-sub">—</span> },
-              { key: "type", label: comTx("filterDebtorType"), sortVal: (row) => row.debtorType || "", render: (row) => row.debtorType === "solar_panel" ? <Badge color="blue" size="sm">{comTx("solar")}</Badge> : row.debtorType === "moto_business" ? <Badge color="amber" size="sm">{comTx("oldBiz")}</Badge> : <span className="tg-cell-sub">—</span> },
+              { key: "type", label: comTx("filterDebtorType"), sortVal: (row) => row.debtorType || "", render: (row) => (row.debtorType === "solar_business" || row.debtorType === "solar_panel") ? <Badge color="blue" size="sm">{comTx("solar")}</Badge> : row.debtorType === "moto_business" ? <Badge color="amber" size="sm">{comTx("oldBiz")}</Badge> : <span className="tg-cell-sub">—</span> },
               { key: "status", label: comTx("colStatus"), sortVal: (row) => debtNum(row.overdueAmountUzs) > 0 ? 2 : debtNum(row.remainingDebtUzs) > 0 ? 1 : 0, render: (row) => { const ov = debtNum(row.overdueAmountUzs); const rem = debtNum(row.remainingDebtUzs); return <Badge color={ov > 0 ? "red" : rem > 0 ? "amber" : "green"} size="sm">{ov > 0 ? comTx("overdue") : rem > 0 ? comTx("withDebt") : comTx("closed")}</Badge>; } },
               { key: "debt", label: comTx("colDebt"), sortVal: (row) => debtNum(row.remainingDebtUzs), render: (row) => <span style={{ fontWeight: 700 }}>{rawDebt(row.remainingDebtUzs) ?? "—"}</span> },
             ]}
@@ -652,7 +652,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <Field label={comTx("colMahalla")}>{apiDistricts.length ? <Select value={form.mahalla} onChange={v => set("mahalla", v)} options={[{ value: "", label: "— tanlang —" }, ...apiNeighborhoods.filter(n => { const d = apiDistricts.find(d => d.name === form.district); return d && n.district === d.id; }).map(n => ({ value: n.name, label: n.name }))]} /> : <Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder={comTx("mahallaPh")} />}</Field>
-          <Field label={comTx("direction")}><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: comTx("solar") }, { value: "Eski biznes", label: comTx("oldBiz") }]} /></Field>
+          <Field label={comTx("direction")}><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: comTx("solar") }, { value: "Moto biznes", label: comTx("oldBiz") }]} /></Field>
           <Field label={comTx("paymentType")}><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: comTx("credit") }, { value: "cash", label: comTx("cash") }]} /></Field>
         </div>
         {!!districts.length && (
