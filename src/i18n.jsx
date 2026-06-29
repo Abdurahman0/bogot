@@ -477,3 +477,4 @@ const TRANSLATIONS = {
 };
 
 window.TRANSLATIONS = TRANSLATIONS;
+
