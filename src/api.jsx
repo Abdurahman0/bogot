@@ -6,7 +6,7 @@ const API_ROLE_MAP = {
   developer: "developer",
   admin: "admin",
   operator: "operator",
-};
+}
 
 const CATEGORY_LABELS = {
   credit_expense: "Kredit xarajati",
