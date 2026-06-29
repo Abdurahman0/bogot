@@ -96,8 +96,6 @@ const CHANNEL_TABS_FN = () => [
   { value: "all", label: ibTx("tabAll") },
   { value: "instagram", label: "Instagram" },
   { value: "telegram", label: "Telegram" },
-  { value: "handoff", label: ibTx("tabHandoff") },
-  { value: "closed", label: ibTx("tabClosed") },
 ];
 const AI_MODE_LABELS = () => ({ ai: ibTx("aiActive"), operator: ibTx("aiOperator"), handoff: ibTx("aiHandoff") });
 const AI_MODE_COLORS = { ai: "violet", operator: "blue", handoff: "amber" };
@@ -121,6 +119,7 @@ function InboxPage() {
   const [pauseOpen, setPauseOpen] = ibS(false);
   const [pauseValue, setPauseValue] = ibS(inboxPauseDefault());
   const [pauseBusy, setPauseBusy] = ibS(false);
+  const [panelOpen, setPanelOpen] = ibS(true);
   const msgEndRef = ibR(null);
 
   const convs = ibM(() => {
@@ -129,6 +128,8 @@ function InboxPage() {
     if (tab === "handoff") list = list.filter((conversation) => conversation.status === "handoff" || conversation.aiMode === "handoff");
     if (tab === "closed") list = list.filter((conversation) => conversation.status === "closed");
     if (q) list = list.filter((conversation) => conversation.name.toLowerCase().includes(q.toLowerCase()));
+    const handoffPriority = (c) => (c.status === "handoff" || c.aiMode === "handoff") ? 0 : 1;
+    list.sort((a, b) => handoffPriority(a) - handoffPriority(b) || new Date(b.lastAt) - new Date(a.lastAt));
     return list;
   }, [data.conversations, tab, q]);
 
@@ -217,7 +218,7 @@ function InboxPage() {
             <Badge color="blue">{data.conversations.length} {ibTx("convCount")}</Badge>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 0, overflow: "auto" }}>
+        <div style={{ display: "flex", gap: 0 }}>
           {CHANNEL_TABS_FN().map((item) => (
             <button key={item.value} className="tg-tab" data-active={tab === item.value ? "1" : undefined} onClick={() => setTab(item.value)} style={{ marginBottom: -1 }}>
               {item.label}
@@ -226,7 +227,7 @@ function InboxPage() {
         </div>
       </div>
 
-      <div className="tg-inbox" style={{ flex: 1 }}>
+      <div className="tg-inbox" style={{ flex: 1, gridTemplateColumns: `280px 1fr ${panelOpen ? "300px" : "0px"}`, transition: "grid-template-columns 0.25s ease" }}>
         <div className="tg-inbox-sidebar">
           <div style={{ padding: "10px 12px" }}>
             <SearchInput value={q} onChange={setQ} placeholder={ibTx("searchConvs")} />
@@ -234,8 +235,9 @@ function InboxPage() {
           {convs.length === 0 ? <EmptyState icon={<I.inbox size={22} />} title={ibTx("noConvs")} /> : convs.map((conversation) => {
             const lastMsg = (conversation.messages || []).slice(-1)[0];
             const ChIco = I[CH_ICON[conversation.channel] || "message"];
+            const isHandoff = conversation.status === "handoff" || conversation.aiMode === "handoff";
             return (
-              <div key={conversation.id} className="tg-inbox-conv-item" data-active={active?.id === conversation.id ? "1" : undefined} onClick={() => setActiveId(conversation.id)}>
+              <div key={conversation.id} className="tg-inbox-conv-item" data-active={active?.id === conversation.id ? "1" : undefined} onClick={() => setActiveId(conversation.id)} style={isHandoff ? { borderLeft: "3px solid var(--amber)", background: active?.id === conversation.id ? undefined : "var(--amber-bg)" } : undefined}>
                 <div style={{ position: "relative" }}>
                   <Avatar name={conversation.name} size={38} />
                   <span style={{ position: "absolute", bottom: -2, right: -2, width: 16, height: 16, background: `var(--${CH_COLOR[conversation.channel] || "slate"})`, borderRadius: 4, display: "grid", placeItems: "center", border: "2px solid var(--surface)" }}>
@@ -274,6 +276,7 @@ function InboxPage() {
                   <Button variant="default" size="sm" icon={<I.pause size={14} />} onClick={openPauseEditor} disabled={busy}>{ibTx("stopAI")}</Button>
                 )}
                 <Button variant="danger" size="sm" icon={<I.trash size={14} />} onClick={() => setDeleteTarget(active)} disabled={busy || deleteBusy}>{ibTx("deleteChat")}</Button>
+                <IconButton icon={<I.user size={16} />} label={panelOpen ? "Yopish" : "Mijoz"} onClick={() => setPanelOpen(v => !v)} style={{ background: panelOpen ? "var(--accent-soft)" : undefined, color: panelOpen ? "var(--accent)" : undefined }} />
               </div>
             </div>
             {aiPaused && pauseUntilLabel ? (
@@ -315,7 +318,7 @@ function InboxPage() {
           </>}
         </div>
 
-        <div className="tg-inbox-panel">
+        <div className="tg-inbox-panel" style={{ width: panelOpen ? 300 : 0, minWidth: 0, overflow: "hidden", transition: "width 0.25s ease", borderLeft: panelOpen ? undefined : "none" }}>
           {activeCustomer ? (
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
               <div>

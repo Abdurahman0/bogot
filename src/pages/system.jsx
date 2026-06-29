@@ -685,7 +685,11 @@ function UsersPage() {
   const myPermissionCodes = normalizePermissionCodes(currentUser?.permissions || []);
   const canManageUsers = currentRole === "developer" || myPermissionCodes.includes("users.manage");
   const permissionCatalog = sysM(() => buildPermissionCatalog(data), [data.permissionsAll, data.permissions]);
-  const permissionGroups = sysM(() => groupedPermissionCatalog(permissionCatalog), [permissionCatalog]);
+  const ADMIN_BLOCKED_MODULES = new Set(["audit_logs", "integrations"]);
+  const permissionGroups = sysM(() => {
+    const groups = groupedPermissionCatalog(permissionCatalog);
+    return currentRole === "admin" ? groups.filter(([moduleKey]) => !ADMIN_BLOCKED_MODULES.has(moduleKey)) : groups;
+  }, [permissionCatalog, currentRole]);
   const roleCatalog = sysM(() => {
     const backendRoles = (data.roles || []).map((role) => ({ ...role, key: roleKey(role), label: roleLabel(role) })).filter((role) => role.key);
     if (backendRoles.length) return backendRoles;

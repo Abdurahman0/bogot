@@ -529,50 +529,90 @@ function AppProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const session = apiLoadSession();
-    if (!authed || !session?.access) return undefined;
+    if (!authed) return undefined;
 
-    const ws = new WebSocket(`${apiWebSocketBase()}/ws/chats/?token=${encodeURIComponent(session.access)}`);
-    chatWsRef.current = ws;
+    let destroyed = false;
+    let currentWs = null;
+    let reconnectTimer = null;
+    let retryDelay = 1000;
 
-    ws.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "chat.session_updated" && payload.session) {
-          const mapped = mapApiConversation(payload.session);
-          setData((current) => {
-            const existing = (current.conversations || []).find((row) => row.id === mapped.id);
-            const conversations = existing
-              ? current.conversations.map((row) => row.id === mapped.id ? { ...row, ...mapped, messages: row.messages || mapped.messages || [] } : row)
-              : [mapped, ...(current.conversations || [])];
-            return { ...current, conversations };
-          });
+    const connect = () => {
+      if (destroyed) return;
+      const session = apiLoadSession();
+      if (!session?.access) return;
+
+      const ws = new WebSocket(`${apiWebSocketBase()}/ws/chats/?token=${encodeURIComponent(session.access)}`);
+      currentWs = ws;
+      chatWsRef.current = ws;
+
+      ws.onopen = () => { retryDelay = 1000; };
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === "chat.session_updated" && payload.session) {
+            const mapped = mapApiConversation(payload.session);
+            setData((current) => {
+              const existing = (current.conversations || []).find((row) => row.id === mapped.id);
+              const conversations = existing
+                ? current.conversations.map((row) => row.id === mapped.id ? { ...row, ...mapped, messages: row.messages || mapped.messages || [] } : row)
+                : [mapped, ...(current.conversations || [])];
+              return { ...current, conversations };
+            });
+          }
+          if (payload.type === "chat.message_created" && payload.session_id && payload.message) {
+            const mappedMessage = mapApiMessage(payload.message);
+            if (!mappedMessage) return;
+            setData((current) => ({
+              ...current,
+              conversations: (current.conversations || []).map((row) => row.id === payload.session_id ? {
+                ...row,
+                messagesLoaded: true,
+                messages: [...(row.messages || []).filter((message) => message.id !== mappedMessage.id), mappedMessage],
+                lastAt: mappedMessage.at,
+                unread: mappedMessage.from === "customer" ? (row.unread || 0) + 1 : row.unread || 0,
+              } : row),
+            }));
+          }
+        } catch (error) {
+          console.error("[WS] parse error", error);
         }
-        if (payload.type === "chat.message_created" && payload.session_id && payload.message) {
-          const mappedMessage = mapApiMessage(payload.message);
-          if (!mappedMessage) return;
-          setData((current) => ({
-            ...current,
-            conversations: (current.conversations || []).map((row) => row.id === payload.session_id ? {
-              ...row,
-              messagesLoaded: true,
-              messages: [...(row.messages || []).filter((message) => message.id !== mappedMessage.id), mappedMessage],
-              lastAt: mappedMessage.at,
-              unread: mappedMessage.from === "customer" ? (row.unread || 0) + 1 : row.unread || 0,
-            } : row),
-          }));
-          refreshConversation(payload.session_id).catch(() => null);
+      };
+
+      ws.onerror = (error) => {
+        console.error("[WS] chat socket error", error);
+      };
+
+      ws.onclose = (event) => {
+        if (destroyed) return;
+        if (event.code === 1000) return;
+        if (event.code === 4001 || event.code === 4003) {
+          const s = apiLoadSession();
+          if (s?.refresh) {
+            apiRefreshToken(s.refresh)
+              .then(() => { retryDelay = 1000; if (!destroyed) connect(); })
+              .catch(() => logout());
+          } else {
+            logout();
+          }
+          return;
         }
-      } catch (error) {
-        console.error(error);
-      }
+        reconnectTimer = setTimeout(() => {
+          retryDelay = Math.min(retryDelay * 2, 30000);
+          connect();
+        }, retryDelay);
+      };
     };
+
+    connect();
 
     return () => {
-      if (chatWsRef.current === ws) chatWsRef.current = null;
-      try { ws.close(); } catch (error) { console.error(error); }
+      destroyed = true;
+      clearTimeout(reconnectTimer);
+      chatWsRef.current = null;
+      try { currentWs?.close(1000); } catch (e) {}
     };
-  }, [authed, refreshConversation]);
+  }, [authed, logout]);
 
   const resetData = useCallback(async () => {
     if (authed) {

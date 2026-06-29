@@ -32,7 +32,7 @@ window.NAV = NAV;
 // role-based access: which paths each role can see
 const ROLE_ACCESS = {
   developer: null,
-  admin: null,
+  admin: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/debtors", "/accounting", "/locations", "/users", "/notifications", "/settings"],
   operator: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/debtors", "/accounting", "/locations", "/notifications", "/integrations", "/settings"],
 };
 window.ROLE_ACCESS = ROLE_ACCESS;
@@ -626,6 +626,7 @@ function Login() {
   const { login, dataLoading, t } = useApp();
   const [username, setUsername] = shS("");
   const [pw, setPw] = shS("");
+  const [showPw, setShowPw] = shS(false);
   const submit = async (e) => {
     e && e.preventDefault();
     try {
@@ -654,7 +655,14 @@ function Login() {
           <h2>{t("auth.loginTitle")}</h2>
           <Field label={t("common.username")}><Input value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" /></Field>
           <div style={{ height: 14 }} />
-          <Field label={t("common.password")}><Input value={pw} onChange={e => setPw(e.target.value)} type="password" autoComplete="current-password" /></Field>
+          <Field label={t("common.password")}>
+            <div style={{ position: "relative" }}>
+              <input className="tg-input" value={pw} onChange={e => setPw(e.target.value)} type={showPw ? "text" : "password"} autoComplete="current-password" style={{ paddingRight: 40, width: "100%", boxSizing: "border-box" }} />
+              <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", display: "flex", alignItems: "center", padding: 0, lineHeight: 1 }}>
+                {showPw ? <I.eyeOff size={16} /> : <I.eye size={16} />}
+              </button>
+            </div>
+          </Field>
           <div style={{ height: 20 }} />
           <Button variant="primary" size="lg" full type="submit" disabled={dataLoading}>{dataLoading ? t("common.loading") : <>{t("common.login")} <I.arrowRight size={17} /></>}</Button>
         </form>
