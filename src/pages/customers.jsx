@@ -397,21 +397,28 @@ const CUSTOMER_STATUS_COLOR_OPTIONS = [
   "#ca8a04",
   "#64748b",
 ];
-const CUSTOMER_STATUS_UZ = {
-  new: "Yangi",
-  active: "Faol",
-  inactive: "Nofaol",
-  pending: "Kutilmoqda",
-  contacted: "Bog'langan",
-  qualified: "Saralangan",
-  confirmed: "Tasdiqlangan",
-  closed: "Yopilgan",
-  lost: "Yo'qotilgan",
+const CUSTOMER_STATUS_LABELS = {
+  uz: { new: "Yangi", active: "Faol", inactive: "Nofaol", pending: "Kutilmoqda", contacted: "Bog'langan", qualified: "Saralangan", confirmed: "Tasdiqlangan", closed: "Yopilgan", lost: "Yo'qotilgan" },
+  ru: { new: "Новый", active: "Активный", inactive: "Неактивный", pending: "Ожидание", contacted: "Связались", qualified: "Квалифицирован", confirmed: "Подтверждён", closed: "Закрыт", lost: "Потерян" },
+  en: { new: "New", active: "Active", inactive: "Inactive", pending: "Pending", contacted: "Contacted", qualified: "Qualified", confirmed: "Confirmed", closed: "Closed", lost: "Lost" },
+};
+const CUSTOMER_STATUS_NORMALIZE = {
+  "yangi": "new", "faol": "active", "nofaol": "inactive",
+  "kutilmoqda": "pending", "bog'langan": "contacted", "bog`langan": "contacted",
+  "saralangan": "qualified", "tasdiqlangan": "confirmed",
+  "yopilgan": "closed", "yo'qotilgan": "lost", "yo`qotilgan": "lost",
+  "новый": "new", "активный": "active", "неактивный": "inactive",
+  "ожидание": "pending", "связались": "contacted",
+  "квалифицирован": "qualified", "подтверждён": "confirmed",
+  "закрыт": "closed", "потерян": "lost",
 };
 const localizeCustomerStatusName = (value) => {
   const text = String(value || "").trim();
   if (!text) return ctx("unspecified");
-  return CUSTOMER_STATUS_UZ[text.toLowerCase()] || text;
+  const labels = CUSTOMER_STATUS_LABELS[customerLang()] || CUSTOMER_STATUS_LABELS.uz;
+  const key = text.toLowerCase();
+  const normalized = CUSTOMER_STATUS_NORMALIZE[key] || key;
+  return labels[normalized] || CUSTOMER_STATUS_LABELS.uz[normalized] || text;
 };
 const customerTextValue = (value, fallback = ctx("notEntered")) => {
   const text = String(value ?? "").trim();
@@ -519,7 +526,7 @@ function CustomersPage() {
     { key: "payment", label: ctx("payment"), render: r => <Badge color={r.paymentType === "credit" ? "amber" : "green"} size="sm">{r.paymentTypeLabel}</Badge> },
     { key: "spent", label: ctx("amountReceived"), sortVal: r => r.totalSpent, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.totalSpent)}</span> },
     { key: "subsidy", label: ctx("subsidyAmount"), sortVal: r => r.subsidyAmount, render: r => <span style={{ fontWeight: 650 }}>{fmtShort(r.subsidyAmount)}</span> },
-    { key: "status", label: ctx("status"), render: r => <StatusColorBadge color={customerStatusColor(r)} tone={customerStatusTone(r)} label={localizeCustomerStatusName(r.statusName || r.status)} /> },
+    { key: "status", label: ctx("status"), render: r => (!r.statusId && !r.statusName) ? <Badge color="slate" size="sm">{ctx("unspecified")}</Badge> : <StatusColorBadge color={customerStatusColor(r)} tone={customerStatusTone(r)} label={localizeCustomerStatusName(r.statusName || r.status)} /> },
     { key: "actions", label: "", width: 44, render: r => (
       <div onClick={e => e.stopPropagation()}>
         <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label={ctx("actions")} />} items={[
@@ -854,7 +861,7 @@ function CustomerViewModal({ open, onClose, onEdit, onDelete, customer }) {
               <div className="tg-customer-view-row"><span>{ctx("phone")}</span><strong>{customerTextValue(customer.phone)}</strong></div>
               <div className="tg-customer-view-row"><span>{ctx("source")}</span><strong>{customerSourceLabel(customer.source)}</strong></div>
               <div className="tg-customer-view-row"><span>{window.TRANSLATIONS?.[customerLang()]?.["common.product"] || "Mahsulot"}</span><strong>{customerTextValue(productLabel, "Tanlanmagan")}</strong></div>
-              <div className="tg-customer-view-row"><span>{ctx("status")}</span><strong>{localizeCustomerStatusName(customer.statusName || customer.status)}</strong></div>
+              <div className="tg-customer-view-row"><span>{ctx("status")}</span><strong>{(!customer.statusId && !customer.statusName) ? ctx("unspecified") : localizeCustomerStatusName(customer.statusName || customer.status)}</strong></div>
               <div className="tg-customer-view-row"><span>{window.TRANSLATIONS?.[customerLang()]?.["common.created"] || "Yaratilgan"}</span><strong>{customer.createdAt ? fmtDate(customer.createdAt, true) : ctx("notEntered")}</strong></div>
               <div className="tg-customer-view-row"><span>{window.TRANSLATIONS?.[customerLang()]?.["common.updated"] || "Yangilangan"}</span><strong>{customer.updatedAt ? fmtDate(customer.updatedAt, true) : ctx("notEntered")}</strong></div>
             </div>

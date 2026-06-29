@@ -416,13 +416,13 @@ function mapApiClientStatus(status) {
 function apiClientVisualStatus(statusName, fallback) {
   const raw = String(statusName || fallback || "").trim().toLowerCase();
   if (!raw) return "active";
-  if (raw.includes("inactive")) return "inactive";
-  if (raw.includes("pending")) return "pending";
-  if (raw.includes("new")) return "pending";
-  if (raw.includes("lost")) return "cancelled";
-  if (raw.includes("closed")) return "closed";
-  if (raw.includes("contacted")) return "contacted";
-  if (raw.includes("confirmed")) return "verified";
+  if (raw.includes("inactive") || raw.includes("nofaol") || raw.includes("неактив")) return "inactive";
+  if (raw.includes("lost") || raw.includes("yo'qotil") || raw.includes("потер")) return "cancelled";
+  if (raw.includes("closed") || raw.includes("yopil") || raw.includes("закрыт")) return "closed";
+  if (raw.includes("confirmed") || raw.includes("tasdiql") || raw.includes("подтверж")) return "verified";
+  if (raw.includes("contacted") || raw.includes("bog'lan") || raw.includes("bog`lan") || raw.includes("связал")) return "contacted";
+  if (raw.includes("qualified") || raw.includes("saralanl") || raw.includes("квалиф")) return "qualified";
+  if (raw.includes("pending") || raw.includes("new") || raw.includes("yangi") || raw.includes("kutilmoqd") || raw.includes("новый") || raw.includes("ожидан")) return "pending";
   return "active";
 }
 

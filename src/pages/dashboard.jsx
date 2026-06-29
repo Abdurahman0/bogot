@@ -87,10 +87,24 @@ const DASHBOARD_STATUS_LABELS = {
   ru: { new: "Новый", active: "Активный", inactive: "Неактивный", pending: "Ожидание", contacted: "Связались", qualified: "Квалифицирован", confirmed: "Подтверждён", closed: "Закрыт", lost: "Потерян" },
   en: { new: "New", active: "Active", inactive: "Inactive", pending: "Pending", contacted: "Contacted", qualified: "Qualified", confirmed: "Confirmed", closed: "Closed", lost: "Lost" },
 };
+const DASH_STATUS_NORMALIZE = {
+  // Uzbek → canonical key
+  "yangi": "new", "faol": "active", "nofaol": "inactive",
+  "kutilmoqda": "pending", "bog'langan": "contacted", "bog`langan": "contacted",
+  "saralangan": "qualified", "tasdiqlangan": "confirmed",
+  "yopilgan": "closed", "yo'qotilgan": "lost", "yo`qotilgan": "lost",
+  // Russian → canonical key
+  "новый": "new", "активный": "active", "неактивный": "inactive",
+  "ожидание": "pending", "связались": "contacted",
+  "квалифицирован": "qualified", "подтверждён": "confirmed",
+  "закрыт": "closed", "потерян": "lost",
+};
 const dashboardStatusLabel = (value) => {
   const labels = DASHBOARD_STATUS_LABELS[dashLang()] || DASHBOARD_STATUS_LABELS.uz;
-  const key = String(value || "").trim().toLowerCase();
-  return labels[key] || DASHBOARD_STATUS_LABELS.uz[key] || value || dashTx("unassigned");
+  const raw = String(value || "").trim();
+  const key = raw.toLowerCase();
+  const normalized = DASH_STATUS_NORMALIZE[key] || key;
+  return labels[normalized] || DASHBOARD_STATUS_LABELS.uz[normalized] || raw || dashTx("unassigned");
 };
 
 const heroAccentBg = (isLight) => (
@@ -368,10 +382,12 @@ function DashboardPage() {
                     <td><div className="tg-cell-strong">{customer.fullName}</div></td>
                     <td>{customer.phone || "—"}</td>
                     <td>
-                      {customer.statusColor ? (
+                      {(!customer.statusId && !customer.statusName) ? (
+                        <Badge color="slate" size="sm">{dashTx("unassigned")}</Badge>
+                      ) : customer.statusColor ? (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 500, backgroundColor: customer.statusColor + "22", color: customer.statusColor, border: `1px solid ${customer.statusColor}55` }}>
                           <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: customer.statusColor, flexShrink: 0 }} />
-                          {customer.statusName || dashboardStatusLabel(customer.status)}
+                          {dashboardStatusLabel(customer.statusName || customer.status)}
                         </span>
                       ) : (
                         <StatusBadge status={customer.status || "active"} label={dashboardStatusLabel(customer.statusName || customer.status)} />
