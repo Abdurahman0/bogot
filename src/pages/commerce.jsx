@@ -1022,13 +1022,13 @@ function PaymentsPage() {
       </div>
       <div className="grid-kpi" style={{ marginBottom: 10 }}>
         <StatTile label={comTx("incomeUzs")} value={fmtShort(uzsIncome)} sub="so'm" color="green" />
-        <StatTile label={comTx("incomeUsd")} value={fmtShort(usdIncome)} sub="$" color="teal" />
+        <StatTile label={comTx("incomeUsd")} value={Number(usdIncome).toLocaleString("en-US")} sub="$" color="teal" />
         <StatTile label={comTx("expenseUzs")} value={fmtShort(uzsExpense)} sub="so'm" color="red" />
-        <StatTile label={comTx("expenseUsd")} value={fmtShort(usdExpense)} sub="$" color="amber" />
+        <StatTile label={comTx("expenseUsd")} value={Number(usdExpense).toLocaleString("en-US")} sub="$" color="amber" />
       </div>
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("netUzs")} value={fmtShort(uzsIncome - uzsExpense)} sub="so'm" color={(uzsIncome - uzsExpense) >= 0 ? "green" : "red"} />
-        <StatTile label={comTx("netUsd")} value={fmtShort(usdIncome - usdExpense)} sub="$" color={(usdIncome - usdExpense) >= 0 ? "green" : "red"} />
+        <StatTile label={comTx("netUsd")} value={Number(usdIncome - usdExpense).toLocaleString("en-US")} sub="$" color={(usdIncome - usdExpense) >= 0 ? "green" : "red"} />
         <StatTile label={comTx("records")} value={payTotal} color="blue" />
       </div>
       <div className="toolbar">
