@@ -2,7 +2,15 @@
 
 const fmtUZS = (n) => n == null ? "—" : Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " so'm";
 const fmtNum = (n) => n == null ? "—" : n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-const fmtShort = (n) => n >= 1e9 ? (n / 1e9).toFixed(1) + " mlrd" : n >= 1e6 ? (n / 1e6).toFixed(1) + " mln" : n >= 1e3 ? (n / 1e3).toFixed(0) + "k" : String(n);
+const fmtShort = (n) => {
+  const value = Number(n) || 0;
+  const abs = Math.abs(value);
+  const compact = (divisor, suffix) => `${(value / divisor).toFixed(1).replace(/\.0$/, "")} ${suffix}`;
+  if (abs >= 1e9) return compact(1e9, "mlrd");
+  if (abs >= 1e6) return compact(1e6, "mln");
+  if (abs >= 1e3) return compact(1e3, "K");
+  return String(value);
+};
 
 window.fmtUZS = fmtUZS;
 window.fmtNum = fmtNum;

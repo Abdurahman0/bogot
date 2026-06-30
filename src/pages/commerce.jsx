@@ -185,6 +185,7 @@ const ACCOUNTING_CATEGORY_OPTIONS = [
   { value: "card_expense", label: "Karta chiqimi" },
   { value: "dollar_expense", label: "Dollar chiqimi" },
 ];
+const currencyForAccountingCategory = (category) => String(category || "").startsWith("dollar_") ? "USD" : "UZS";
 
 function OrderRow({ o, onClick }) {
   const overdueAmount = debtNum(o.overdueAmountUzs);
@@ -1130,8 +1131,12 @@ function PaymentFormModal({ open, onClose, onSave, initial }) {
           <Field label={comTx("dateCol")}><DatePickerInput value={(form.date || "").slice(0, 10)} onChange={(value) => set("date", value)} /></Field>
           <Field label={comTx("category")}><Select value={form.rawCategory} onChange={v => {
             const selected = ACCOUNTING_CATEGORY_OPTIONS.find((option) => option.value === v);
-            set("rawCategory", v);
-            set("category", selected?.label || "");
+            setForm(current => ({
+              ...current,
+              rawCategory: v,
+              category: selected?.label || "",
+              currency: currencyForAccountingCategory(v),
+            }));
           }} options={ACCOUNTING_CATEGORY_OPTIONS} /></Field>
         </div>
         <Field label={comTx("subject")}><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
