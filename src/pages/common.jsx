@@ -359,8 +359,9 @@ function StatTile({ label, value, sub, color }) {
   return (
     <div style={{ padding: "14px 16px", background: "var(--surface-2)", borderRadius: 12, border: "1px solid var(--border)" }}>
       <div style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 540 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 720, marginTop: 4, color: color ? `var(--${color})` : "var(--text)", letterSpacing: "-.02em" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 2 }}>{sub}</div>}
+      <div style={{ fontSize: 22, fontWeight: 720, marginTop: 4, color: color ? `var(--${color})` : "var(--text)", letterSpacing: "-.02em" }}>
+        {value}{sub && <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-3)", marginLeft: 5 }}>{sub}</span>}
+      </div>
     </div>
   );
 }

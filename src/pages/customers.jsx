@@ -552,7 +552,14 @@ function CustomersPage() {
     { key: "spent", label: ctx("amountReceived"), sortVal: r => r.totalSpent, render: r => <span style={{ fontWeight: 650 }}>{fmtUZS(r.totalSpent)}</span> },
     { key: "subsidy", label: ctx("subsidyAmount"), sortVal: r => r.subsidyAmount, render: r => <span style={{ fontWeight: 650 }}>{fmtShort(r.subsidyAmount)}</span> },
     { key: "status", label: ctx("status"), render: r => (!r.statusId && !r.statusName) ? <Badge color="slate" size="sm">{ctx("unspecified")}</Badge> : <StatusColorBadge color={customerStatusColor(r)} tone={customerStatusTone(r)} label={localizeCustomerStatusName(r.statusName || r.status)} /> },
-    { key: "password", label: ctx("passwordField"), render: r => r.password ? <span className="tg-cell-sub" style={{ fontFamily: "monospace", fontSize: 12 }}>{r.password}</span> : <span style={{ color: "var(--text-4)" }}>—</span> },
+    { key: "password", label: ctx("passwordField"), render: r => r.password ? (
+      <span
+        className="tg-cell-sub"
+        style={{ fontFamily: "monospace", fontSize: 12, cursor: "pointer", userSelect: "none" }}
+        title="Nusxa olish uchun bosing"
+        onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(r.password).then(() => toast("Parol nusxalandi")).catch(() => toast("Nusxa olishda xato", "error")); }}
+      >{r.password} <I.copy size={11} style={{ opacity: 0.45, verticalAlign: "middle" }} /></span>
+    ) : <span style={{ color: "var(--text-4)" }}>—</span> },
     { key: "actions", label: "", width: 44, render: r => (
       <div onClick={e => e.stopPropagation()}>
         <Dropdown align="right" trigger={<IconButton icon={<I.dots size={16} />} label={ctx("actions")} />} items={[

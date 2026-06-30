@@ -316,7 +316,7 @@ function DashboardPage() {
 
       <div className="grid-kpi" style={{ marginBottom: 16 }}>
         <StatTile label={dashTx("accIncomeUzs")} value={fmtShort(accUzsIncome)} sub="so'm" color="green" />
-        <StatTile label={dashTx("accIncomeUsd")} value={fmtShort(accUsdIncome)} sub="$" color="teal" />
+        <StatTile label={dashTx("accIncomeUsd")} value={Number(accUsdIncome).toLocaleString("en-US")} sub="$" color="teal" />
         <StatTile label={dashTx("accExpenseUzs")} value={fmtShort(accUzsExpense)} sub="so'm" color="red" />
         <StatTile label={dashTx("accNetUzs")} value={fmtShort(accUzsNet)} sub="so'm" color={accUzsNet >= 0 ? "green" : "red"} />
       </div>
