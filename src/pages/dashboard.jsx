@@ -140,6 +140,23 @@ function DashboardPage() {
   const { data, t, role, nav, theme } = useApp();
   const isLight = resolveLight(theme);
   const [range, setRange] = pS("30d");
+  const { dateFrom, dateTo } = pM(() => {
+    const today = new Date();
+    const toStr = d => d.toISOString().slice(0, 10);
+    const todayStr = toStr(today);
+    if (!range || range === "all") return { dateFrom: "", dateTo: "" };
+    if (range === "today") return { dateFrom: todayStr, dateTo: todayStr };
+    const daysMap = { "7d": 6, "30d": 29, "90d": 89 };
+    const daysBack = daysMap[range];
+    if (daysBack !== undefined) {
+      const from = new Date(today); from.setDate(from.getDate() - daysBack);
+      return { dateFrom: toStr(from), dateTo: todayStr };
+    }
+    if (range && typeof range === "object" && range.from) {
+      return { dateFrom: toStr(range.from), dateTo: range.to ? toStr(range.to) : todayStr };
+    }
+    return { dateFrom: "", dateTo: "" };
+  }, [range]);
   const loading = useLoading(320);
   const me = data.users.find((user) => user.role === role) || data.authUser || data.users[0] || { fullName: dashTx("userFallback") };
   const overview = data.dashboardOverview || {};
@@ -148,23 +165,39 @@ function DashboardPage() {
   const accountingDay = overview.accounting_day || null;
 
   const [dashClients, setDashClients] = pS([]);
+  const [dashClientsTotal, setDashClientsTotal] = pS(null);
   const [dashOrders, setDashOrders] = pS([]);
+  const [dashOrdersTotal, setDashOrdersTotal] = pS(null);
   const [dashPayments, setDashPayments] = pS([]);
   pE(() => {
-    apiGetClientsPage({ page: 1, page_size: 5, ordering: "-created_at" }).then(r => setDashClients(r.results || [])).catch(() => {});
-    apiGetDebtorsPage({ page: 1, page_size: 5, ordering: "-overdue_amount_uzs" }).then(r => setDashOrders(r.results || [])).catch(() => {});
-    apiGetPaymentsPage({ page: 1, page_size: 200, ordering: "-date" }).then(r => setDashPayments((r.results || []).map(e => {
+    apiGetClientsPage({ page: 1, page_size: 200, ordering: "-created_at", ...(dateFrom ? { created_at_after: dateFrom } : {}), ...(dateTo ? { created_at_before: dateTo } : {}) })
+      .then(r => { setDashClients(r.results || []); setDashClientsTotal(r.count ?? null); }).catch(() => {});
+    apiGetDebtorsPage({ page: 1, page_size: 200, ordering: "-created_at" })
+      .then(r => { setDashOrders(r.results || []); setDashOrdersTotal(r.count ?? null); }).catch(() => {});
+    apiGetPaymentsPage({ page: 1, page_size: 500, ordering: "-date", ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}) }).then(r => {
       const dayMap = Object.fromEntries((data.accountingDays || []).map(d => [d.id, d]));
-      return mapApiAccountingEntry ? mapApiAccountingEntry(e, dayMap) : e;
-    }))).catch(() => {});
-  }, []);
+      setDashPayments((r.results || []).map(e => mapApiAccountingEntry ? mapApiAccountingEntry(e, dayMap) : e));
+    }).catch(() => {});
+  }, [dateFrom, dateTo]);
+
+  const dateActive = !!(dateFrom || dateTo);
+  const filteredOrders = pM(() => {
+    if (!dateActive) return dashOrders;
+    return dashOrders.filter(o => {
+      const d = (o.createdAt || "").slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+  }, [dashOrders, dateFrom, dateTo, dateActive]);
+
   const days = typeof range === "object" ? Math.max(1, Math.round((range.to - range.from) / 86400000)) : ({ today: 1, "7d": 7, "30d": 30, "90d": 90 }[range] || 30);
   const hour = new Date().getHours();
   const greet = hour < 12 ? t("greeting.morning") : hour < 18 ? t("greeting.day") : t("greeting.evening");
 
-  const customerCount = clientSummary.total_clients ?? dashClients.length;
-  const debtorCount = debtorSummary.total_debtors ?? dashOrders.length;
-  const overdueDebt = debtorSummary.overdue_amount ?? dashOrders.reduce((sum, row) => sum + (row.overdueAmountUzs || 0), 0);
+  const customerCount = dateActive ? (dashClientsTotal ?? dashClients.length) : (clientSummary.total_clients ?? dashClients.length);
+  const debtorCount = dateActive ? filteredOrders.length : (debtorSummary.total_debtors ?? dashOrders.length);
+  const overdueDebt = filteredOrders.reduce((sum, row) => sum + (row.overdueAmountUzs || 0), 0) || (debtorSummary.overdue_amount ?? 0);
   const activeTasks = data.tasks.filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled");
   const taskColumnsById = Object.fromEntries((data.taskColumns || []).map((column) => [column.id, column]));
 
@@ -179,9 +212,9 @@ function DashboardPage() {
     const colorByName = {};
     dashClients.forEach((c) => { if (c.statusName && c.statusColor) colorByName[c.statusName] = c.statusColor; });
     const fallbackColors = ["#2563eb", "#7c3aed", "#0f766e", "#f59e0b", "#dc2626", "#64748b"];
-    const byStatus = clientSummary.by_status;
+    const byStatus = !dateActive ? clientSummary.by_status : null;
     let rows;
-    if (Array.isArray(byStatus) && byStatus.length) {
+    if (!dateActive && Array.isArray(byStatus) && byStatus.length) {
       rows = byStatus.map((row) => ({
         label: row.status_name || row.label || "",
         value: Number(row.count ?? 0),
@@ -200,18 +233,38 @@ function DashboardPage() {
       value: row.value,
       color: row.color || fallbackColors[index % fallbackColors.length],
     }));
-  }, [clientSummary.by_status, dashClients]);
+  }, [clientSummary.by_status, dashClients, dateActive]);
 
   const debtorTypeData = pM(() => {
+    const fallbackColors = { solar_business: "#2563eb", solar_panel: "#2563eb", moto_business: "#f59e0b" };
+    if (dateActive) {
+      const counts = {};
+      filteredOrders.forEach(o => { counts[o.debtorType] = (counts[o.debtorType] || 0) + 1; });
+      return Object.entries(counts).map(([type, count]) => ({
+        label: (type === "solar_business" || type === "solar_panel") ? dashTx("debtorTypeSolar") : dashTx("debtorTypeOld"),
+        value: count,
+        color: fallbackColors[type] || "#06b6d4",
+      }));
+    }
     const rows = dashboardEntries(debtorSummary.by_type, "debtor_type", "count");
     return rows.map((row) => ({
-      label: row.label === "solar_panel" ? dashTx("debtorTypeSolar") : row.label === "moto_business" ? dashTx("debtorTypeOld") : row.label,
+      label: (row.label === "solar_business" || row.label === "solar_panel") ? dashTx("debtorTypeSolar") : row.label === "moto_business" ? dashTx("debtorTypeOld") : row.label,
       value: row.value,
-      color: row.label === "solar_panel" ? "#2563eb" : row.label === "moto_business" ? "#f59e0b" : "#06b6d4",
+      color: fallbackColors[row.label] || "#06b6d4",
     }));
-  }, [debtorSummary.by_type]);
+  }, [debtorSummary.by_type, filteredOrders, dateActive]);
 
   const debtorStatusData = pM(() => {
+    const hasBalance = filteredOrders.filter(o => Number(o.remainingDebtUzs) > 0 && Number(o.overdueAmountUzs) <= 0).length;
+    const overdue = filteredOrders.filter(o => Number(o.overdueAmountUzs) > 0).length;
+    const closed = filteredOrders.filter(o => Number(o.remainingDebtUzs) <= 0).length;
+    if (hasBalance || overdue || closed) {
+      return [
+        { label: dashTx("debtorHasBalance"), value: hasBalance, color: "#f59e0b" },
+        { label: dashTx("debtorOverdue"),    value: overdue,     color: "#dc2626" },
+        { label: dashTx("debtorClosed"),     value: closed,      color: "#10b981" },
+      ].filter(row => row.value > 0);
+    }
     const byStatus = debtorSummary.by_status;
     if (Array.isArray(byStatus) && byStatus.length) {
       const colorMap = { with_debt: "#f59e0b", overdue: "#dc2626", closed: "#10b981" };
@@ -222,21 +275,24 @@ function DashboardPage() {
         color: colorMap[row.status] || "#64748b",
       })).filter(row => row.value > 0);
     }
-    const hasBalance = dashOrders.filter(o => Number(o.remainingDebtUzs) > 0 && Number(o.overdueAmountUzs) <= 0).length;
-    const overdue = dashOrders.filter(o => Number(o.overdueAmountUzs) > 0).length;
-    const closed = dashOrders.filter(o => Number(o.remainingDebtUzs) <= 0).length;
-    return [
-      { label: dashTx("debtorHasBalance"), value: hasBalance, color: "#f59e0b" },
-      { label: dashTx("debtorOverdue"),    value: overdue,     color: "#dc2626" },
-      { label: dashTx("debtorClosed"),     value: closed,      color: "#10b981" },
-    ].filter(row => row.value > 0);
-  }, [debtorSummary.by_status, dashOrders]);
+    return [];
+  }, [debtorSummary.by_status, filteredOrders]);
+
+  const accIsDollar = (p) => { const m = String(p.method || p.currency || "").toLowerCase(); return m.includes("dollar") || p.rawCategory === "dollar_income" || p.rawCategory === "dollar_expense"; };
+  const dateFilteredPayments = pM(() => {
+    if (!dateFrom && !dateTo) return dashPayments;
+    return dashPayments.filter(p => {
+      const d = (p.date || "").slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+  }, [dashPayments, dateFrom, dateTo]);
 
   const finance = pM(() => {
-    const totalDays = days <= 1 ? 7 : days;
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - totalDays + 1);
+    const start = dateFrom ? new Date(dateFrom + "T00:00:00") : (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (days <= 1 ? 6 : days - 1)); return d; })();
+    const end = dateTo ? new Date(dateTo + "T00:00:00") : new Date();
+    const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
     const buckets = Array.from({ length: totalDays }, (_, index) => {
       const date = new Date(start);
       date.setDate(start.getDate() + index);
@@ -247,7 +303,7 @@ function DashboardPage() {
       };
     });
     const indexByKey = Object.fromEntries(buckets.map((bucket, index) => [bucket.key, index]));
-    dashPayments.forEach((payment) => {
+    dateFilteredPayments.forEach((payment) => {
       const key = new Date(payment.date || payment.createdAt || payment.updatedAt || Date.now()).toISOString().slice(0, 10);
       const idx = indexByKey[key];
       if (idx == null) return;
@@ -258,9 +314,9 @@ function DashboardPage() {
       labels: buckets.map((bucket) => bucket.label),
       series: buckets.map((bucket) => Math.round((bucket.value / 1000000) * 10) / 10),
     };
-  }, [dashPayments, days]);
+  }, [dateFilteredPayments, dateFrom, dateTo, days]);
 
-  const overdueDebtors = dashOrders.filter((row) => row.overdueAmountUzs > 0).slice(0, 5);
+  const overdueDebtors = filteredOrders.filter((row) => row.overdueAmountUzs > 0).slice(0, 5);
 
   const upcomingTasks = pM(() => [...data.tasks]
     .filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled")
@@ -283,17 +339,16 @@ function DashboardPage() {
     .filter((row) => row.openTasks || row.doneTasks)
     .sort((a, b) => b.openTasks - a.openTasks)
     .slice(0, 5), [data.tasks, data.users]);
-
-  const accIsDollar = (p) => { const m = String(p.method || p.currency || "").toLowerCase(); return m.includes("dollar") || p.rawCategory === "dollar_income" || p.rawCategory === "dollar_expense"; };
-  const accUzsIncome = pM(() => dashPayments.filter(p => p.direction === "income" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dashPayments]);
-  const accUsdIncome = pM(() => dashPayments.filter(p => p.direction === "income" && accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dashPayments]);
-  const accUzsExpense = pM(() => dashPayments.filter(p => p.direction === "expense" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dashPayments]);
+  const accUzsIncome = pM(() => dateFilteredPayments.filter(p => p.direction === "income" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dateFilteredPayments]);
+  const accUsdIncome = pM(() => dateFilteredPayments.filter(p => p.direction === "income" && accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dateFilteredPayments]);
+  const accUzsExpense = pM(() => dateFilteredPayments.filter(p => p.direction === "expense" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dateFilteredPayments]);
   const accUzsNet = accUzsIncome - accUzsExpense;
 
   return (
     <div className="page fade-in">
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <DateRange value={range} onChange={setRange} />
+        {range !== "all" && <Button variant="ghost" size="sm" icon={<I.x size={14} />} onClick={() => setRange("all")}>Tozalash</Button>}
       </div>
 
       <div className="dash-hero" style={{ background: heroAccentBg(isLight) }}>

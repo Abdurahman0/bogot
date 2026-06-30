@@ -366,8 +366,8 @@ async function apiDownloadAccountingExcel(filters = {}) {
 }
 
 async function apiGetClientsPage(params = {}) {
-  const { page = 1, page_size = 50, search, ordering } = params;
-  const url = apiBuildUrl("/api/clients/", { page, page_size, search, ordering });
+  const { page = 1, page_size = 50, search, ordering, created_at_after, created_at_before } = params;
+  const url = apiBuildUrl("/api/clients/", { page, page_size, search, ordering, created_at_after, created_at_before });
   const res = apiUnwrap(await apiRequest(url, { auth: true }));
   return { results: (res?.results || []).map(mapApiClient), count: res?.count || 0 };
 }
