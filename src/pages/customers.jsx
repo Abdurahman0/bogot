@@ -124,6 +124,8 @@ const CUSTOMER_UI = {
     excelFailed: "Excel eksport bajarilmadi",
     noteLabel: "Eslatma",
     openChat: "Suhbatni ochish",
+    noCustomers: "Mijozlar topilmadi",
+    noDateData: "Tanlangan sana oralig'ida ma'lumot topilmadi",
   },
   ru: {
     unspecified: "Не указано",
@@ -248,6 +250,8 @@ const CUSTOMER_UI = {
     excelFailed: "Экспорт Excel не выполнен",
     noteLabel: "Заметка",
     openChat: "Открыть чат",
+    noCustomers: "Клиенты не найдены",
+    noDateData: "Данные за выбранный период не найдены",
   },
   en: {
     unspecified: "Unspecified",
@@ -372,6 +376,8 @@ const CUSTOMER_UI = {
     excelFailed: "Excel export failed",
     noteLabel: "Note",
     openChat: "Open chat",
+    noCustomers: "No customers found",
+    noDateData: "No data found for the selected date range",
   },
 };
 
@@ -719,8 +725,10 @@ function CustomersPage() {
             <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{cusTotal} ta</span>
           </div>
           <Card pad={false}>
-            {cusLoading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={null} />}
-            <PaginationBar page={cusPage} total={cusTotal} pageSize={50} onChange={setCusPage} />
+            {cusLoading ? <SkeletonRows rows={10} cols={7} /> : filtered.length === 0 ? (
+              <EmptyState icon={<I.users size={26} />} title={(dateFrom || dateTo) ? ctx("noDateData") : ctx("noCustomers")} />
+            ) : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewCustomer(r)} defaultSort={null} />}
+            {!cusLoading && filtered.length > 0 && <PaginationBar page={cusPage} total={cusTotal} pageSize={50} onChange={setCusPage} />}
           </Card>
         </>
       )}

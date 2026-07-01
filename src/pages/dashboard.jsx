@@ -4,7 +4,7 @@ const DASHBOARD_UI = {
   uz: {
     heroSub: "Bogot Armada NRG ichki CRM • mijozlar, vazifalar, qarzdorlar va hisob-kitob bitta panelda",
     kpiCustomers: "Jami mijozlar", kpiDebtors: "Qarzdorlar",
-    kpiOverdue: "Muddati o'tgan qarz", kpiActiveTasks: "Faol vazifalar",
+    kpiOverdue: "Jami qarzdorlik", kpiActiveTasks: "Faol vazifalar",
     panelCashflow: "Pul oqimi tendensiyasi", panelCashflowSub: "Kirim minus chiqim (mln so'm)",
     panelStatus: "Mijoz holatlari", panelStatusSub: "Backend statuslari bo'yicha taqsimot",
     statusNotFound: "Statuslar topilmadi",
@@ -30,7 +30,7 @@ const DASHBOARD_UI = {
   ru: {
     heroSub: "Bogot Armada NRG внутренняя CRM • клиенты, задачи, должники и расчёты в одной панели",
     kpiCustomers: "Всего клиентов", kpiDebtors: "Должники",
-    kpiOverdue: "Просроченный долг", kpiActiveTasks: "Активные задачи",
+    kpiOverdue: "Общий долг", kpiActiveTasks: "Активные задачи",
     panelCashflow: "Тенденция денежного потока", panelCashflowSub: "Доход минус расход (млн сум)",
     panelStatus: "Статусы клиентов", panelStatusSub: "Распределение по статусам бэкенда",
     statusNotFound: "Статусы не найдены",
@@ -56,7 +56,7 @@ const DASHBOARD_UI = {
   en: {
     heroSub: "Bogot Armada NRG internal CRM • clients, tasks, debtors and payments in one panel",
     kpiCustomers: "Total clients", kpiDebtors: "Debtors",
-    kpiOverdue: "Overdue debt", kpiActiveTasks: "Active tasks",
+    kpiOverdue: "Total debt", kpiActiveTasks: "Active tasks",
     panelCashflow: "Cash flow trend", panelCashflowSub: "Income minus expense (mln UZS)",
     panelStatus: "Customer statuses", panelStatusSub: "Distribution by backend statuses",
     statusNotFound: "No statuses found",
@@ -142,7 +142,7 @@ function DashboardPage() {
   const [range, setRange] = pS("30d");
   const { dateFrom, dateTo } = pM(() => {
     const today = new Date();
-    const toStr = d => d.toISOString().slice(0, 10);
+    const toStr = d => { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0"); return `${y}-${m}-${day}`; };
     const todayStr = toStr(today);
     if (!range || range === "all") return { dateFrom: "", dateTo: "" };
     if (range === "today") return { dateFrom: todayStr, dateTo: todayStr };
@@ -196,8 +196,10 @@ function DashboardPage() {
   const greet = hour < 12 ? t("greeting.morning") : hour < 18 ? t("greeting.day") : t("greeting.evening");
 
   const customerCount = dateActive ? (dashClientsTotal ?? dashClients.length) : (clientSummary.total_clients ?? dashClients.length);
-  const debtorCount = dateActive ? filteredOrders.length : (debtorSummary.total_debtors ?? dashOrders.length);
-  const overdueDebt = filteredOrders.reduce((sum, row) => sum + (row.overdueAmountUzs || 0), 0) || (debtorSummary.overdue_amount ?? 0);
+  const debtorCount = dateActive ? filteredOrders.length : (data.orders.length > 0 ? data.orders.length : (debtorSummary.total_debtors ?? dashOrders.length));
+  const overdueDebt = data.orders.length > 0
+    ? data.orders.reduce((sum, row) => sum + (row.remainingDebtUzs || 0), 0)
+    : (filteredOrders.reduce((sum, row) => sum + (row.remainingDebtUzs || 0), 0) || (debtorSummary.overdue_amount ?? 0));
   const activeTasks = data.tasks.filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled");
   const taskColumnsById = Object.fromEntries((data.taskColumns || []).map((column) => [column.id, column]));
 

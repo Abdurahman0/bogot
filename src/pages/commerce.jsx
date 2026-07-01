@@ -43,6 +43,7 @@ const COMMERCE_UI = {
     detailsPhone: "Telefon:", detailsDebt: "Qoldiq qarz:", detailsRegion: "Hudud:",
     detailsCat: "Kategoriya:", detailsAmount: "Summa:",
     startDate: "Boshlanish sanasi", endDate: "Tugash sanasi",
+    noDateData: "Tanlangan sana oralig'ida ma'lumot topilmadi", emptyPayments: "Yozuvlar topilmadi",
     districtPh: "Masalan, Bog'ot", mahallaPh: "Masalan, Yangiobod",
     catalogCrumb: "Katalog va moliya", actions: "Amallar", edit: "Tahrirlash", delete: "O'chirish", view: "Ko'rish", cancel: "Bekor qilish", save: "Saqlash", create: "Yaratish", close: "Yopish", clear: "Tozalash",
     incomeUzs: "Kirim (so'm)", incomeUsd: "Dollar kirim", expenseUzs: "Chiqim (so'm)", expenseUsd: "Dollar chiqim", netUzs: "Sof oqim (so'm)", netUsd: "Sof oqim ($)",
@@ -89,6 +90,7 @@ const COMMERCE_UI = {
     detailsPhone: "Телефон:", detailsDebt: "Остаток долга:", detailsRegion: "Регион:",
     detailsCat: "Категория:", detailsAmount: "Сумма:",
     startDate: "Дата начала", endDate: "Дата окончания",
+    noDateData: "Данные за выбранный период не найдены", emptyPayments: "Записи не найдены",
     districtPh: "Напр., Богот", mahallaPh: "Напр., Янгиобод",
     catalogCrumb: "Каталог и финансы", actions: "Действия", edit: "Редактировать", delete: "Удалить", view: "Просмотр", cancel: "Отмена", save: "Сохранить", create: "Создать", close: "Закрыть", clear: "Очистить",
     incomeUzs: "Приход (сум)", incomeUsd: "Приход ($)", expenseUzs: "Расход (сум)", expenseUsd: "Расход ($)", netUzs: "Чистый поток (сум)", netUsd: "Чистый поток ($)",
@@ -135,6 +137,7 @@ const COMMERCE_UI = {
     detailsPhone: "Phone:", detailsDebt: "Balance:", detailsRegion: "Region:",
     detailsCat: "Category:", detailsAmount: "Amount:",
     startDate: "Start date", endDate: "End date",
+    noDateData: "No data found for the selected date range", emptyPayments: "No records found",
     districtPh: "e.g. Bogot", mahallaPh: "e.g. Yangiobod",
     catalogCrumb: "Catalog & Finance", actions: "Actions", edit: "Edit", delete: "Delete", view: "View", cancel: "Cancel", save: "Save", create: "Create", close: "Close", clear: "Clear",
     incomeUzs: "Income (UZS)", incomeUsd: "Dollar income", expenseUzs: "Expense (UZS)", expenseUsd: "Dollar expense", netUzs: "Net flow (UZS)", netUsd: "Net flow ($)",
@@ -293,16 +296,17 @@ function OrdersPage() {
     return () => { cancelled = true; };
   }, [ordPage, q, debtorTypeFilter, listRefreshTick]);
 
-  const districts = coM(() => [...new Set(ordRows.map((order) => orderTuman(order)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "uz")), [ordRows]);
+  const allOrders = data.orders || [];
+  const districts = coM(() => [...new Set(allOrders.map((order) => orderTuman(order)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "uz")), [allOrders]);
   const districtOptions = coM(() => districts.map((district) => ({ value: district, label: district })), [districts]);
   const mahallaOptions = coM(() => {
     const source = districtFilter === "all"
-      ? ordRows
-      : ordRows.filter((order) => orderTuman(order) === districtFilter);
+      ? allOrders
+      : allOrders.filter((order) => orderTuman(order) === districtFilter);
     return [...new Set(source.map((order) => orderMahalla(order)).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, "uz"))
       .map((mahalla) => ({ value: mahalla, label: mahalla }));
-  }, [ordRows, districtFilter]);
+  }, [allOrders, districtFilter]);
   const showLocationFilters = statusTab === "all";
   const showFullGrouped = showLocationFilters && districtFilter === "all" && mahallaFilter === "all";
   const showDistrictGrouped = showLocationFilters && districtFilter !== "all" && mahallaFilter === "all";
@@ -331,7 +335,16 @@ function OrdersPage() {
     }
   };
 
-  const filtered = coM(() => ordRows.filter(o => {
+  // allFiltered: client-side filter of all debtors — used for grouped views and tab counts
+  const allFiltered = coM(() => allOrders.filter(o => {
+    if (q) {
+      const term = q.toLowerCase();
+      if (!(o.customerName || "").toLowerCase().includes(term) &&
+          !String(o.id).includes(q) &&
+          !(o.phone || "").toLowerCase().includes(term) &&
+          !(o.district || "").toLowerCase().includes(term) &&
+          !(o.mahalla || "").toLowerCase().includes(term)) return false;
+    }
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
     if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
@@ -339,12 +352,21 @@ function OrdersPage() {
     if (showLocationFilters && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
     if (!orderDateMatchesRange(orderTakenDate(o), dateFrom, dateTo)) return false;
     return true;
-  }), [ordRows, statusTab, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
+  }), [allOrders, q, statusTab, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
+
+  // filtered: server-paginated ordRows — used only for flat table view
+  const filtered = coM(() => ordRows.filter(o => {
+    if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
+    if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
+    if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
+    if (!orderDateMatchesRange(orderTakenDate(o), dateFrom, dateTo)) return false;
+    return true;
+  }), [ordRows, statusTab, dateFrom, dateTo]);
 
   const grouped = coM(() => {
     const map = new Map();
     const ungrouped = [];
-    filtered
+    allFiltered
       .slice()
       .sort((a, b) =>
         orderTuman(a).localeCompare(orderTuman(b), "uz") ||
@@ -384,15 +406,15 @@ function OrdersPage() {
       }),
       ungrouped,
     };
-  }, [filtered]);
+  }, [allFiltered]);
 
-  const totalDebt = ordRows.reduce((sum, o) => sum + debtNum(o.remainingDebtUzs), 0);
-  const overdue = ordRows.reduce((sum, o) => sum + debtNum(o.overdueAmountUzs), 0);
+  const totalDebt = allOrders.reduce((sum, o) => sum + debtNum(o.remainingDebtUzs), 0);
+  const overdue = allOrders.reduce((sum, o) => sum + debtNum(o.overdueAmountUzs), 0);
   const tabs = [
     { value: "all", label: comTx("tabAll"), count: ordTotal },
-    { value: "open", label: comTx("tabOpen"), count: ordRows.filter(o => debtNum(o.remainingDebtUzs) > 0).length },
-    { value: "overdue", label: comTx("tabOverdue"), count: ordRows.filter(o => debtNum(o.overdueAmountUzs) > 0).length },
-    { value: "closed", label: comTx("tabClosed"), count: ordRows.filter(o => debtNum(o.remainingDebtUzs) === 0).length },
+    { value: "open", label: comTx("tabOpen"), count: allOrders.filter(o => debtNum(o.remainingDebtUzs) > 0).length },
+    { value: "overdue", label: comTx("tabOverdue"), count: allOrders.filter(o => debtNum(o.overdueAmountUzs) > 0).length },
+    { value: "closed", label: comTx("tabClosed"), count: allOrders.filter(o => debtNum(o.remainingDebtUzs) === 0).length },
   ];
 
   return (
@@ -404,8 +426,8 @@ function OrdersPage() {
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("totalDebtKpi")} value={fmtShort(totalDebt)} sub="so'm" color="red" />
         <StatTile label={comTx("tabOverdue")} value={fmtShort(overdue)} sub="so'm" color="amber" />
-        <StatTile label={comTx("creditCustomers")} value={ordRows.filter(o => o.paymentType === "credit").length} color="blue" />
-        <StatTile label={comTx("districts")} value={new Set(ordRows.map(o => orderTuman(o)).filter(Boolean)).size} color="violet" />
+        <StatTile label={comTx("creditCustomers")} value={allOrders.filter(o => o.paymentType === "credit").length} color="blue" />
+        <StatTile label={comTx("districts")} value={new Set(allOrders.map(o => orderTuman(o)).filter(Boolean)).size} color="violet" />
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("debtorsSearch")} width={260} />
@@ -423,8 +445,8 @@ function OrdersPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 76, borderRadius: 14 }} />)}
         </div>
-      ) : filtered.length === 0 ? (
-        <Card><EmptyState icon={<I.wallet size={26} />} title={comTx("emptyDebtors")} /></Card>
+      ) : (showFlatList ? filtered : allFiltered).length === 0 ? (
+        <Card><EmptyState icon={<I.wallet size={26} />} title={(dateFrom || dateTo) ? comTx("noDateData") : comTx("emptyDebtors")} /></Card>
       ) : showFlatList ? (
         <Card pad={false}>
           <DataTable
@@ -892,7 +914,7 @@ function PaymentsPage() {
   const { dateFrom, dateTo } = coM(() => {
     if (!dateRange || dateRange === "all") return { dateFrom: "", dateTo: "" };
     const today = new Date();
-    const toStr = d => d.toISOString().slice(0, 10);
+    const toStr = d => { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0"); return `${y}-${m}-${day}`; };
     const todayStr = toStr(today);
     if (dateRange === "today") return { dateFrom: todayStr, dateTo: todayStr };
     const days = { "7d": 6, "30d": 29, "90d": 89 }[dateRange];
@@ -901,50 +923,15 @@ function PaymentsPage() {
       return { dateFrom: toStr(from), dateTo: todayStr };
     }
     if (dateRange && typeof dateRange === "object" && dateRange.from) {
-      return { dateFrom: toStr(dateRange.from), dateTo: dateRange.to ? toStr(dateRange.to) : toStr(today) };
+      return { dateFrom: toStr(dateRange.from), dateTo: dateRange.to ? toStr(dateRange.to) : todayStr };
     }
     return { dateFrom: "", dateTo: "" };
   }, [dateRange]);
   const [createOpen, setCreateOpen] = coS(false);
   const [exporting, setExporting] = coS(false);
-  const [payPage, setPayPage] = coS(1);
-  const [payTotal, setPayTotal] = coS(0);
-  const [payRows, setPayRows] = coS([]);
-  const [payLoading, setPayLoading] = coS(false);
-  const [payStats, setPayStats] = coS(null);
+  const [tablePage, setTablePage] = coS(1);
 
-  coE(() => { setPayPage(1); }, [q, direction, categoryFilter, currencyFilter, dateFrom, dateTo]);
-
-  coE(() => {
-    apiGetAccountingStats({
-      search: q || undefined,
-      category: categoryFilter !== "all" ? categoryFilter : undefined,
-      currency: currencyFilter !== "all" ? currencyFilter : undefined,
-      date_from: dateFrom || undefined,
-      date_to: dateTo || undefined,
-    }).then(stats => setPayStats(stats)).catch(() => {});
-  }, [q, categoryFilter, currencyFilter, dateFrom, dateTo]);
-
-  coE(() => {
-    let cancelled = false;
-    setPayLoading(true);
-    const dayMap = Object.fromEntries((data.accountingDays || []).map((day) => [day.id, day]));
-    apiGetPaymentsPage({
-      page: payPage,
-      page_size: 50,
-      search: q || undefined,
-      category: categoryFilter !== "all" ? categoryFilter : undefined,
-      currency: currencyFilter !== "all" ? currencyFilter : undefined,
-      date_from: dateFrom || undefined,
-      date_to: dateTo || undefined,
-    }).then(({ results, count }) => {
-      if (cancelled) return;
-      setPayRows(results.map(r => mapApiAccountingEntry(r, dayMap)));
-      setPayTotal(count);
-      setPayLoading(false);
-    }).catch(() => { if (!cancelled) setPayLoading(false); });
-    return () => { cancelled = true; };
-  }, [payPage, q, categoryFilter, currencyFilter, dateFrom, dateTo, data.accountingDays]);
+  coE(() => { setTablePage(1); }, [q, direction, categoryFilter, currencyFilter, dateFrom, dateTo]);
 
   const exportAccountingExcel = async () => {
     try {
@@ -965,10 +952,33 @@ function PaymentsPage() {
   const [viewPayment, setViewPayment] = coS(null);
   const [editPayment, setEditPayment] = coS(null);
   const [deletePayment, setDeletePayment] = coS(null);
-  const filtered = coM(() => payRows.filter(p => {
-    if (direction !== "all" && p.direction !== direction) return false;
-    return true;
-  }), [payRows, direction]);
+  const tableRows = coM(() => {
+    let rows = data.payments || [];
+    if (dateFrom || dateTo) {
+      const validIds = new Set(
+        (data.accountingDays || [])
+          .filter(d => (!dateFrom || d.report_date >= dateFrom) && (!dateTo || d.report_date <= dateTo))
+          .map(d => d.id)
+      );
+      rows = rows.filter(p => validIds.has(p.accountingDayId));
+    }
+    if (categoryFilter !== "all") rows = rows.filter(p => p.rawCategory === categoryFilter);
+    if (currencyFilter !== "all") rows = rows.filter(p => currencyFilter === "USD" ? isDollarPayment(p) : !isDollarPayment(p));
+    if (direction !== "all") rows = rows.filter(p => p.direction === direction);
+    if (q) {
+      const term = q.toLowerCase();
+      rows = rows.filter(p =>
+        (p.category || "").toLowerCase().includes(term) ||
+        (p.customerName || "").toLowerCase().includes(term) ||
+        String(p.id || "").includes(q)
+      );
+    }
+    return rows;
+  }, [data.payments, data.accountingDays, dateFrom, dateTo, categoryFilter, currencyFilter, direction, q]);
+
+  const PAY_PAGE_SIZE = 50;
+  const tablePageRows = tableRows.slice((tablePage - 1) * PAY_PAGE_SIZE, tablePage * PAY_PAGE_SIZE);
+
   const chipRows = coM(() => {
     let rows = data.payments || [];
     if (dateFrom || dateTo) {
@@ -1029,7 +1039,7 @@ function PaymentsPage() {
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("netUzs")} value={fmtShort(uzsIncome - uzsExpense)} sub="so'm" color={(uzsIncome - uzsExpense) >= 0 ? "green" : "red"} />
         <StatTile label={comTx("netUsd")} value={Number(usdIncome - usdExpense).toLocaleString("en-US")} sub="$" color={(usdIncome - usdExpense) >= 0 ? "green" : "red"} />
-        <StatTile label={comTx("records")} value={payTotal} color="blue" />
+        <StatTile label={comTx("records")} value={tableRows.length} color="blue" />
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("paymentsSearch")} width={240} />
@@ -1040,8 +1050,10 @@ function PaymentsPage() {
         <div className="toolbar-spacer" />
       </div>
       <Card pad={false}>
-        {payLoading ? <SkeletonRows rows={10} cols={7} /> : <DataTable columns={columns} rows={filtered} onRowClick={r => setViewPayment(r)} defaultSort={{ key: "date", dir: "desc" }} />}
-        <PaginationBar page={payPage} total={payTotal} pageSize={50} onChange={setPayPage} />
+        {tableRows.length === 0 ? (
+          <EmptyState icon={<I.doc size={26} />} title={(dateFrom || dateTo) ? comTx("noDateData") : comTx("emptyPayments")} />
+        ) : <DataTable columns={columns} rows={tablePageRows} onRowClick={r => setViewPayment(r)} defaultSort={{ key: "date", dir: "desc" }} />}
+        {tableRows.length > PAY_PAGE_SIZE && <PaginationBar page={tablePage} total={tableRows.length} pageSize={PAY_PAGE_SIZE} onChange={setTablePage} />}
       </Card>
       <PaymentViewModal
         open={!!viewPayment}
