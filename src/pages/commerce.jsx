@@ -19,7 +19,7 @@ const COMMERCE_UI = {
     addPayment: "To'lov yozish", editPaymentEntry: "To'lovni tahrirlash", deleteDebtorPayment: "To'lovni o'chirish",
     debtorPaymentAdded: "To'lov yozildi", debtorPaymentUpdated: "To'lov yangilandi", debtorPaymentDeleted: "To'lov o'chirildi",
     openingPaid: "Boshlang'ich to'lov", amountRequired: "Summani kiriting",
-    dateCol: "Sana", amountCol: "Summa", methodCol: "Izoh", noPayments: "To'lov yozuvi yo'q",
+    dateCol: "Sana", amountCol: "Summa", methodCol: "Izoh", noPayments: "To'lov yozuvi yo'q", addedBy: "Qo'shgan", createdAtCol: "Vaqt",
     paymentAdded: "Yozuv qo'shildi", paymentUpdated: "Yozuv yangilandi", paymentDeleted: "Yozuv o'chirildi",
     deletePaymentTitle: "Moliyaviy yozuvni o'chirish",
     paymentFormNew: "Yangi hisob-kitob yozuvi", paymentFormEdit: "Hisob-kitobni tahrirlash",
@@ -66,7 +66,7 @@ const COMMERCE_UI = {
     addPayment: "Добавить платёж", editPaymentEntry: "Редактировать платёж", deleteDebtorPayment: "Удалить платёж",
     debtorPaymentAdded: "Платёж добавлен", debtorPaymentUpdated: "Платёж обновлён", debtorPaymentDeleted: "Платёж удалён",
     openingPaid: "Начальный платёж", amountRequired: "Введите сумму",
-    dateCol: "Дата", amountCol: "Сумма", methodCol: "Примечание", noPayments: "Нет записей о платежах",
+    dateCol: "Дата", amountCol: "Сумма", methodCol: "Примечание", noPayments: "Нет записей о платежах", addedBy: "Внёс", createdAtCol: "Время",
     paymentAdded: "Запись добавлена", paymentUpdated: "Запись обновлена", paymentDeleted: "Запись удалена",
     deletePaymentTitle: "Удалить финансовую запись",
     paymentFormNew: "Новая финансовая запись", paymentFormEdit: "Редактировать финансы",
@@ -113,7 +113,7 @@ const COMMERCE_UI = {
     addPayment: "Add payment", editPaymentEntry: "Edit payment", deleteDebtorPayment: "Delete payment",
     debtorPaymentAdded: "Payment added", debtorPaymentUpdated: "Payment updated", debtorPaymentDeleted: "Payment deleted",
     openingPaid: "Opening payment", amountRequired: "Enter amount",
-    dateCol: "Date", amountCol: "Amount", methodCol: "Notes", noPayments: "No payment records",
+    dateCol: "Date", amountCol: "Amount", methodCol: "Notes", noPayments: "No payment records", addedBy: "Added by", createdAtCol: "Time",
     paymentAdded: "Record added", paymentUpdated: "Record updated", paymentDeleted: "Record deleted",
     deletePaymentTitle: "Delete financial record",
     paymentFormNew: "New accounting entry", paymentFormEdit: "Edit accounting entry",
@@ -764,7 +764,7 @@ function DebtorPaymentModal({ open, onClose, onSave, initial }) {
         }}>{initial?.id ? comTx("save") : comTx("create")}</Button>
       </>}>
       <div style={{ display: "grid", gap: 14 }}>
-        <Field label={comTx("amountCol")} required><Input type="number" value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="8000000" /></Field>
+        <Field label={comTx("amountCol")} required><Input type="number" value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="Masalan: 200000" /></Field>
         <Field label={comTx("dateCol")} required><DatePickerInput value={(form.paid_on || "").slice(0, 10)} onChange={v => set("paid_on", v)} /></Field>
         <Field label={comTx("methodCol")}><Textarea rows={2} value={form.notes || ""} onChange={e => set("notes", e.target.value)} placeholder={comTx("notePlaceholder")} /></Field>
       </div>
@@ -831,13 +831,15 @@ function OrderDetailPage({ id }) {
             action={<Button variant="primary" size="sm" icon={<I.plus size={14} />} onClick={() => setAddPayOpen(true)}>{comTx("addPayment")}</Button>}>
             <div className="tg-table-wrap">
               <table className="tg-table">
-                <thead><tr><th>{comTx("dateCol")}</th><th>{comTx("amountCol")}</th><th>{comTx("methodCol")}</th><th style={{ width: 72 }}></th></tr></thead>
+                <thead><tr><th>{comTx("dateCol")}</th><th>{comTx("amountCol")}</th><th>{comTx("methodCol")}</th><th>{comTx("addedBy")}</th><th>{comTx("createdAtCol")}</th><th style={{ width: 72 }}></th></tr></thead>
                 <tbody>
                   {payments.length ? payments.map(p => (
                     <tr key={p.id}>
                       <td>{fmtDate(p.paid_on)}</td>
                       <td style={{ fontWeight: 700, color: "var(--green)" }}>{fmtUZS(apiParseNumber(p.amount))}</td>
                       <td>{p.notes || "—"}</td>
+                      <td><span className="tg-cell-sub">{p.created_by_name || p.created_by_username || "—"}</span></td>
+                      <td><span className="tg-cell-sub">{p.created_at ? fmtDate(p.created_at, true) : "—"}</span></td>
                       <td>
                         <div style={{ display: "flex", gap: 4 }}>
                           <IconButton icon={<I.edit size={13} />} label={comTx("edit")} onClick={() => setEditPayment(p)} />
@@ -845,7 +847,7 @@ function OrderDetailPage({ id }) {
                         </div>
                       </td>
                     </tr>
-                  )) : <tr><td colSpan="4" style={{ textAlign: "center", color: "var(--text-3)", padding: 16 }}>{comTx("noPayments")}</td></tr>}
+                  )) : <tr><td colSpan="6" style={{ textAlign: "center", color: "var(--text-3)", padding: 16 }}>{comTx("noPayments")}</td></tr>}
                 </tbody>
               </table>
             </div>
