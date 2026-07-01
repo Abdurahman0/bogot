@@ -53,6 +53,17 @@ function Router() {
     if (route === "/leads" || route.startsWith("/leads/")) nav("/customers", { replace: true });
   }, [route, nav]);
 
+  aE(() => {
+    if (!data?.authUser || !role) return;
+    const bp = "/" + route.split("/")[1];
+    const ap = bp === "/pipeline" ? "/tasks" : bp === "/leads" ? "/customers" : bp;
+    if (!canAccess(role, ap, data)) {
+      const first = NAV.flatMap(g => g.items).find(it => canAccess(role, it.path, data));
+      toast("Bu bo'limga ruxsat yo'q", "error");
+      nav(first ? first.path : "/dashboard", { replace: true });
+    }
+  }, [route, role, data]);
+
   if (!authed) return <Login />;
   if (!data.authUser) {
     return (
@@ -71,25 +82,7 @@ function Router() {
   // access guard
   const basePath = "/" + route.split("/")[1];
   const accessPath = basePath === "/pipeline" ? "/tasks" : basePath === "/leads" ? "/customers" : basePath;
-  if (!canAccess(role, accessPath, data)) {
-    return (
-      <div className="app-shell">
-        <Sidebar route={route} nav={nav} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-        <div className="main-col">
-          <Header route={route} nav={nav} onMenu={() => setMobileOpen(true)} onCmdK={() => setCmdOpen(true)} custOpen={custOpen} onCustToggle={() => setCustOpen(o => !o)} onCustClose={() => setCustOpen(false)} />
-          <div className="content">
-            <div className="page">
-              <Card><EmptyState icon={<I.lock size={26} />} title="Ruxsat yo'q"
-                message={`"${role}" roli uchun bu bo'limga kirish cheklangan. Boshqa rolga o'ting yoki administrator bilan bog'laning.`}
-                action={<Button variant="primary" onClick={() => nav("/dashboard")}>Bosh sahifaga</Button>} /></Card>
-            </div>
-          </div>
-        </div>
-        <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} nav={nav} />
-        <Toasts />
-      </div>
-    );
-  }
+  if (!canAccess(role, accessPath, data)) return null;
 
   const seg = route.split("/").filter(Boolean);
   let page = null;

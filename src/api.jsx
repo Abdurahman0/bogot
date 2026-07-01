@@ -58,6 +58,7 @@ function apiCreateEmptyData() {
     taskAssignees: [],
     calls: [],
     orders: [],
+    ordersTotal: 0,
     payments: [],
     notifications: [],
     audit: [],
@@ -518,6 +519,7 @@ function mapApiClient(client) {
     paymentType,
     paymentTypeLabel: PAYMENT_TYPE_UZ[paymentType] || paymentType,
     ordersCount: 0,
+    ordersTotal: 0,
     totalSpent: deposit,
     subsidyAmount: subsidy,
     debtBalanceUzs: 0,
@@ -842,8 +844,12 @@ async function apiLoadCollections(keys = [], currentData = {}) {
     })
   );
   if (wanted.has("orders")) jobs.push(
-    apiPaginateAll("/api/clients/debtors/").catch(() => []).then((debtors) => {
+    Promise.all([
+      apiPaginateAll("/api/clients/debtors/?ordering=id").catch(() => []),
+      apiGetDebtorsPage({ page: 1, page_size: 50 }).catch(() => ({ results: [], count: 0 })),
+    ]).then(([debtors, countRes]) => {
       data.orders = debtors.map(mapApiDebtor);
+      data.ordersTotal = countRes.count || debtors.length;
     })
   );
   if (wanted.has("taskColumns")) jobs.push(

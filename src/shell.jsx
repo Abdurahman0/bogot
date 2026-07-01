@@ -42,7 +42,7 @@ const PAGE_PERMISSION_MAP = {
   "/tasks": ["tasks.view", "tasks.manage"],
   "/inbox": ["chats.view", "chats.manage"],
   "/products": ["products.view", "products.manage"],
-  "/debtors": ["clients.view", "clients.manage", "accounting.view", "accounting.manage"],
+  "/debtors": ["debtors.view", "debtors.manage"],
   "/accounting": ["accounting.view", "accounting.manage"],
   "/locations": ["clients.view", "clients.manage"],
   "/users": ["users.view", "users.manage"],

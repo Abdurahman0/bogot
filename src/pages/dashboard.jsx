@@ -166,14 +166,15 @@ function DashboardPage() {
 
   const [dashClients, setDashClients] = pS([]);
   const [dashClientsTotal, setDashClientsTotal] = pS(null);
-  const [dashOrders, setDashOrders] = pS([]);
-  const [dashOrdersTotal, setDashOrdersTotal] = pS(null);
+  const [dashDebtorTotal, setDashDebtorTotal] = pS(null);
   const [dashPayments, setDashPayments] = pS([]);
+  pE(() => {
+    apiGetDebtorsPage({ page: 1, page_size: 50 })
+      .then(r => { if (r.count) setDashDebtorTotal(r.count); }).catch(() => {});
+  }, []);
   pE(() => {
     apiGetClientsPage({ page: 1, page_size: 200, ordering: "-created_at", ...(dateFrom ? { created_at_after: dateFrom } : {}), ...(dateTo ? { created_at_before: dateTo } : {}) })
       .then(r => { setDashClients(r.results || []); setDashClientsTotal(r.count ?? null); }).catch(() => {});
-    apiGetDebtorsPage({ page: 1, page_size: 200, ordering: "-created_at" })
-      .then(r => { setDashOrders(r.results || []); setDashOrdersTotal(r.count ?? null); }).catch(() => {});
     apiGetPaymentsPage({ page: 1, page_size: 500, ordering: "-date", ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}) }).then(r => {
       const dayMap = Object.fromEntries((data.accountingDays || []).map(d => [d.id, d]));
       setDashPayments((r.results || []).map(e => mapApiAccountingEntry ? mapApiAccountingEntry(e, dayMap) : e));
@@ -181,26 +182,46 @@ function DashboardPage() {
   }, [dateFrom, dateTo]);
 
   const dateActive = !!(dateFrom || dateTo);
+  const allOrders = data.orders || [];
   const filteredOrders = pM(() => {
-    if (!dateActive) return dashOrders;
-    return dashOrders.filter(o => {
+    if (!dateActive) return allOrders;
+    return allOrders.filter(o => {
       const d = (o.createdAt || "").slice(0, 10);
       if (dateFrom && d < dateFrom) return false;
       if (dateTo && d > dateTo) return false;
       return true;
     });
-  }, [dashOrders, dateFrom, dateTo, dateActive]);
+  }, [allOrders, dateFrom, dateTo, dateActive]);
+  const filteredClients = pM(() => {
+    if (!dateActive) return dashClients;
+    return dashClients.filter(c => {
+      const d = (c.createdAt || "").slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+  }, [dashClients, dateFrom, dateTo, dateActive]);
 
   const days = typeof range === "object" ? Math.max(1, Math.round((range.to - range.from) / 86400000)) : ({ today: 1, "7d": 7, "30d": 30, "90d": 90 }[range] || 30);
   const hour = new Date().getHours();
   const greet = hour < 12 ? t("greeting.morning") : hour < 18 ? t("greeting.day") : t("greeting.evening");
 
-  const customerCount = dateActive ? (dashClientsTotal ?? dashClients.length) : (clientSummary.total_clients ?? dashClients.length);
-  const debtorCount = dateActive ? filteredOrders.length : (data.orders.length > 0 ? data.orders.length : (debtorSummary.total_debtors ?? dashOrders.length));
-  const overdueDebt = data.orders.length > 0
-    ? data.orders.reduce((sum, row) => sum + (row.remainingDebtUzs || 0), 0)
-    : (filteredOrders.reduce((sum, row) => sum + (row.remainingDebtUzs || 0), 0) || (debtorSummary.overdue_amount ?? 0));
-  const activeTasks = data.tasks.filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled");
+  const customerCount = dateActive ? filteredClients.length : (clientSummary.total_clients ?? dashClients.length);
+  const debtorCount = dateActive ? filteredOrders.length : (dashDebtorTotal ?? debtorSummary.total_debtors ?? data.ordersTotal ?? data.orders.length);
+  const overdueDebt = dateActive
+    ? filteredOrders.reduce((sum, row) => sum + (row.remainingDebtUzs || 0), 0)
+    : (data.orders.length > 0
+      ? data.orders.reduce((sum, row) => sum + (row.remainingDebtUzs || 0), 0)
+      : (debtorSummary.overdue_amount ?? 0));
+  const activeTasks = data.tasks.filter((task) => {
+    if (task.columnSlug === "done" || task.columnSlug === "canceled") return false;
+    if (dateActive) {
+      const d = (task.createdAt || "").slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+    }
+    return true;
+  });
   const taskColumnsById = Object.fromEntries((data.taskColumns || []).map((column) => [column.id, column]));
 
   const heroKpis = [
@@ -223,7 +244,7 @@ function DashboardPage() {
         color: row.status_color || colorByName[row.status_name] || null,
       }));
     } else {
-      rows = dashboardStatusFallback(dashClients).map((row) => ({
+      rows = dashboardStatusFallback(dateActive ? filteredClients : dashClients).map((row) => ({
         ...row,
         color: colorByName[row.label] || null,
       }));
@@ -235,7 +256,7 @@ function DashboardPage() {
       value: row.value,
       color: row.color || fallbackColors[index % fallbackColors.length],
     }));
-  }, [clientSummary.by_status, dashClients, dateActive]);
+  }, [clientSummary.by_status, dashClients, filteredClients, dateActive]);
 
   const debtorTypeData = pM(() => {
     const fallbackColors = { solar_business: "#2563eb", solar_panel: "#2563eb", moto_business: "#f59e0b" };
