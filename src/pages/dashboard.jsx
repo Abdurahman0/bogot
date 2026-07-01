@@ -342,9 +342,17 @@ function DashboardPage() {
   const overdueDebtors = filteredOrders.filter((row) => row.overdueAmountUzs > 0).slice(0, 5);
 
   const upcomingTasks = pM(() => [...data.tasks]
-    .filter((task) => task.columnSlug !== "done" && task.columnSlug !== "canceled")
+    .filter((task) => {
+      if (task.columnSlug === "done" || task.columnSlug === "canceled") return false;
+      if (dateActive) {
+        const d = (task.createdAt || "").slice(0, 10);
+        if (dateFrom && d < dateFrom) return false;
+        if (dateTo && d > dateTo) return false;
+      }
+      return true;
+    })
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-    .slice(0, 6), [data.tasks]);
+    .slice(0, 6), [data.tasks, dateFrom, dateTo, dateActive]);
 
   const latestCustomers = dashClients.slice(0, 5);
 
@@ -353,15 +361,25 @@ function DashboardPage() {
     .sort((a, b) => (b.stockQuantity || 0) - (a.stockQuantity || 0))
     .slice(0, 5), [data.products]);
 
-  const taskLoad = pM(() => data.users
-    .map((user) => ({
-      user,
-      openTasks: data.tasks.filter((task) => task.assignedUserId === user.id && task.columnSlug !== "done").length,
-      doneTasks: data.tasks.filter((task) => task.assignedUserId === user.id && task.columnSlug === "done").length,
-    }))
-    .filter((row) => row.openTasks || row.doneTasks)
-    .sort((a, b) => b.openTasks - a.openTasks)
-    .slice(0, 5), [data.tasks, data.users]);
+  const taskLoad = pM(() => {
+    const dateTasks = dateActive
+      ? data.tasks.filter((task) => {
+          const d = (task.createdAt || "").slice(0, 10);
+          if (dateFrom && d < dateFrom) return false;
+          if (dateTo && d > dateTo) return false;
+          return true;
+        })
+      : data.tasks;
+    return data.users
+      .map((user) => ({
+        user,
+        openTasks: dateTasks.filter((task) => task.assignedUserId === user.id && task.columnSlug !== "done").length,
+        doneTasks: dateTasks.filter((task) => task.assignedUserId === user.id && task.columnSlug === "done").length,
+      }))
+      .filter((row) => row.openTasks || row.doneTasks)
+      .sort((a, b) => b.openTasks - a.openTasks)
+      .slice(0, 5);
+  }, [data.tasks, data.users, dateFrom, dateTo, dateActive]);
   const accUzsIncome = pM(() => dateFilteredPayments.filter(p => p.direction === "income" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dateFilteredPayments]);
   const accUsdIncome = pM(() => dateFilteredPayments.filter(p => p.direction === "income" && accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dateFilteredPayments]);
   const accUzsExpense = pM(() => dateFilteredPayments.filter(p => p.direction === "expense" && !accIsDollar(p)).reduce((s, p) => s + p.amountUzs, 0), [dateFilteredPayments]);
