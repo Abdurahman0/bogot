@@ -432,6 +432,77 @@ async function apiDeleteDebtorPayment(id) {
   return apiRequest(`/api/clients/debtor-payments/${id}/`, { method: "DELETE" });
 }
 
+async function apiGetDebtorAttachments(debtorId) {
+  try {
+    const url = apiBuildUrl("/api/clients/debtor-attachments/", { debtor: debtorId, page_size: 100 });
+    const res = apiUnwrap(await apiRequest(url, { auth: true }));
+    return res?.results || res || [];
+  } catch { return []; }
+}
+
+async function apiUploadDebtorAttachment(debtorId, file, extras = {}) {
+  const fd = new FormData();
+  fd.append("debtor", debtorId);
+  fd.append("file", file);
+  fd.append("file_type", extras.file_type || "image");
+  if (extras.notes) fd.append("notes", extras.notes);
+  fd.append("is_visit_proof", extras.is_visit_proof ? "true" : "false");
+  if (extras.latitude) fd.append("latitude", String(extras.latitude));
+  if (extras.longitude) fd.append("longitude", String(extras.longitude));
+  return apiRequest("/api/clients/debtor-attachments/", { method: "POST", formData: fd, auth: true });
+}
+
+async function apiGetWarehouseSummary() {
+  try {
+    const res = apiUnwrap(await apiRequest("/api/products/warehouse/summary/", { auth: true }));
+    return res || {};
+  } catch { return {}; }
+}
+
+async function apiGetStockEntries(params = {}) {
+  try {
+    const url = apiBuildUrl("/api/products/stock-entries/", { page_size: 100, ordering: "-created_at", ...params });
+    const res = apiUnwrap(await apiRequest(url, { auth: true }));
+    return { results: res?.results || res || [], count: res?.count || 0 };
+  } catch { return { results: [], count: 0 }; }
+}
+
+async function apiCreateStockEntry(entry) {
+  const payload = {
+    product: entry.product,
+    quantity: Number(entry.quantity),
+  };
+  if (entry.unit_cost) payload.unit_cost = String(entry.unit_cost);
+  if (entry.supplier_name) payload.supplier_name = entry.supplier_name;
+  if (entry.received_at) payload.received_at = entry.received_at;
+  if (entry.notes) payload.notes = entry.notes;
+  return apiUnwrap(await apiRequest("/api/products/stock-entries/", { method: "POST", body: payload, auth: true }));
+}
+
+async function apiGetWarehouseSales(params = {}) {
+  try {
+    const url = apiBuildUrl("/api/products/sales/", { page_size: 100, ordering: "-created_at", ...params });
+    const res = apiUnwrap(await apiRequest(url, { auth: true }));
+    return { results: res?.results || res || [], count: res?.count || 0 };
+  } catch { return { results: [], count: 0 }; }
+}
+
+async function apiCreateWarehouseSale(sale) {
+  const payload = {
+    product: sale.product,
+    quantity: Number(sale.quantity),
+    unit_price: String(sale.unit_price),
+    paid_amount: String(sale.paid_amount || 0),
+    payment_type: sale.payment_type || "cash",
+  };
+  if (sale.client) payload.client = sale.client;
+  if (sale.client_name) payload.client_name = sale.client_name;
+  if (sale.client_phone) payload.client_phone = sale.client_phone;
+  if (sale.sold_at) payload.sold_at = sale.sold_at;
+  if (sale.notes) payload.notes = sale.notes;
+  return apiUnwrap(await apiRequest("/api/products/sales/", { method: "POST", body: payload, auth: true }));
+}
+
 async function apiSaveDistrict(district) {
   const payload = { name: (district.name || "").trim() };
   return isApiUuid(district.id)
@@ -1320,6 +1391,13 @@ Object.assign(window, {
   apiGetDebtorPayments,
   apiSaveDebtorPayment,
   apiDeleteDebtorPayment,
+  apiGetDebtorAttachments,
+  apiUploadDebtorAttachment,
+  apiGetWarehouseSummary,
+  apiGetStockEntries,
+  apiCreateStockEntry,
+  apiGetWarehouseSales,
+  apiCreateWarehouseSale,
   apiGetAccountingStats,
   apiUiRole,
   apiLoadSession,

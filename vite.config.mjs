@@ -23,6 +23,7 @@ const LEGACY_FILES = [
   "src/pages/products.jsx",
   "src/pages/product-detail.jsx",
   "src/pages/commerce.jsx",
+  "src/pages/warehouse.jsx",
   "src/pages/locations.jsx",
   "src/pages/inbox.jsx",
   "src/pages/channels.jsx",

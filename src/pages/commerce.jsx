@@ -47,6 +47,12 @@ const COMMERCE_UI = {
     districtPh: "Masalan, Bog'ot", mahallaPh: "Masalan, Yangiobod",
     catalogCrumb: "Katalog va moliya", actions: "Amallar", edit: "Tahrirlash", delete: "O'chirish", view: "Ko'rish", cancel: "Bekor qilish", save: "Saqlash", create: "Yaratish", close: "Yopish", clear: "Tozalash",
     incomeUzs: "Kirim (so'm)", incomeUsd: "Dollar kirim", expenseUzs: "Chiqim (so'm)", expenseUsd: "Dollar chiqim", netUzs: "Sof oqim (so'm)", netUsd: "Sof oqim ($)",
+    attachmentsPanel: "Fayllar va rasmlar", addAttachment: "Fayl yuklash", noAttachments: "Fayllar yo'q",
+    attachmentUploaded: "Fayl yuklandi", attachmentUploadFail: "Fayl yuklanmadi",
+    visitProof: "Tashrif dalili", fileTypeImage: "Rasm", fileTypeVideo: "Video", fileTypeFile: "Fayl",
+    attachNotes: "Izoh", uploadingFile: "Yuklanmoqda...", attachUploadBtn: "Yuklash",
+    fileTypePh: "Fayl turi", attUploadedBy: "Yuklagan", attUploadedAt: "Vaqt",
+    dropOrClick: "Fayl tanlash yoki tashlang",
   },
   ru: {
     overdue: "Просрочено", withDebt: "Есть остаток", closed: "Закрыто",
@@ -94,6 +100,12 @@ const COMMERCE_UI = {
     districtPh: "Напр., Богот", mahallaPh: "Напр., Янгиобод",
     catalogCrumb: "Каталог и финансы", actions: "Действия", edit: "Редактировать", delete: "Удалить", view: "Просмотр", cancel: "Отмена", save: "Сохранить", create: "Создать", close: "Закрыть", clear: "Очистить",
     incomeUzs: "Приход (сум)", incomeUsd: "Приход ($)", expenseUzs: "Расход (сум)", expenseUsd: "Расход ($)", netUzs: "Чистый поток (сум)", netUsd: "Чистый поток ($)",
+    attachmentsPanel: "Файлы и фото", addAttachment: "Загрузить файл", noAttachments: "Файлов нет",
+    attachmentUploaded: "Файл загружен", attachmentUploadFail: "Ошибка загрузки",
+    visitProof: "Подтверждение визита", fileTypeImage: "Фото", fileTypeVideo: "Видео", fileTypeFile: "Файл",
+    attachNotes: "Примечание", uploadingFile: "Загрузка...", attachUploadBtn: "Загрузить",
+    fileTypePh: "Тип файла", attUploadedBy: "Загрузил", attUploadedAt: "Время",
+    dropOrClick: "Выберите файл или перетащите",
   },
   en: {
     overdue: "Overdue", withDebt: "Has balance", closed: "Closed",
@@ -141,6 +153,12 @@ const COMMERCE_UI = {
     districtPh: "e.g. Bogot", mahallaPh: "e.g. Yangiobod",
     catalogCrumb: "Catalog & Finance", actions: "Actions", edit: "Edit", delete: "Delete", view: "View", cancel: "Cancel", save: "Save", create: "Create", close: "Close", clear: "Clear",
     incomeUzs: "Income (UZS)", incomeUsd: "Dollar income", expenseUzs: "Expense (UZS)", expenseUsd: "Dollar expense", netUzs: "Net flow (UZS)", netUsd: "Net flow ($)",
+    attachmentsPanel: "Files & Photos", addAttachment: "Upload file", noAttachments: "No files yet",
+    attachmentUploaded: "File uploaded", attachmentUploadFail: "Upload failed",
+    visitProof: "Visit proof", fileTypeImage: "Photo", fileTypeVideo: "Video", fileTypeFile: "File",
+    attachNotes: "Notes", uploadingFile: "Uploading...", attachUploadBtn: "Upload",
+    fileTypePh: "File type", attUploadedBy: "Uploaded by", attUploadedAt: "Time",
+    dropOrClick: "Click to select or drag & drop",
   },
 };
 function comLang() { return window.__TG_LANG || "uz"; }
@@ -772,6 +790,174 @@ function DebtorPaymentModal({ open, onClose, onSave, initial }) {
   );
 }
 
+function DebtorAttachmentsPanel({ debtorId, toast }) {
+  const [attachments, setAttachments] = coS([]);
+  const [uploading, setUploading] = coS(false);
+  const [showUpload, setShowUpload] = coS(false);
+  const [selFile, setSelFile] = coS(null);
+  const [fileType, setFileType] = coS("image");
+  const [notes, setNotes] = coS("");
+  const [isVisitProof, setIsVisitProof] = coS(false);
+  const [dragOver, setDragOver] = coS(false);
+  const fileRef = React.useRef(null);
+
+  const loadAttachments = () => {
+    apiGetDebtorAttachments(debtorId).then(rows => setAttachments(rows)).catch(() => {});
+  };
+
+  coE(() => { loadAttachments(); }, [debtorId]);
+
+  const handleUpload = async () => {
+    if (!selFile) return;
+    setUploading(true);
+    try {
+      await apiUploadDebtorAttachment(debtorId, selFile, { file_type: fileType, notes, is_visit_proof: isVisitProof });
+      toast(comTx("attachmentUploaded"), "success");
+      setSelFile(null); setNotes(""); setIsVisitProof(false); setShowUpload(false);
+      if (fileRef.current) fileRef.current.value = "";
+      loadAttachments();
+    } catch (e) {
+      toast(comTx("attachmentUploadFail"), "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const acceptFor = (ft) => ft === "image" ? "image/*" : ft === "video" ? "video/*" : "*";
+  const fileIcon = (ft) => ft === "image" ? <I.image size={16} /> : ft === "video" ? <I.play size={16} /> : <I.doc size={16} />;
+  const fileLabel = (ft) => ft === "image" ? comTx("fileTypeImage") : ft === "video" ? comTx("fileTypeVideo") : comTx("fileTypeFile");
+
+  const fileTypeOptions = [
+    { value: "image", label: comTx("fileTypeImage") },
+    { value: "video", label: comTx("fileTypeVideo") },
+    { value: "file",  label: comTx("fileTypeFile") },
+  ];
+
+  const onDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) { setSelFile(f); if (fileRef.current) fileRef.current.value = ""; }
+  };
+
+  const previewUrl = selFile && fileType === "image" ? URL.createObjectURL(selFile) : null;
+
+  return (
+    <Panel title={comTx("attachmentsPanel")} icon="link" color="green"
+      action={
+        <Button variant={showUpload ? "primary" : "ghost"} size="sm"
+          icon={showUpload ? <I.x size={14} /> : <I.plus size={14} />}
+          onClick={() => { setShowUpload(v => !v); setSelFile(null); setNotes(""); setIsVisitProof(false); }}>
+          {showUpload ? comTx("close") : comTx("addAttachment")}
+        </Button>
+      }>
+      {showUpload && (
+        <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", background: "color-mix(in srgb, var(--bg-2) 60%, var(--bg))", display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* row 1: type + notes */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12 }}>
+            <Field label={comTx("fileTypePh")}>
+              <Select value={fileType} onChange={setFileType} options={fileTypeOptions} />
+            </Field>
+            <Field label={comTx("attachNotes")}>
+              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="…" />
+            </Field>
+          </div>
+
+          {/* row 2: file drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            onClick={() => !selFile && fileRef.current?.click()}
+            style={{
+              border: `2px dashed ${dragOver ? "var(--accent)" : selFile ? "var(--green)" : "var(--border)"}`,
+              borderRadius: 10,
+              padding: "14px 16px",
+              display: "flex", alignItems: "center", gap: 12,
+              cursor: selFile ? "default" : "pointer",
+              background: dragOver ? "rgba(var(--accent-rgb),.06)" : selFile ? "var(--green-bg)" : "var(--bg)",
+              transition: "border-color .15s, background .15s",
+            }}>
+            <input ref={fileRef} type="file" accept={acceptFor(fileType)}
+              style={{ display: "none" }}
+              onChange={e => setSelFile(e.target.files?.[0] || null)} />
+
+            {selFile ? (
+              <>
+                {previewUrl
+                  ? <img src={previewUrl} alt="" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+                  : <div style={{ width: 48, height: 48, display: "grid", placeItems: "center", borderRadius: 6, background: "var(--bg-2)", flexShrink: 0, color: "var(--green)" }}>{fileIcon(fileType)}</div>
+                }
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selFile.name}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>{(selFile.size / 1024).toFixed(0)} KB</div>
+                </div>
+                <IconButton icon={<I.x size={14} />} label="clear" onClick={e => { e.stopPropagation(); setSelFile(null); if (fileRef.current) fileRef.current.value = ""; }} />
+              </>
+            ) : (
+              <>
+                <div style={{ width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 8, background: "var(--bg-2)", flexShrink: 0, color: "var(--text-3)" }}>
+                  {fileIcon(fileType)}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{comTx("dropOrClick")}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>{fileTypeOptions.find(o => o.value === fileType)?.label}</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* row 3: visit proof toggle + upload button */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Toggle checked={isVisitProof} onChange={setIsVisitProof} />
+              <span style={{ fontSize: 13, color: isVisitProof ? "var(--text)" : "var(--text-3)", fontWeight: isVisitProof ? 600 : 400 }}>{comTx("visitProof")}</span>
+            </div>
+            <Button variant="primary" size="sm" disabled={!selFile || uploading} onClick={handleUpload}
+              icon={uploading ? null : <I.plus size={14} />}>
+              {uploading ? comTx("uploadingFile") : comTx("attachUploadBtn")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {attachments.length === 0 ? (
+        <div style={{ padding: "28px 16px", textAlign: "center" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--bg-2)", display: "grid", placeItems: "center", margin: "0 auto 10px", color: "var(--text-3)" }}><I.image size={20} /></div>
+          <div style={{ fontSize: 13, color: "var(--text-3)" }}>{comTx("noAttachments")}</div>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, padding: 16 }}>
+          {attachments.map(att => (
+            <a key={att.id} href={att.file_url || att.file} target="_blank" rel="noopener noreferrer"
+              style={{ display: "block", borderRadius: 10, overflow: "hidden", border: "1px solid var(--border)", textDecoration: "none", background: "var(--bg-2)", transition: "box-shadow .15s, border-color .15s" }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,.15)"; e.currentTarget.style.borderColor = "var(--accent)"; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; e.currentTarget.style.borderColor = "var(--border)"; }}>
+              {att.file_type === "image" ? (
+                <img src={att.file_url || att.file} alt={att.notes || ""} style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }} onError={e => { e.target.style.display = "none"; }} />
+              ) : (
+                <div style={{ height: 90, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, color: "var(--text-3)", background: "var(--bg)" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--bg-2)", display: "grid", placeItems: "center" }}>{fileIcon(att.file_type)}</div>
+                  <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--text-3)" }}>{fileLabel(att.file_type)}</span>
+                </div>
+              )}
+              <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 10, color: "var(--text-3)" }}>{fileLabel(att.file_type)}</span>
+                  {att.is_visit_proof && (
+                    <span style={{ marginLeft: "auto", background: "var(--green-bg)", color: "var(--green)", borderRadius: 4, padding: "1px 5px", fontSize: 10, fontWeight: 700 }}>✓</span>
+                  )}
+                </div>
+                {att.notes && <div style={{ fontSize: 11, color: "var(--text)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{att.notes}</div>}
+                <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 2 }}>{att.uploaded_by_name || att.uploaded_by_username || ""}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function OrderDetailPage({ id }) {
   const { data, nav, t, upsert, toast } = useApp();
   const [editOpen, setEditOpen] = coS(false);
@@ -827,6 +1013,7 @@ function OrderDetailPage({ id }) {
           </Panel>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <DebtorAttachmentsPanel debtorId={id} toast={toast} />
           <Panel title={comTx("lastPaymentsPanel")} icon="chart" color="blue" pad={false}
             action={<Button variant="primary" size="sm" icon={<I.plus size={14} />} onClick={() => setAddPayOpen(true)}>{comTx("addPayment")}</Button>}>
             <div className="tg-table-wrap">
