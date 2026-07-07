@@ -200,7 +200,7 @@ function Donut({ data, size = 180, thickness = 26, centerLabel, centerValue }) {
 }
 
 // ---------- Bars ----------
-function BarChart({ data, height = 220, horizontal = false, format = (v) => v, color = "var(--accent)" }) {
+function BarChart({ data, height = 220, horizontal = false, format = (v) => v, color = "var(--accent)", labelWidth = 96, valueWidth = 64, wrapLabels = false }) {
   const [ref, w] = useWidth();
   const [mounted, setMounted] = cS(false);
   cE(() => { const id = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(id); }, []);
@@ -210,11 +210,21 @@ function BarChart({ data, height = 220, horizontal = false, format = (v) => v, c
       <div ref={ref} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
         {data.map((d, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 96, fontSize: 12.5, color: "var(--text-2)", textAlign: "right", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.label}</div>
+            <div style={{
+              width: labelWidth,
+              fontSize: 12.5,
+              color: "var(--text-2)",
+              textAlign: "right",
+              flexShrink: 0,
+              whiteSpace: wrapLabels ? "normal" : "nowrap",
+              overflow: wrapLabels ? "visible" : "hidden",
+              textOverflow: wrapLabels ? "clip" : "ellipsis",
+              lineHeight: 1.25,
+            }}>{d.label}</div>
             <div style={{ flex: 1, background: "var(--surface-3)", borderRadius: 7, height: 22, overflow: "hidden" }}>
               <div style={{ width: mounted ? `${d.value / max * 100}%` : "0%", height: "100%", borderRadius: 7, background: d.color || color, transition: `width 0.7s cubic-bezier(0.4,0,0.2,1) ${i * 60}ms`, minWidth: mounted ? 3 : 0 }} />
             </div>
-            <div style={{ width: 64, fontSize: 12.5, fontWeight: 650, textAlign: "right", flexShrink: 0 }}>{format(d.value)}</div>
+            <div style={{ width: valueWidth, fontSize: 12.5, fontWeight: 650, textAlign: "right", flexShrink: 0 }}>{format(d.value)}</div>
           </div>
         ))}
       </div>

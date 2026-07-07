@@ -103,8 +103,9 @@ function routeCollectionKeys(route) {
     case "inbox":
       return [...BASE_COLLECTIONS, "users", "conversations", "customers"];
     case "products":
-    case "warehouse":
       return [...BASE_COLLECTIONS, "products", "productCategories"];
+    case "warehouse":
+      return [...BASE_COLLECTIONS];
     case "debtors":
     case "orders":
       return [...BASE_COLLECTIONS, "orders", "customers", "districts", "neighborhoods"];

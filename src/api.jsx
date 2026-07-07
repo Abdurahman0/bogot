@@ -454,14 +454,59 @@ async function apiUploadDebtorAttachment(debtorId, file, extras = {}) {
 
 async function apiGetWarehouseSummary() {
   try {
-    const res = apiUnwrap(await apiRequest("/api/products/warehouse/summary/", { auth: true }));
+    const res = apiUnwrap(await apiRequest("/api/warehouse/stats/", { auth: true }));
     return res || {};
   } catch { return {}; }
 }
 
+async function apiGetWarehouseItems(params = {}) {
+  try {
+    const url = apiBuildUrl("/api/warehouse/items/", { page_size: 100, ordering: "name", ...params });
+    const res = apiUnwrap(await apiRequest(url, { auth: true }));
+    return { results: res?.results || res || [], count: res?.count || 0 };
+  } catch { return { results: [], count: 0 }; }
+}
+
+async function apiSaveWarehouseItem(item) {
+  const payload = {
+    name: String(item.name || "").trim(),
+    category: String(item.category || "").trim(),
+    description: item.description || "",
+    unit: item.unit || "dona",
+    default_currency: item.default_currency || "uzs",
+    is_panel: !!item.is_panel,
+    panel_watt: String(apiParseNumber(item.panel_watt || 0)),
+    panel_count: String(apiParseNumber(item.panel_count || 0)),
+    panel_price: String(apiParseNumber(item.panel_price || 0)),
+    low_stock_threshold: String(apiParseNumber(item.low_stock_threshold || 0)),
+  };
+  return apiUnwrap(await apiRequest(
+    item.id ? `/api/warehouse/items/${item.id}/` : "/api/warehouse/items/",
+    { method: item.id ? "PATCH" : "POST", body: payload, auth: true }
+  ));
+}
+
+async function apiDeleteWarehouseItem(id) {
+  return apiRequest(`/api/warehouse/items/${id}/`, { method: "DELETE", auth: true });
+}
+
+async function apiGetWarehouseStats(params = {}) {
+  try {
+    const url = apiBuildUrl("/api/warehouse/stats/", params);
+    return apiUnwrap(await apiRequest(url, { auth: true })) || {};
+  } catch { return {}; }
+}
+
+async function apiDownloadWarehouseExcel(filters = {}) {
+  return apiDownloadFile("/api/warehouse/export/excel/", {
+    params: filters,
+    filename: "warehouse_export.xlsx",
+  });
+}
+
 async function apiGetStockEntries(params = {}) {
   try {
-    const url = apiBuildUrl("/api/products/stock-entries/", { page_size: 100, ordering: "-created_at", ...params });
+    const url = apiBuildUrl("/api/warehouse/stock-entries/", { page_size: 100, ordering: "-received_at", ...params });
     const res = apiUnwrap(await apiRequest(url, { auth: true }));
     return { results: res?.results || res || [], count: res?.count || 0 };
   } catch { return { results: [], count: 0 }; }
@@ -469,19 +514,20 @@ async function apiGetStockEntries(params = {}) {
 
 async function apiCreateStockEntry(entry) {
   const payload = {
-    product: entry.product,
-    quantity: Number(entry.quantity),
+    item: entry.item,
+    quantity: String(apiParseNumber(entry.quantity)),
+    currency: entry.currency || "uzs",
   };
   if (entry.unit_cost) payload.unit_cost = String(entry.unit_cost);
   if (entry.supplier_name) payload.supplier_name = entry.supplier_name;
   if (entry.received_at) payload.received_at = entry.received_at;
   if (entry.notes) payload.notes = entry.notes;
-  return apiUnwrap(await apiRequest("/api/products/stock-entries/", { method: "POST", body: payload, auth: true }));
+  return apiUnwrap(await apiRequest("/api/warehouse/stock-entries/", { method: "POST", body: payload, auth: true }));
 }
 
 async function apiGetWarehouseSales(params = {}) {
   try {
-    const url = apiBuildUrl("/api/products/sales/", { page_size: 100, ordering: "-created_at", ...params });
+    const url = apiBuildUrl("/api/warehouse/sales/", { page_size: 100, ordering: "-sold_at", ...params });
     const res = apiUnwrap(await apiRequest(url, { auth: true }));
     return { results: res?.results || res || [], count: res?.count || 0 };
   } catch { return { results: [], count: 0 }; }
@@ -489,8 +535,9 @@ async function apiGetWarehouseSales(params = {}) {
 
 async function apiCreateWarehouseSale(sale) {
   const payload = {
-    product: sale.product,
-    quantity: Number(sale.quantity),
+    item: sale.item,
+    quantity: String(apiParseNumber(sale.quantity)),
+    currency: sale.currency || "uzs",
     unit_price: String(sale.unit_price),
     paid_amount: String(sale.paid_amount || 0),
     payment_type: sale.payment_type || "cash",
@@ -500,7 +547,7 @@ async function apiCreateWarehouseSale(sale) {
   if (sale.client_phone) payload.client_phone = sale.client_phone;
   if (sale.sold_at) payload.sold_at = sale.sold_at;
   if (sale.notes) payload.notes = sale.notes;
-  return apiUnwrap(await apiRequest("/api/products/sales/", { method: "POST", body: payload, auth: true }));
+  return apiUnwrap(await apiRequest("/api/warehouse/sales/", { method: "POST", body: payload, auth: true }));
 }
 
 async function apiSaveDistrict(district) {
@@ -1408,6 +1455,11 @@ Object.assign(window, {
   apiGetDebtorAttachments,
   apiUploadDebtorAttachment,
   apiGetWarehouseSummary,
+  apiGetWarehouseItems,
+  apiSaveWarehouseItem,
+  apiDeleteWarehouseItem,
+  apiGetWarehouseStats,
+  apiDownloadWarehouseExcel,
   apiGetStockEntries,
   apiCreateStockEntry,
   apiGetWarehouseSales,
