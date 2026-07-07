@@ -62,6 +62,7 @@ function WarehouseItemModal({ open, initial, t, onClose, onSave }) {
     description: "",
     unit: "dona",
     default_currency: "uzs",
+    default_price: "",
     is_panel: false,
     panel_watt: "",
     panel_count: "",
@@ -93,7 +94,9 @@ function WarehouseItemModal({ open, initial, t, onClose, onSave }) {
     if (!String(form.category || "").trim()) { setError(whTx(t, "categoryRequired")); return; }
     setSaving(true); setError("");
     try {
-      await onSave(form);
+      const payload = { ...form };
+      if (payload.is_panel) delete payload.default_price;
+      await onSave(payload);
       onClose();
     } catch (e) {
       setError(e?.message || whTx(t, "itemSaveFail"));
@@ -124,6 +127,11 @@ function WarehouseItemModal({ open, initial, t, onClose, onSave }) {
           <input type="checkbox" checked={!!form.is_panel} onChange={e => setPanelMode(e.target.checked)} />
           {whTx(t, "isPanel")}
         </label>
+        {!form.is_panel && (
+          <Field label={`${whTx(t, "defaultPrice")} (${whCurrencyLabel(form.default_currency)})`}>
+            <Input type="number" min="0" step="0.01" value={form.default_price} onChange={e => set("default_price", e.target.value)} />
+          </Field>
+        )}
         {form.is_panel && (
           <div style={{ display: "grid", gap: 12, padding: 12, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface-2)" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -196,14 +204,14 @@ function StockEntryModal({ open, items, t, onClose, onSave }) {
   );
 }
 
-function SaleModal({ open, items, t, onClose, onSave }) {
-  const [form, setForm] = whS({ item: "", quantity: "1", currency: "uzs", unit_price: "", paid_amount: "", payment_type: "cash", client_name: "", client_phone: "", sold_at: "", notes: "" });
+function SaleModal({ open, items, customers, t, onClose, onSave }) {
+  const [form, setForm] = whS({ item: "", client: "", quantity: "1", currency: "uzs", unit_price: "", paid_amount: "", payment_type: "cash", client_name: "", client_phone: "", sold_at: "", notes: "" });
   const [saving, setSaving] = whS(false);
   const [error, setError] = whS("");
 
   whE(() => {
     if (!open) return;
-    setForm({ item: "", quantity: "1", currency: "uzs", unit_price: "", paid_amount: "", payment_type: "cash", client_name: "", client_phone: "", sold_at: "", notes: "" });
+    setForm({ item: "", client: "", quantity: "1", currency: "uzs", unit_price: "", paid_amount: "", payment_type: "cash", client_name: "", client_phone: "", sold_at: "", notes: "" });
     setError("");
   }, [open]);
 
@@ -215,6 +223,10 @@ function SaleModal({ open, items, t, onClose, onSave }) {
     ...items.map((item) => ({ value: item.id, label: `${item.name} · ${fmtNum(whNum(item.current_quantity))} ${whItemUnit(item)}` })),
   ], [items, t]);
   const payTypeOptions = ["cash", "card", "transfer", "debt", "other"].map((value) => ({ value, label: whPayTypeLabel(t, value) }));
+  const customerOptions = whM(() => [
+    { value: "", label: whTx(t, "chooseItem") },
+    ...((customers || []).map((c) => ({ value: c.id, label: c.fullName || c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || c.name || c.phone || c.id }))),
+  ], [customers, t]);
 
   const handleSave = async () => {
     if (!form.item) { setError(whTx(t, "itemRequired")); return; }
@@ -248,6 +260,18 @@ function SaleModal({ open, items, t, onClose, onSave }) {
           <Field label={whTx(t, "paidAmount")}><Input type="number" min="0" value={form.paid_amount} onChange={e => set("paid_amount", e.target.value)} /></Field>
           <Field label={whTx(t, "paymentType")}><Select value={form.payment_type} onChange={v => set("payment_type", v)} options={payTypeOptions} /></Field>
         </div>
+        {customers && customers.length > 0 && (
+          <Field label={whTx(t, "clientLink")}>
+            <Select value={form.client} onChange={v => {
+              const c = (customers || []).find(x => x.id === v);
+              set("client", v);
+              if (c) {
+                set("client_name", c.fullName || c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || c.name || form.client_name);
+                set("client_phone", c.phone || form.client_phone);
+              }
+            }} options={customerOptions} />
+          </Field>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label={whTx(t, "clientName")}><Input value={form.client_name} onChange={e => set("client_name", e.target.value)} /></Field>
           <Field label={whTx(t, "clientPhone")}><Input value={form.client_phone} onChange={e => set("client_phone", e.target.value)} placeholder="+998" /></Field>
@@ -395,9 +419,11 @@ function WarehousePage() {
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
   })();
-  const moneyChartData = [
+  const moneyChartDataUzs = [
     { label: whTx(t, "stockCostUzs"), value: stockCostUzs, color: "var(--green)" },
     { label: whTx(t, "salesPaidUzs"), value: salesPaidUzs, color: "var(--blue)" },
+  ];
+  const moneyChartDataUsd = [
     { label: whTx(t, "stockCostUsd"), value: stockCostUsd, color: "var(--teal)" },
     { label: whTx(t, "salesPaidUsd"), value: salesPaidUsd, color: "var(--violet)" },
   ];
@@ -445,6 +471,8 @@ function WarehousePage() {
         <WarehouseMetricChip label={whTx(t, "lowStock")} value={loadingStats ? "..." : (statData.low_stock_count ?? 0)} icon="alert" color="red" />
         <WarehouseMetricChip label={whTx(t, "panelItems")} value={loadingStats ? "..." : (statData.panel_items_count ?? 0)} icon="zap" color="violet" />
         <WarehouseMetricChip label={whTx(t, "panelWattTotal")} value={loadingStats ? "..." : fmtNum(whNum(statData.panel_total_watt))} sub="W" icon="zapline" color="amber" />
+        <WarehouseMetricChip label={whTx(t, "panelTotalCount")} value={loadingStats ? "..." : fmtNum(whNum(statData.panel_total_count))} icon="layers" color="teal" />
+        <WarehouseMetricChip label={whTx(t, "panelTotalPrice")} value={loadingStats ? "..." : `$${whNum(statData.panel_total_price).toLocaleString("en-US")}`} icon="wallet" color="green" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(260px, .75fr)", gap: 12, marginBottom: 16 }}>
@@ -454,10 +482,21 @@ function WarehousePage() {
           color="green"
           footer={<>
             <span className="tg-chip">{whTx(t, "salesTotalUzs")}: {fmtShort(salesTotalUzs)} {whTx(t, "som")}</span>
-            <span className="tg-chip">{whTx(t, "salesTotalUsd")}: {salesTotalUsd.toLocaleString("en-US")} $</span>
+            <span className="tg-chip">{whTx(t, "salesTotalUsd")}: ${salesTotalUsd.toLocaleString("en-US")}</span>
           </>}
         >
-          {loadingStats ? <div className="skeleton" style={{ height: 126 }} /> : <BarChart data={moneyChartData} horizontal height={126} labelWidth={150} valueWidth={78} wrapLabels format={(value) => fmtShort(value)} />}
+          {loadingStats ? <div className="skeleton" style={{ height: 126 }} /> : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-3)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>So'm</div>
+                <BarChart data={moneyChartDataUzs} horizontal height={90} labelWidth={120} valueWidth={72} wrapLabels format={(value) => fmtShort(value)} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-3)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>USD</div>
+                <BarChart data={moneyChartDataUsd} horizontal height={90} labelWidth={120} valueWidth={72} wrapLabels format={(value) => `$${value.toLocaleString("en-US")}`} />
+              </div>
+            </div>
+          )}
         </WarehouseChartCard>
         <WarehouseChartCard title={whTx(t, "activitySummary")} icon="chart" color="amber">
           {loadingStats ? <div className="skeleton" style={{ height: 168 }} /> : <Donut data={activityChartData} size={138} thickness={20} centerLabel={whTx(t, "activitySummary")} centerValue={whNum(statData.stock_entries_count) + whNum(statData.sales_count)} />}
@@ -645,6 +684,7 @@ function WarehousePage() {
       <SaleModal
         open={saleOpen}
         items={items}
+        customers={data.customers || []}
         t={t}
         onClose={() => setSaleOpen(false)}
         onSave={async (payload) => {

@@ -113,7 +113,7 @@ function routeCollectionKeys(route) {
       return [...BASE_COLLECTIONS, "districts", "neighborhoods"];
     case "accounting":
     case "payments":
-      return [...BASE_COLLECTIONS, "payments", "accountingDays", "orders", "customers"];
+      return [...BASE_COLLECTIONS, "payments", "accountingDays"];
     case "users":
       return [...BASE_COLLECTIONS, "users", "roles", "permissionsAll"];
     case "roles":
