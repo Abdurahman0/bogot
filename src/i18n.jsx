@@ -158,6 +158,7 @@ const TRANSLATIONS = {
     "auth.statCrm": "lead markaz",
     "auth.statAi": "Instagram agenti",
     "auth.statFinance": "moliyaviy panel",
+    "auth.loginError": "Login yoki parol noto'g'ri",
   },
   ru: {
     "nav.overview": "Обзор",
@@ -317,6 +318,7 @@ const TRANSLATIONS = {
     "auth.statCrm": "центр лидов",
     "auth.statAi": "Instagram агент",
     "auth.statFinance": "финансовая панель",
+    "auth.loginError": "Неверный логин или пароль",
   },
   en: {
     "nav.overview": "Overview",
@@ -476,6 +478,7 @@ const TRANSLATIONS = {
     "auth.statCrm": "lead center",
     "auth.statAi": "Instagram agent",
     "auth.statFinance": "finance panel",
+    "auth.loginError": "Invalid username or password",
   },
 };
 

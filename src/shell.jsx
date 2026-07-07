@@ -22,6 +22,7 @@ const NAV = [
   {
     group: "nav.system", items: [
       { path: "/users", key: "page.users", icon: "users" },
+      { path: "/audit-logs", key: "page.audit", icon: "clock" },
       { path: "/notifications", key: "page.notifications", icon: "bell" },
       { path: "/integrations", key: "page.integrations", icon: "link" },
       { path: "/settings", key: "page.settings", icon: "settings" },
@@ -33,7 +34,7 @@ window.NAV = NAV;
 // role-based access: which paths each role can see
 const ROLE_ACCESS = {
   developer: null,
-  admin: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/warehouse", "/debtors", "/accounting", "/locations", "/users", "/notifications", "/settings"],
+  admin: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/warehouse", "/debtors", "/accounting", "/locations", "/users", "/audit-logs", "/notifications", "/settings"],
   operator: ["/dashboard", "/customers", "/tasks", "/inbox", "/products", "/warehouse", "/debtors", "/accounting", "/locations", "/notifications", "/integrations", "/settings"],
 };
 window.ROLE_ACCESS = ROLE_ACCESS;
@@ -48,6 +49,7 @@ const PAGE_PERMISSION_MAP = {
   "/accounting": ["accounting.view", "accounting.manage"],
   "/locations": ["clients.view", "clients.manage"],
   "/users": ["users.view", "users.manage"],
+  "/audit-logs": ["audit_logs.view"],
   "/notifications": ["notifications.view", "notifications.manage"],
   "/integrations": ["integrations.view", "integrations.manage"],
   "/settings": ["ai.view", "ai.manage"],
@@ -629,12 +631,14 @@ function Login() {
   const [username, setUsername] = shS("");
   const [pw, setPw] = shS("");
   const [showPw, setShowPw] = shS(false);
+  const [error, setError] = shS("");
   const submit = async (e) => {
     e && e.preventDefault();
+    setError("");
     try {
       await login(username, pw);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      setError(err?.message || t("auth.loginError"));
     }
   };
   return (
@@ -655,16 +659,22 @@ function Login() {
       <div className="tg-login-form">
         <form onSubmit={submit}>
           <h2>{t("auth.loginTitle")}</h2>
-          <Field label={t("common.username")}><Input value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" /></Field>
+          <Field label={t("common.username")}><Input value={username} onChange={e => { setUsername(e.target.value); setError(""); }} autoComplete="username" /></Field>
           <div style={{ height: 14 }} />
           <Field label={t("common.password")}>
             <div style={{ position: "relative" }}>
-              <input className="tg-input" value={pw} onChange={e => setPw(e.target.value)} type={showPw ? "text" : "password"} autoComplete="current-password" style={{ paddingRight: 40, width: "100%", boxSizing: "border-box" }} />
+              <input className="tg-input" value={pw} onChange={e => { setPw(e.target.value); setError(""); }} type={showPw ? "text" : "password"} autoComplete="current-password" style={{ paddingRight: 40, width: "100%", boxSizing: "border-box" }} />
               <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", display: "flex", alignItems: "center", padding: 0, lineHeight: 1 }}>
                 {showPw ? <I.eyeOff size={16} /> : <I.eye size={16} />}
               </button>
             </div>
           </Field>
+          {error && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "var(--red-bg)", border: "1px solid var(--red)", color: "var(--red)", fontSize: 13 }}>
+              <I.alert size={15} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
+            </div>
+          )}
           <div style={{ height: 20 }} />
           <Button variant="primary" size="lg" full type="submit" disabled={dataLoading}>{dataLoading ? t("common.loading") : <>{t("common.login")} <I.arrowRight size={17} /></>}</Button>
         </form>

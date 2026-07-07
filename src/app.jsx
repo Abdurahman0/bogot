@@ -40,7 +40,7 @@ function Router() {
   }, [route, nav]);
 
   aE(() => {
-    const hidden = ["/instagram", "/telegram", "/audit", "/help"];
+    const hidden = ["/instagram", "/telegram", "/help"];
     if (hidden.some((path) => route === path || route.startsWith(path + "/"))) nav("/dashboard");
   }, [route, nav]);
 
@@ -103,6 +103,8 @@ function Router() {
     case "accounting": page = <PaymentsPage />; break;
     case "locations": page = <LocationsPage />; break;
     case "users": page = <UsersPage />; break;
+    case "audit-logs":
+    case "audit": page = window.AuditPage ? <AuditPage /> : <Placeholder label="Audit jurnali" />; break;
     case "settings": page = <SettingsPage />; break;
     case "notifications": page = window.NotificationsPage ? <NotificationsPage /> : <Placeholder label="Bildirishnomalar" />; break;
     case "integrations": page = window.IntegrationsPage ? <IntegrationsPage /> : <Placeholder label="Integratsiyalar" />; break;

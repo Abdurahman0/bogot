@@ -15,6 +15,8 @@ const PERMISSION_LABELS = {
     "accounting.manage": "Hisob-kitobni boshqarish",
     "products.view": "Mahsulotlarni ko'rish",
     "products.manage": "Mahsulotlarni boshqarish",
+    "warehouse.view": "Skladni ko'rish",
+    "warehouse.manage": "Skladni boshqarish",
     "tasks.view": "Vazifalarni ko'rish",
     "tasks.manage": "Vazifalarni boshqarish",
     "notifications.view": "Bildirishnomalarni ko'rish",
@@ -39,6 +41,8 @@ const PERMISSION_LABELS = {
     "accounting.manage": "Управление учетом",
     "products.view": "Просмотр продуктов",
     "products.manage": "Управление продуктами",
+    "warehouse.view": "Просмотр склада",
+    "warehouse.manage": "Управление складом",
     "tasks.view": "Просмотр задач",
     "tasks.manage": "Управление задачами",
     "notifications.view": "Просмотр уведомлений",
@@ -63,6 +67,8 @@ const PERMISSION_LABELS = {
     "accounting.manage": "Manage accounting",
     "products.view": "View products",
     "products.manage": "Manage products",
+    "warehouse.view": "View warehouse",
+    "warehouse.manage": "Manage warehouse",
     "tasks.view": "View tasks",
     "tasks.manage": "Manage tasks",
     "notifications.view": "View notifications",
@@ -100,6 +106,7 @@ const USER_MODULE_LABELS = {
     debtors: "Qarzdorlar",
     accounting: "Hisob-kitob",
     products: "Mahsulotlar",
+    warehouse: "Sklad",
     tasks: "Vazifalar",
     notifications: "Bildirishnomalar",
     chats: "Chat",
@@ -115,6 +122,7 @@ const USER_MODULE_LABELS = {
     debtors: "Должники",
     accounting: "Учет",
     products: "Продукты",
+    warehouse: "Склад",
     tasks: "Задачи",
     notifications: "Уведомления",
     chats: "Чаты",
@@ -130,6 +138,7 @@ const USER_MODULE_LABELS = {
     debtors: "Debtors",
     accounting: "Accounting",
     products: "Products",
+    warehouse: "Warehouse",
     tasks: "Tasks",
     notifications: "Notifications",
     chats: "Chats",
@@ -227,11 +236,18 @@ const SYSTEM_TEXT = {
     auditDesc: "Barcha tizim harakatlari jurnali",
     auditPanel: "Audit jurnali",
     allUsers: "Barcha foydalanuvchilar",
+    allActions: "Barcha harakatlar",
     colUser: "Foydalanuvchi",
     colAction: "Harakat",
     colEntity: "Ob'ekt",
+    colDescription: "Tavsif",
     colDate: "Sana",
     recordsUnit: "ta yozuv",
+    actionLogin: "Kirish",
+    actionCreate: "Yaratdi",
+    actionUpdate: "O'zgartirdi",
+    actionDelete: "O'chirdi",
+    actionAction: "Amal",
     integrationsDesc: "Tashqi tizimlar va API integratsiyalari",
     apiDocs: "API hujjatlar",
     newIntegration: "Yangi konfiguratsiya",
@@ -369,11 +385,18 @@ const SYSTEM_TEXT = {
     auditDesc: "Журнал всех действий системы",
     auditPanel: "Журнал аудита",
     allUsers: "Все пользователи",
+    allActions: "Все действия",
     colUser: "Пользователь",
     colAction: "Действие",
     colEntity: "Объект",
+    colDescription: "Описание",
     colDate: "Дата",
     recordsUnit: "записей",
+    actionLogin: "Вход",
+    actionCreate: "Создал",
+    actionUpdate: "Изменил",
+    actionDelete: "Удалил",
+    actionAction: "Действие",
     integrationsDesc: "Внешние системы и API интеграции",
     apiDocs: "API документация",
     newIntegration: "Новая конфигурация",
@@ -511,11 +534,18 @@ const SYSTEM_TEXT = {
     auditDesc: "All system actions log",
     auditPanel: "Audit log",
     allUsers: "All users",
+    allActions: "All actions",
     colUser: "User",
     colAction: "Action",
     colEntity: "Entity",
+    colDescription: "Description",
     colDate: "Date",
     recordsUnit: "records",
+    actionLogin: "Login",
+    actionCreate: "Created",
+    actionUpdate: "Updated",
+    actionDelete: "Deleted",
+    actionAction: "Action",
     integrationsDesc: "External systems and API integrations",
     apiDocs: "API docs",
     newIntegration: "New configuration",
@@ -1190,23 +1220,53 @@ function NotificationsPage() {
 
 /* ======= AUDIT ======= */
 function AuditPage() {
-  const { data, t } = useApp();
-  const loading = useLoading(420);
+  const { t } = useApp();
   const [q, setQ] = sysS("");
-  const [userFilter, setUserFilter] = sysS("all");
+  const [actionFilter, setActionFilter] = sysS("all");
   const [page, setPage] = sysS(1);
-  const PER_PAGE = 15;
+  const [rows, setRows] = sysS([]);
+  const [total, setTotal] = sysS(0);
+  const [loading, setLoading] = sysS(false);
+  const PER_PAGE = 25;
 
-  const users = sysM(() => [...new Set(data.audit.map(a => a.userName))], [data.audit]);
-  const filtered = sysM(() => data.audit.filter(a =>
-    (userFilter === "all" || a.userName === userFilter) &&
-    (!q || a.action.toLowerCase().includes(q.toLowerCase()) || a.entity.toLowerCase().includes(q.toLowerCase()) || a.userName.toLowerCase().includes(q.toLowerCase()))
-  ), [data.audit, userFilter, q]);
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    apiGetAuditLogs({
+      page,
+      page_size: PER_PAGE,
+      search: q || undefined,
+      action: actionFilter !== "all" ? actionFilter : undefined,
+    }).then(({ results, count }) => {
+      if (cancelled) return;
+      setRows(results);
+      setTotal(count);
+      setLoading(false);
+    }).catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [page, q, actionFilter]);
 
-  const paginated = sysM(() => filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE), [filtered, page]);
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  React.useEffect(() => { setPage(1); }, [q, actionFilter]);
 
-  const ACT_COLOR = { create: "green", update: "blue", delete: "red", login: "teal", export: "amber" };
+  const totalPages = Math.ceil(total / PER_PAGE);
+
+  const ACT_COLOR = { create: "green", update: "blue", delete: "red", login: "teal", action: "amber" };
+  const ACT_LABEL = {
+    create: sx("actionCreate"),
+    update: sx("actionUpdate"),
+    delete: sx("actionDelete"),
+    login: sx("actionLogin"),
+    action: sx("actionAction"),
+  };
+
+  const ACTION_OPTIONS = [
+    { value: "all", label: sx("allActions") },
+    { value: "login", label: sx("actionLogin") },
+    { value: "create", label: sx("actionCreate") },
+    { value: "update", label: sx("actionUpdate") },
+    { value: "delete", label: sx("actionDelete") },
+    { value: "action", label: sx("actionAction") },
+  ];
 
   return (
     <div className="page fade-in">
@@ -1214,25 +1274,58 @@ function AuditPage() {
 
       <Panel title={sx("auditPanel")} icon="clock" color="accent" pad={false}
         action={<div style={{ display: "flex", gap: 10 }}>
-          <SearchInput value={q} onChange={setQ} placeholder={t("common.search")} width={200} />
-          <FilterSelect value={userFilter} onChange={v => { setUserFilter(v); setPage(1); }} options={[{ value: "all", label: sx("allUsers") }, ...users.map(u => ({ value: u, label: u }))]} />
+          <SearchInput value={q} onChange={v => setQ(v)} placeholder={t("common.search")} width={200} />
+          <FilterSelect value={actionFilter} onChange={v => setActionFilter(v)} options={ACTION_OPTIONS} />
         </div>}>
         {loading ? <SkeletonRows rows={12} cols={5} /> : (
           <>
             <div className="tg-table-wrap">
               <table className="tg-table">
-                <thead><tr><th>{sx("colUser")}</th><th>{sx("colAction")}</th><th>{sx("colEntity")}</th><th>ID</th><th>{sx("colDate")}</th><th>IP</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>{sx("colUser")}</th>
+                    <th>{sx("colAction")}</th>
+                    <th>{sx("colEntity")}</th>
+                    <th>{sx("colDescription")}</th>
+                    <th>{sx("colDate")}</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {paginated.map((a, i) => (
-                    <tr key={i}>
-                      <td><div style={{ display: "flex", alignItems: "center", gap: 8 }}><Avatar name={a.userName} size={26} /><span style={{ fontSize: 13 }}>{a.userName}</span></div></td>
-                      <td><Badge color={ACT_COLOR[a.action] || "slate"} size="sm">{a.action}</Badge></td>
-                      <td className="tg-cell-strong">{a.entity}</td>
-                      <td className="tg-cell-sub" style={{ fontFamily: "monospace", fontSize: 11.5 }}>{a.entityId}</td>
-                      <td className="tg-cell-sub">{fmtDate(a.createdAt, true)}</td>
-                      <td className="tg-cell-sub" style={{ fontFamily: "monospace", fontSize: 11 }}>{a.ip || "127.0.0.1"}</td>
-                    </tr>
-                  ))}
+                  {rows.length === 0 && !loading && (
+                    <tr><td colSpan={5}><div style={{ padding: "24px 0", textAlign: "center", color: "var(--text-3)", fontSize: 13 }}>{t("common.noData")}</div></td></tr>
+                  )}
+                  {rows.map((a) => {
+                    const humanMsg = a.metadata?.human_message || "";
+                    const targetLabel = a.metadata?.target_label || a.target_type || "";
+                    const targetRepr = a.target_repr || "";
+                    return (
+                      <tr key={a.id}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Avatar name={a.actor_username} size={26} />
+                            <span style={{ fontSize: 13 }}>{a.actor_username}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <Badge color={ACT_COLOR[a.action] || "slate"} size="sm">
+                            {ACT_LABEL[a.action] || a.action}
+                          </Badge>
+                        </td>
+                        <td className="tg-cell-strong" style={{ maxWidth: 160 }}>
+                          <div style={{ fontSize: 12.5 }}>{targetLabel}</div>
+                          {targetRepr && <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 155 }}>{targetRepr}</div>}
+                        </td>
+                        <td style={{ maxWidth: 260 }}>
+                          {humanMsg ? (
+                            <span style={{ fontSize: 12.5, color: "var(--text-2)" }}>{humanMsg}</span>
+                          ) : (
+                            <span style={{ fontSize: 12, color: "var(--text-3)" }}>—</span>
+                          )}
+                        </td>
+                        <td className="tg-cell-sub">{fmtDate(a.created_at, true)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1241,7 +1334,7 @@ function AuditPage() {
                 <button className="tg-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><I.chevLeft size={16} /></button>
                 <span style={{ fontSize: 13, color: "var(--text-3)" }}>{page} / {totalPages}</span>
                 <button className="tg-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}><I.chevRight size={16} /></button>
-                <span style={{ fontSize: 12.5, color: "var(--text-3)", marginLeft: "auto" }}>{filtered.length} {sx("recordsUnit")}</span>
+                <span style={{ fontSize: 12.5, color: "var(--text-3)", marginLeft: "auto" }}>{total} {sx("recordsUnit")}</span>
               </div>
             )}
           </>
