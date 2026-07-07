@@ -579,14 +579,13 @@ function WarehousePage() {
                     const threshold = whNum(item.low_stock_threshold);
                     const low = threshold > 0 && qty <= threshold;
                     return (
-                      <tr key={item.id} style={{ cursor: "pointer" }} onClick={e => { if (!e.target.closest("button")) nav(`/warehouse/${item.id}`); }}>
+                      <tr key={item.id} style={{ cursor: "pointer", ...(low ? { background: "var(--red-bg)" } : {}) }} onClick={e => { if (!e.target.closest("button")) nav(`/warehouse/${item.id}`); }}>
                         <td>
                           <span className="tg-cell-strong">{item.name}</span>
-                          {item.description && <span className="tg-cell-sub">{item.description}</span>}
                         </td>
                         <td>{item.category || "—"}</td>
                         <td><Badge color={item.default_currency === "usd" ? "teal" : "green"} size="sm">{whCurrencyLabel(item.default_currency)}</Badge></td>
-                        <td style={{ textAlign: "right", fontWeight: 700, color: low ? "var(--red)" : "var(--text)" }}>{fmtNum(qty)} <span style={{ color: "var(--text-3)", fontWeight: 400 }}>{whItemUnit(item)}</span></td>
+                        <td style={{ textAlign: "right", fontWeight: 700, color: low ? "var(--red)" : "var(--text)" }}>{fmtNum(qty)} <span style={{ color: low ? "var(--red)" : "var(--text-3)", fontWeight: 400, opacity: low ? .7 : 1 }}>{whItemUnit(item)}</span></td>
                         <td>
                           {item.is_panel ? (
                             <div className="tg-chips">
@@ -595,7 +594,7 @@ function WarehousePage() {
                             </div>
                           ) : <span className="tg-cell-sub">—</span>}
                         </td>
-                        <td style={{ textAlign: "right" }}>{threshold ? fmtNum(threshold) : "—"}</td>
+                        <td style={{ textAlign: "right" }}>{threshold ? <span style={{ color: low ? "var(--red)" : "var(--text-3)", fontWeight: low ? 700 : 400 }}>{fmtNum(threshold)}</span> : "—"}</td>
                         {canManage && (
                           <td>
                             <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
