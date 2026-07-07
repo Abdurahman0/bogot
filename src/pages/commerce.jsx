@@ -47,6 +47,7 @@ const COMMERCE_UI = {
     districtPh: "Masalan, Bog'ot", mahallaPh: "Masalan, Yangiobod",
     catalogCrumb: "Katalog va moliya", actions: "Amallar", edit: "Tahrirlash", delete: "O'chirish", view: "Ko'rish", cancel: "Bekor qilish", save: "Saqlash", create: "Yaratish", close: "Yopish", clear: "Tozalash",
     incomeUzs: "Kirim (so'm)", incomeUsd: "Dollar kirim", expenseUzs: "Chiqim (so'm)", expenseUsd: "Dollar chiqim", netUzs: "Sof oqim (so'm)", netUsd: "Sof oqim ($)",
+    cardIncome: "Karta kirimi", cardExpense: "Karta chiqimi", cardNet: "Karta sof",
     attachmentsPanel: "Fayllar va rasmlar", addAttachment: "Fayl yuklash", noAttachments: "Fayllar yo'q",
     attachmentUploaded: "Fayl yuklandi", attachmentUploadFail: "Fayl yuklanmadi",
     visitProof: "Tashrif dalili", fileTypeImage: "Rasm", fileTypeVideo: "Video", fileTypeFile: "Fayl",
@@ -100,6 +101,7 @@ const COMMERCE_UI = {
     districtPh: "Напр., Богот", mahallaPh: "Напр., Янгиобод",
     catalogCrumb: "Каталог и финансы", actions: "Действия", edit: "Редактировать", delete: "Удалить", view: "Просмотр", cancel: "Отмена", save: "Сохранить", create: "Создать", close: "Закрыть", clear: "Очистить",
     incomeUzs: "Приход (сум)", incomeUsd: "Приход ($)", expenseUzs: "Расход (сум)", expenseUsd: "Расход ($)", netUzs: "Чистый поток (сум)", netUsd: "Чистый поток ($)",
+    cardIncome: "Кarta приход", cardExpense: "Karta расход", cardNet: "Karta нетто",
     attachmentsPanel: "Файлы и фото", addAttachment: "Загрузить файл", noAttachments: "Файлов нет",
     attachmentUploaded: "Файл загружен", attachmentUploadFail: "Ошибка загрузки",
     visitProof: "Подтверждение визита", fileTypeImage: "Фото", fileTypeVideo: "Видео", fileTypeFile: "Файл",
@@ -153,6 +155,7 @@ const COMMERCE_UI = {
     districtPh: "e.g. Bogot", mahallaPh: "e.g. Yangiobod",
     catalogCrumb: "Catalog & Finance", actions: "Actions", edit: "Edit", delete: "Delete", view: "View", cancel: "Cancel", save: "Save", create: "Create", close: "Close", clear: "Clear",
     incomeUzs: "Income (UZS)", incomeUsd: "Dollar income", expenseUzs: "Expense (UZS)", expenseUsd: "Dollar expense", netUzs: "Net flow (UZS)", netUsd: "Net flow ($)",
+    cardIncome: "Card income", cardExpense: "Card expense", cardNet: "Card net",
     attachmentsPanel: "Files & Photos", addAttachment: "Upload file", noAttachments: "No files yet",
     attachmentUploaded: "File uploaded", attachmentUploadFail: "Upload failed",
     visitProof: "Visit proof", fileTypeImage: "Photo", fileTypeVideo: "Video", fileTypeFile: "File",
@@ -1186,6 +1189,8 @@ function PaymentsPage() {
   const usdIncome = chipRows.filter(p => p.direction === "income" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const uzsExpense = chipRows.filter(p => p.direction === "expense" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const usdExpense = chipRows.filter(p => p.direction === "expense" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const cardIncome = chipRows.filter(p => p.rawCategory === "card_income").reduce((s, p) => s + p.amountUzs, 0);
+  const cardExpense = chipRows.filter(p => p.rawCategory === "card_expense").reduce((s, p) => s + p.amountUzs, 0);
   const columns = [
     { key: "date", label: comTx("dateCol"), sortVal: r => r.date, render: r => <span className="tg-cell-sub">{fmtDate(r.date)}</span> },
     { key: "direction", label: comTx("direction"), render: r => <Badge color={r.direction === "income" ? "green" : "red"} size="sm">{r.direction === "income" ? comTx("income") : comTx("expense")}</Badge> },
@@ -1219,16 +1224,21 @@ function PaymentsPage() {
         {dateRange !== "all" && <Button variant="ghost" size="sm" onClick={() => setDateRange("all")}>{comTx("clear")}</Button>}
         <div className="toolbar-spacer" />
       </div>
-      <div className="grid-kpi" style={{ marginBottom: 10 }}>
+      <div className="grid-kpi" style={{ marginBottom: 8 }}>
         <StatTile label={comTx("incomeUzs")} value={fmtShort(uzsIncome)} sub="so'm" color="green" />
         <StatTile label={comTx("incomeUsd")} value={Number(usdIncome).toLocaleString("en-US")} sub="$" color="teal" />
+        <StatTile label={comTx("cardIncome")} value={fmtShort(cardIncome)} sub="so'm" color="blue" />
+      </div>
+      <div className="grid-kpi" style={{ marginBottom: 8 }}>
         <StatTile label={comTx("expenseUzs")} value={fmtShort(uzsExpense)} sub="so'm" color="red" />
         <StatTile label={comTx("expenseUsd")} value={Number(usdExpense).toLocaleString("en-US")} sub="$" color="amber" />
+        <StatTile label={comTx("cardExpense")} value={fmtShort(cardExpense)} sub="so'm" color="violet" />
       </div>
       <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("netUzs")} value={fmtShort(uzsIncome - uzsExpense)} sub="so'm" color={(uzsIncome - uzsExpense) >= 0 ? "green" : "red"} />
-        <StatTile label={comTx("netUsd")} value={Number(usdIncome - usdExpense).toLocaleString("en-US")} sub="$" color={(usdIncome - usdExpense) >= 0 ? "green" : "red"} />
-        <StatTile label={comTx("records")} value={tableRows.length} color="blue" />
+        <StatTile label={comTx("netUsd")} value={Number(usdIncome - usdExpense).toLocaleString("en-US")} sub="$" color={(usdIncome - usdExpense) >= 0 ? "teal" : "red"} />
+        <StatTile label={comTx("cardNet")} value={fmtShort(cardIncome - cardExpense)} sub="so'm" color={(cardIncome - cardExpense) >= 0 ? "blue" : "red"} />
+        <StatTile label={comTx("records")} value={tableRows.length} color="slate" />
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("paymentsSearch")} width={240} />
