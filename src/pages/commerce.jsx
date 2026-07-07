@@ -1224,21 +1224,19 @@ function PaymentsPage() {
         {dateRange !== "all" && <Button variant="ghost" size="sm" onClick={() => setDateRange("all")}>{comTx("clear")}</Button>}
         <div className="toolbar-spacer" />
       </div>
-      <div className="grid-kpi" style={{ marginBottom: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 6 }}>
         <StatTile label={comTx("incomeUzs")} value={fmtShort(uzsIncome)} sub="so'm" color="green" />
         <StatTile label={comTx("incomeUsd")} value={Number(usdIncome).toLocaleString("en-US")} sub="$" color="teal" />
         <StatTile label={comTx("cardIncome")} value={fmtShort(cardIncome)} sub="so'm" color="blue" />
-      </div>
-      <div className="grid-kpi" style={{ marginBottom: 8 }}>
         <StatTile label={comTx("expenseUzs")} value={fmtShort(uzsExpense)} sub="so'm" color="red" />
         <StatTile label={comTx("expenseUsd")} value={Number(usdExpense).toLocaleString("en-US")} sub="$" color="amber" />
         <StatTile label={comTx("cardExpense")} value={fmtShort(cardExpense)} sub="so'm" color="violet" />
-      </div>
-      <div className="grid-kpi" style={{ marginBottom: 18 }}>
         <StatTile label={comTx("netUzs")} value={fmtShort(uzsIncome - uzsExpense)} sub="so'm" color={(uzsIncome - uzsExpense) >= 0 ? "green" : "red"} />
         <StatTile label={comTx("netUsd")} value={Number(usdIncome - usdExpense).toLocaleString("en-US")} sub="$" color={(usdIncome - usdExpense) >= 0 ? "teal" : "red"} />
         <StatTile label={comTx("cardNet")} value={fmtShort(cardIncome - cardExpense)} sub="so'm" color={(cardIncome - cardExpense) >= 0 ? "blue" : "red"} />
-        <StatTile label={comTx("records")} value={tableRows.length} color="slate" />
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 18, paddingLeft: 2 }}>
+        {comTx("records")}: <strong style={{ color: "var(--text-2)" }}>{tableRows.length}</strong>
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder={comTx("paymentsSearch")} width={240} />
