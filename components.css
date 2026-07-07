@@ -104,17 +104,17 @@
 .tg-date-pop {
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 84%, #0b1020), var(--elevated));
   border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 22px 60px rgba(2, 6, 23, .35), 0 8px 22px rgba(2, 6, 23, .18);
-  padding: 16px;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(2, 6, 23, .30), 0 4px 14px rgba(2, 6, 23, .14);
+  padding: 12px;
 }
-.tg-date-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
-.tg-date-pop-title { font-size: 15px; font-weight: 760; letter-spacing: -.02em; color: var(--text); }
-.tg-date-pop-sub { margin-top: 4px; font-size: 11.5px; color: var(--text-3); }
+.tg-date-pop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.tg-date-pop-title { font-size: 13px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.tg-date-pop-sub { margin-top: 2px; font-size: 10.5px; color: var(--text-3); }
 .tg-date-nav {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-2);
@@ -125,39 +125,39 @@
   transition: all .16s;
 }
 .tg-date-nav:hover { background: var(--surface-2); color: var(--text); border-color: rgba(var(--accent-rgb), .28); }
-.tg-date-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tg-date-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .tg-date-chip {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-2);
   border-radius: 999px;
-  padding: 6px 11px;
-  font-size: 12px;
-  font-weight: 650;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   transition: all .15s;
 }
 .tg-date-chip:hover { background: var(--surface-2); color: var(--text); border-color: rgba(var(--accent-rgb), .26); }
 .tg-date-weekdays,
 .tg-date-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-.tg-date-weekdays { margin-bottom: 8px; }
+.tg-date-weekdays { margin-bottom: 4px; }
 .tg-date-weekdays span {
   text-align: center;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
   color: var(--text-3);
-  padding: 4px 0;
+  padding: 3px 0;
 }
-.tg-date-grid { gap: 4px; }
+.tg-date-grid { gap: 2px; }
 .tg-date-day {
   aspect-ratio: 1;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all .14s ease;
@@ -167,15 +167,15 @@
 .tg-date-day[data-selected="1"] {
   background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
   color: #fff;
-  box-shadow: 0 10px 20px rgba(var(--accent-rgb), .28);
+  box-shadow: 0 6px 14px rgba(var(--accent-rgb), .28);
 }
 .tg-date-day:disabled { opacity: .26; cursor: not-allowed; }
-.tg-date-time { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; margin-top: 16px; }
-.tg-date-time-field { display: grid; gap: 6px; }
-.tg-date-time-field span { font-size: 11.5px; font-weight: 650; color: var(--text-3); }
+.tg-date-time { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; margin-top: 10px; }
+.tg-date-time-field { display: grid; gap: 4px; }
+.tg-date-time-field span { font-size: 10.5px; font-weight: 650; color: var(--text-3); }
 .tg-date-time-field .tg-input { text-align: center; }
-.tg-date-time-sep { padding-bottom: 10px; font-size: 22px; line-height: 1; font-weight: 700; color: var(--text-3); }
-.tg-date-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.tg-date-time-sep { padding-bottom: 8px; font-size: 18px; line-height: 1; font-weight: 700; color: var(--text-3); }
+.tg-date-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 
 .tg-toggle { width: 40px; height: 23px; border-radius: 20px; background: var(--surface-3); border: 1px solid var(--border); padding: 2px; transition: background .18s; flex-shrink: 0; }
 .tg-toggle[data-on="1"] { background: var(--accent); border-color: var(--accent); }

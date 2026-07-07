@@ -467,6 +467,10 @@ async function apiGetWarehouseItems(params = {}) {
   } catch { return { results: [], count: 0 }; }
 }
 
+async function apiGetWarehouseItemDetail(id) {
+  return apiUnwrap(await apiRequest(`/api/warehouse/items/${id}/`, { auth: true }));
+}
+
 async function apiSaveWarehouseItem(item) {
   const payload = {
     name: String(item.name || "").trim(),
@@ -480,6 +484,7 @@ async function apiSaveWarehouseItem(item) {
     panel_price: String(apiParseNumber(item.panel_price || 0)),
     low_stock_threshold: String(apiParseNumber(item.low_stock_threshold || 0)),
   };
+  if (!item.is_panel && item.default_price) payload.default_price = String(item.default_price);
   return apiUnwrap(await apiRequest(
     item.id ? `/api/warehouse/items/${item.id}/` : "/api/warehouse/items/",
     { method: item.id ? "PATCH" : "POST", body: payload, auth: true }
@@ -1456,6 +1461,7 @@ Object.assign(window, {
   apiUploadDebtorAttachment,
   apiGetWarehouseSummary,
   apiGetWarehouseItems,
+  apiGetWarehouseItemDetail,
   apiSaveWarehouseItem,
   apiDeleteWarehouseItem,
   apiGetWarehouseStats,

@@ -96,7 +96,7 @@ function Router() {
     case "tasks": page = <TasksPage />; break;
     case "inbox": page = <InboxPage initialSessionId={id} />; break;
     case "products": page = id ? <ProductDetailPage id={id} /> : <ProductsPage />; break;
-    case "warehouse": page = window.WarehousePage ? <WarehousePage /> : <Placeholder label="Sklad" />; break;
+    case "warehouse": page = id && window.WarehouseItemDetailPage ? <WarehouseItemDetailPage id={id} /> : (window.WarehousePage ? <WarehousePage /> : <Placeholder label="Sklad" />); break;
     case "orders":
     case "debtors": page = id ? <OrderDetailPage id={id} /> : <OrdersPage />; break;
     case "payments":

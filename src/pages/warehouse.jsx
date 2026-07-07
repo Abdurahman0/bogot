@@ -22,6 +22,46 @@ const PANEL_UNIT = "kilowatt";
 function whTx(t, key) { return t(`warehouse.${key}`); }
 function whPayTypeLabel(t, value) { return whTx(t, `pay.${value}`) || value; }
 
+function CategoryCombobox({ value, onChange, categories, placeholder }) {
+  const [open, setOpen] = whS(false);
+  const [q, setQ] = whS(value || "");
+  const ref = React.useRef(null);
+  whE(() => setQ(value || ""), [value]);
+  const filtered = whM(() => {
+    const term = (q || "").toLowerCase();
+    return categories.filter(c => c.toLowerCase().includes(term)).slice(0, 10);
+  }, [q, categories]);
+  whE(() => {
+    if (!open) return;
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <Input
+        value={q}
+        placeholder={placeholder}
+        onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={e => { if (e.key === "Escape") setOpen(false); if (e.key === "Enter") setOpen(false); }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,.12)", maxHeight: 200, overflowY: "auto" }}>
+          {filtered.map(cat => (
+            <div key={cat} onMouseDown={e => { e.preventDefault(); onChange(cat); setQ(cat); setOpen(false); }}
+              style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: "var(--text)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--surface-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = ""}>
+              {cat}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WarehouseMetricChip({ label, value, sub, icon, color = "slate" }) {
   const Ico = I[icon] || I.layers;
   return (
@@ -55,7 +95,7 @@ function WarehouseChartCard({ title, icon, color = "blue", children, footer }) {
   );
 }
 
-function WarehouseItemModal({ open, initial, t, onClose, onSave }) {
+function WarehouseItemModal({ open, initial, categories, t, onClose, onSave }) {
   const blank = {
     name: "",
     category: "",
@@ -96,7 +136,7 @@ function WarehouseItemModal({ open, initial, t, onClose, onSave }) {
     try {
       const payload = { ...form };
       if (payload.is_panel) delete payload.default_price;
-      await onSave(payload);
+      const savedItem = await onSave(payload);
       onClose();
     } catch (e) {
       setError(e?.message || whTx(t, "itemSaveFail"));
@@ -113,7 +153,7 @@ function WarehouseItemModal({ open, initial, t, onClose, onSave }) {
         {error && <div style={{ color: "var(--red)", fontSize: 13, padding: "8px 12px", background: "var(--red-bg)", borderRadius: 6 }}>{error}</div>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label={whTx(t, "itemName")}><Input value={form.name} onChange={e => set("name", e.target.value)} /></Field>
-          <Field label={whTx(t, "category")}><Input value={form.category} onChange={e => set("category", e.target.value)} /></Field>
+          <Field label={whTx(t, "category")}><CategoryCombobox value={form.category} onChange={v => set("category", v)} categories={categories || []} placeholder={whTx(t, "category")} /></Field>
         </div>
         <Field label={whTx(t, "description")}><Input value={form.description || ""} onChange={e => set("description", e.target.value)} /></Field>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -123,10 +163,10 @@ function WarehouseItemModal({ open, initial, t, onClose, onSave }) {
           </Field>
           <Field label={whTx(t, "lowStock")}><Input type="number" min="0" value={form.low_stock_threshold} onChange={e => set("low_stock_threshold", e.target.value)} /></Field>
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--text-2)" }}>
-          <input type="checkbox" checked={!!form.is_panel} onChange={e => setPanelMode(e.target.checked)} />
-          {whTx(t, "isPanel")}
-        </label>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Toggle checked={!!form.is_panel} onChange={setPanelMode} label={whTx(t, "isPanel")} />
+          <span style={{ fontSize: 13, color: "var(--text-2)" }}>{whTx(t, "isPanel")}</span>
+        </div>
         {!form.is_panel && (
           <Field label={`${whTx(t, "defaultPrice")} (${whCurrencyLabel(form.default_currency)})`}>
             <Input type="number" min="0" step="0.01" value={form.default_price} onChange={e => set("default_price", e.target.value)} />
@@ -284,7 +324,7 @@ function SaleModal({ open, items, customers, t, onClose, onSave }) {
 }
 
 function WarehousePage() {
-  const { data, t, toast } = useApp();
+  const { data, t, toast, nav } = useApp();
   const canView = canDo("warehouse.view", data) || canDo("warehouse.manage", data);
   const canManage = canDo("warehouse.manage", data);
 
@@ -481,8 +521,8 @@ function WarehousePage() {
           icon="wallet"
           color="green"
           footer={<>
-            <span className="tg-chip">{whTx(t, "salesTotalUzs")}: {fmtShort(salesTotalUzs)} {whTx(t, "som")}</span>
-            <span className="tg-chip">{whTx(t, "salesTotalUsd")}: ${salesTotalUsd.toLocaleString("en-US")}</span>
+            <span className="tg-chip">{whTx(t, "tabSales")}: {whTx(t, "paidAmount")} {fmtShort(salesPaidUzs)} {whTx(t, "som")}</span>
+            <span className="tg-chip">{whTx(t, "tabSales")}: {whTx(t, "paidAmount")} ${salesPaidUsd.toLocaleString("en-US")}</span>
           </>}
         >
           {loadingStats ? <div className="skeleton" style={{ height: 126 }} /> : (
@@ -539,7 +579,7 @@ function WarehousePage() {
                     const threshold = whNum(item.low_stock_threshold);
                     const low = threshold > 0 && qty <= threshold;
                     return (
-                      <tr key={item.id}>
+                      <tr key={item.id} style={{ cursor: "pointer" }} onClick={e => { if (!e.target.closest("button")) nav(`/warehouse/${item.id}`); }}>
                         <td>
                           <span className="tg-cell-strong">{item.name}</span>
                           {item.description && <span className="tg-cell-sub">{item.description}</span>}
@@ -661,12 +701,14 @@ function WarehousePage() {
       <WarehouseItemModal
         open={itemOpen}
         initial={editItem}
+        categories={Array.from(new Set(items.map(i => i.category).filter(Boolean))).sort()}
         t={t}
         onClose={() => { setItemOpen(false); setEditItem(null); }}
         onSave={async (item) => {
-          await apiSaveWarehouseItem(item);
+          const saved = await apiSaveWarehouseItem(item);
           toast(editItem ? whTx(t, "itemUpdated") : whTx(t, "itemCreated"), "success");
           refresh();
+          return saved;
         }}
       />
       <StockEntryModal
@@ -711,3 +753,171 @@ function WarehousePage() {
   );
 }
 window.WarehousePage = WarehousePage;
+
+function WarehouseItemDetailPage({ id }) {
+  const { t, nav } = useApp();
+  const [item, setItem] = whS(null);
+  const [loading, setLoading] = whS(true);
+  const [tab, setTab] = whS("sales");
+
+  whE(() => {
+    setLoading(true);
+    apiGetWarehouseItemDetail(id)
+      .then(res => setItem(res))
+      .catch(() => setItem(null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return (
+    <div className="page fade-in">
+      <Card><SkeletonRows cols={5} rows={8} /></Card>
+    </div>
+  );
+  if (!item) return (
+    <div className="page"><Card><EmptyState icon={<I.box size={28} />} title={whTx(t, "noEntries")} action={<Button onClick={() => nav("/warehouse")}>{whTx(t, "title")}</Button>} /></Card></div>
+  );
+
+  const qty = whNum(item.current_quantity);
+  const threshold = whNum(item.low_stock_threshold);
+  const low = threshold > 0 && qty <= threshold;
+  const stockHistory = Array.isArray(item.stock_entries_history) ? item.stock_entries_history : [];
+  const salesHistory = Array.isArray(item.sales_history) ? item.sales_history : [];
+  const totalSold = salesHistory.reduce((s, r) => s + whNum(r.quantity), 0);
+  const totalRevenue = salesHistory.reduce((s, r) => s + whNum(r.total_amount || whNum(r.quantity) * whNum(r.unit_price)), 0);
+  const totalPaid = salesHistory.reduce((s, r) => s + whNum(r.paid_amount), 0);
+  const totalStockIn = stockHistory.reduce((s, r) => s + whNum(r.quantity), 0);
+
+  const tabs = [
+    { value: "sales", label: whTx(t, "tabSales"), count: salesHistory.length },
+    { value: "stock", label: whTx(t, "tabStock"), count: stockHistory.length },
+  ];
+
+  return (
+    <div className="page fade-in">
+      <PageHeader
+        title={item.name}
+        desc={item.category}
+        crumbs={[{ label: whTx(t, "crumb") }, { label: whTx(t, "title"), to: "/warehouse" }, { label: item.name }]}
+        actions={<Button variant="ghost" size="sm" icon={<I.arrowLeft size={15} />} onClick={() => nav("/warehouse")}>{whTx(t, "title")}</Button>}
+      />
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <WarehouseMetricChip label={whTx(t, "currentStock")} value={fmtNum(qty)} sub={whItemUnit(item)} icon="layers" color={low ? "red" : "green"} />
+        {item.default_price && !item.is_panel && (
+          <WarehouseMetricChip label={whTx(t, "defaultPrice")} value={whMoney(item.default_price, item.default_currency)} icon="wallet" color="blue" />
+        )}
+        <WarehouseMetricChip label={whTx(t, "stockEntriesCount")} value={fmtNum(totalStockIn)} sub={whItemUnit(item)} icon="download" color="teal" />
+        <WarehouseMetricChip label={whTx(t, "salesCount")} value={fmtNum(salesHistory.length)} icon="chart" color="amber" />
+        <WarehouseMetricChip label={whTx(t, "totalAmount")} value={whMoney(totalRevenue, item.default_currency)} icon="wallet" color="violet" />
+        <WarehouseMetricChip label={whTx(t, "paidAmount")} value={whMoney(totalPaid, item.default_currency)} icon="checkCircle" color="green" />
+        {item.is_panel && <>
+          <WarehouseMetricChip label={whTx(t, "panelWattTotal")} value={fmtNum(whNum(item.panel_total_watt))} sub="W" icon="zap" color="amber" />
+          <WarehouseMetricChip label={whTx(t, "panelTotalPrice")} value={`$${whNum(item.panel_total_price).toLocaleString("en-US")}`} icon="wallet" color="teal" />
+        </>}
+      </div>
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: item.is_panel ? "1fr 1fr" : "1fr", gap: 16 }}>
+          <div className="tg-meta">
+            {item.description && <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "description")}</span><span className="tg-meta-v">{item.description}</span></div>}
+            <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "unit")}</span><span className="tg-meta-v">{whItemUnit(item)}</span></div>
+            <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "currency")}</span><span className="tg-meta-v"><Badge color={item.default_currency === "usd" ? "teal" : "green"} size="sm">{whCurrencyLabel(item.default_currency)}</Badge></span></div>
+            {item.default_price && !item.is_panel && <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "defaultPrice")}</span><span className="tg-meta-v">{whMoney(item.default_price, item.default_currency)}</span></div>}
+            {threshold > 0 && <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "lowStock")}</span><span className="tg-meta-v" style={{ color: low ? "var(--red)" : undefined }}>{fmtNum(threshold)}</span></div>}
+          </div>
+          {item.is_panel && (
+            <div className="tg-meta">
+              <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "panelWatt")}</span><span className="tg-meta-v">{fmtNum(whNum(item.panel_watt))} W</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "panelCount")}</span><span className="tg-meta-v">{fmtNum(whNum(item.panel_count))}</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "panelPrice")}</span><span className="tg-meta-v">${whNum(item.panel_price).toLocaleString("en-US")}/W</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "panelTotalWatt")}</span><span className="tg-meta-v">{fmtNum(whNum(item.panel_total_watt))} W</span></div>
+              <div className="tg-meta-row"><span className="tg-meta-k">{whTx(t, "panelTotalPrice")}</span><span className="tg-meta-v">${whNum(item.panel_total_price).toLocaleString("en-US")}</span></div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Tabs tabs={tabs} active={tab} onChange={setTab} />
+
+      <div style={{ marginTop: 16 }}>
+        {tab === "sales" && (
+          <Card pad={false}>
+            <div className="tg-table-wrap">
+              <table className="tg-table">
+                <thead>
+                  <tr>
+                    <th>{whTx(t, "soldAt")}</th>
+                    <th>{whTx(t, "clientName")}</th>
+                    <th style={{ textAlign: "right" }}>{whTx(t, "quantity")}</th>
+                    <th style={{ textAlign: "right" }}>{whTx(t, "unitPrice")}</th>
+                    <th style={{ textAlign: "right" }}>{whTx(t, "totalAmount")}</th>
+                    <th style={{ textAlign: "right" }}>{whTx(t, "paidAmount")}</th>
+                    <th>{whTx(t, "paymentType")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salesHistory.length === 0 ? (
+                    <tr><td colSpan="7" style={{ textAlign: "center", color: "var(--text-3)", padding: 24 }}>{whTx(t, "noEntries")}</td></tr>
+                  ) : salesHistory.map((sale, i) => {
+                    const cur = sale.currency || item.default_currency || "uzs";
+                    return (
+                      <tr key={sale.id || i}>
+                        <td><span className="tg-cell-sub">{fmtDate(sale.sold_at || sale.created_at, true)}</span></td>
+                        <td>
+                          <span className="tg-cell-strong">{sale.client_full_name || sale.client_name || "—"}</span>
+                          {sale.client_phone && <span className="tg-cell-sub">{sale.client_phone}</span>}
+                        </td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{fmtNum(whNum(sale.quantity))}</td>
+                        <td style={{ textAlign: "right" }}>{whMoney(sale.unit_price, cur)}</td>
+                        <td style={{ textAlign: "right", color: "var(--green)", fontWeight: 700 }}>{whMoney(sale.total_amount || whNum(sale.quantity) * whNum(sale.unit_price), cur)}</td>
+                        <td style={{ textAlign: "right" }}>{whMoney(sale.paid_amount, cur)}</td>
+                        <td><Badge color={whPayTypeColor(sale.payment_type)} size="sm">{whPayTypeLabel(t, sale.payment_type)}</Badge></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+
+        {tab === "stock" && (
+          <Card pad={false}>
+            <div className="tg-table-wrap">
+              <table className="tg-table">
+                <thead>
+                  <tr>
+                    <th>{whTx(t, "receivedAt")}</th>
+                    <th style={{ textAlign: "right" }}>{whTx(t, "quantity")}</th>
+                    <th style={{ textAlign: "right" }}>{whTx(t, "unitCost")}</th>
+                    <th style={{ textAlign: "right" }}>{whTx(t, "totalCost")}</th>
+                    <th>{whTx(t, "supplier")}</th>
+                    <th>{whTx(t, "notes")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockHistory.length === 0 ? (
+                    <tr><td colSpan="6" style={{ textAlign: "center", color: "var(--text-3)", padding: 24 }}>{whTx(t, "noEntries")}</td></tr>
+                  ) : stockHistory.map((entry, i) => {
+                    const cur = entry.currency || item.default_currency || "uzs";
+                    return (
+                      <tr key={entry.id || i}>
+                        <td><span className="tg-cell-sub">{fmtDate(entry.received_at || entry.created_at, true)}</span></td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{fmtNum(whNum(entry.quantity))}</td>
+                        <td style={{ textAlign: "right" }}>{entry.unit_cost ? whMoney(entry.unit_cost, cur) : "—"}</td>
+                        <td style={{ textAlign: "right", color: "var(--green)", fontWeight: 700 }}>{whMoney(entry.total_cost || whNum(entry.quantity) * whNum(entry.unit_cost), cur)}</td>
+                        <td>{entry.supplier_name || "—"}</td>
+                        <td style={{ color: "var(--text-3)" }}>{entry.notes || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+window.WarehouseItemDetailPage = WarehouseItemDetailPage;

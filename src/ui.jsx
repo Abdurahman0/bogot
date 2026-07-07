@@ -272,8 +272,8 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
   const updatePosition = React.useCallback(() => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
-    const popWidth = 324;
-    const popHeight = mode === "datetime" ? 420 : 378;
+    const popWidth = 268;
+    const popHeight = mode === "datetime" ? 348 : 300;
     const gap = 8;
     const viewportPad = 12;
     const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPad;
@@ -395,8 +395,8 @@ function DatePickerInput({ value, onChange, mode = "date", placeholder, disabled
               <div className="tg-date-pop-sub">{mode === "datetime" ? t("common.pickDateTime") : t("common.pickDate")}</div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" className="tg-date-nav" onClick={() => moveMonth(-1)}><I.chevLeft size={15} /></button>
-              <button type="button" className="tg-date-nav" onClick={() => moveMonth(1)}><I.chevRight size={15} /></button>
+              <button type="button" className="tg-date-nav" onClick={() => moveMonth(-1)}><I.chevLeft size={13} /></button>
+              <button type="button" className="tg-date-nav" onClick={() => moveMonth(1)}><I.chevRight size={13} /></button>
             </div>
           </div>
 

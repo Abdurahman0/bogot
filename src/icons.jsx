@@ -319,6 +319,7 @@ const I = {
 
   // Arrow with tail
   arrowRight: (p) => <Icon {...p} d="M4 12h16M14 6.5l6 5.5-6 5.5"/>,
+  arrowLeft: (p) => <Icon {...p} d="M20 12H4M10 17.5l-6-5.5 6-5.5"/>,
 
   // Diagonal arrow (external link indicator)
   arrowUpRight: (p) => <Icon {...p} d="M7 17L17 7M8.5 7H17v8.5"/>,
