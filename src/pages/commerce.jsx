@@ -196,6 +196,8 @@ const isDollarPayment = (p) => {
   const m = String(p.method || p.currency || "").toLowerCase();
   return m.includes("dollar") || p.rawCategory === "dollar_income" || p.rawCategory === "dollar_expense";
 };
+const isCardPayment = (p) => p.rawCategory === "card_income" || p.rawCategory === "card_expense";
+const isSomPayment = (p) => !isDollarPayment(p) && !isCardPayment(p);
 const fmtPaymentAmount = (p) => {
   if (isDollarPayment(p)) return `$${Number(p.amountUzs || 0).toLocaleString("en-US")}`;
   return fmtUZS(p.amountUzs);
@@ -1185,9 +1187,9 @@ function PaymentsPage() {
     if (currencyFilter !== "all") rows = rows.filter(p => p.method === currencyFilter);
     return rows;
   }, [data.payments, data.accountingDays, dateFrom, dateTo, categoryFilter, currencyFilter]);
-  const uzsIncome = chipRows.filter(p => p.direction === "income" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const uzsIncome = chipRows.filter(p => p.direction === "income" && isSomPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const usdIncome = chipRows.filter(p => p.direction === "income" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
-  const uzsExpense = chipRows.filter(p => p.direction === "expense" && !isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
+  const uzsExpense = chipRows.filter(p => p.direction === "expense" && isSomPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const usdExpense = chipRows.filter(p => p.direction === "expense" && isDollarPayment(p)).reduce((s, p) => s + p.amountUzs, 0);
   const cardIncome = chipRows.filter(p => p.rawCategory === "card_income").reduce((s, p) => s + p.amountUzs, 0);
   const cardExpense = chipRows.filter(p => p.rawCategory === "card_expense").reduce((s, p) => s + p.amountUzs, 0);
