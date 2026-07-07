@@ -1378,9 +1378,16 @@ async function apiClearAllNotifications() {
   return apiRequest("/api/notifications/clear-all/", { method: "DELETE" });
 }
 
+async function apiGetAllUsers() {
+  try {
+    const users = await apiPaginateAll("/api/users/");
+    return (users || []).map(mapApiUser);
+  } catch { return []; }
+}
+
 async function apiGetAuditLogs(params = {}) {
-  const { page = 1, page_size = 25, search, action, actor_username, date_from, date_to } = params;
-  const url = apiBuildUrl("/api/audit-logs/", { page, page_size, search, action, actor_username, date_from, date_to });
+  const { page = 1, page_size = 25, search, action, actor, date_from, date_to } = params;
+  const url = apiBuildUrl("/api/audit-logs/", { page, page_size, search, action, actor, date_from, date_to });
   const res = apiUnwrap(await apiRequest(url, { auth: true }));
   return { results: res?.results || [], count: res?.count || 0, next: res?.next || null };
 }
@@ -1450,4 +1457,5 @@ Object.assign(window, {
   mapApiAccountingEntry,
   apiWebSocketBase,
   apiGetAuditLogs,
+  apiGetAllUsers,
 });

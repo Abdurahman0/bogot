@@ -375,14 +375,14 @@ function OrdersPage() {
     return true;
   }), [allOrders, q, statusTab, showLocationFilters, districtFilter, mahallaFilter, dateFrom, dateTo]);
 
-  // filtered: server-paginated ordRows — used only for flat table view
+  // filtered: server-paginated ordRows — used only for flat table view (statusTab === "all")
   const filtered = coM(() => ordRows.filter(o => {
-    if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
-    if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
-    if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
     if (!orderDateMatchesRange(orderTakenDate(o), dateFrom, dateTo)) return false;
     return true;
-  }), [ordRows, statusTab, dateFrom, dateTo]);
+  }), [ordRows, dateFrom, dateTo]);
+
+  // when a status tab is active, allFiltered (full dataset) is more accurate than ordRows (current server page)
+  const listRows = statusTab !== "all" ? allFiltered : filtered;
 
   const grouped = coM(() => {
     const map = new Map();
@@ -466,7 +466,7 @@ function OrdersPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 76, borderRadius: 14 }} />)}
         </div>
-      ) : (showFlatList ? filtered : allFiltered).length === 0 ? (
+      ) : (showFlatList ? listRows : allFiltered).length === 0 ? (
         <Card><EmptyState icon={<I.wallet size={26} />} title={(dateFrom || dateTo) ? comTx("noDateData") : comTx("emptyDebtors")} /></Card>
       ) : showFlatList ? (
         <Card pad={false}>
@@ -479,11 +479,11 @@ function OrdersPage() {
               { key: "status", label: comTx("colStatus"), sortVal: (row) => debtNum(row.overdueAmountUzs) > 0 ? 2 : debtNum(row.remainingDebtUzs) > 0 ? 1 : 0, render: (row) => { const ov = debtNum(row.overdueAmountUzs); const rem = debtNum(row.remainingDebtUzs); return <Badge color={ov > 0 ? "red" : rem > 0 ? "amber" : "green"} size="sm">{ov > 0 ? comTx("overdue") : rem > 0 ? comTx("withDebt") : comTx("closed")}</Badge>; } },
               { key: "debt", label: comTx("colDebt"), sortVal: (row) => debtNum(row.remainingDebtUzs), render: (row) => <span style={{ fontWeight: 700 }}>{rawDebt(row.remainingDebtUzs) ?? "—"}</span> },
             ]}
-            rows={filtered}
+            rows={listRows}
             onRowClick={(row) => nav("/debtors/" + row.id)}
             defaultSort={{ key: "debt", dir: "desc" }}
           />
-          <PaginationBar page={ordPage} total={ordTotal} pageSize={50} onChange={setOrdPage} />
+          {statusTab === "all" && <PaginationBar page={ordPage} total={ordTotal} pageSize={50} onChange={setOrdPage} />}
         </Card>
       ) : showDistrictGrouped ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>

@@ -139,7 +139,7 @@ function dashboardStatusFallback(customers = []) {
 function DashboardPage() {
   const { data, t, role, nav, theme } = useApp();
   const isLight = resolveLight(theme);
-  const [range, setRange] = pS("30d");
+  const [range, setRange] = pS("all");
   const { dateFrom, dateTo } = pM(() => {
     const today = new Date();
     const toStr = d => { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0"); return `${y}-${m}-${day}`; };

@@ -1223,11 +1223,33 @@ function AuditPage() {
   const { t } = useApp();
   const [q, setQ] = sysS("");
   const [actionFilter, setActionFilter] = sysS("all");
+  const [actorFilter, setActorFilter] = sysS("all");
   const [page, setPage] = sysS(1);
   const [rows, setRows] = sysS([]);
   const [total, setTotal] = sysS(0);
   const [loading, setLoading] = sysS(false);
+  const [allUsers, setAllUsers] = sysS([]);
   const PER_PAGE = 25;
+
+  // load all users once for filter + name display
+  React.useEffect(() => {
+    apiGetAllUsers().then(users => setAllUsers(users));
+  }, []);
+
+  // UUID → { fullName, username } lookup
+  const userMap = sysM(() => {
+    const m = {};
+    allUsers.forEach(u => { if (u.id) m[u.id] = u; });
+    return m;
+  }, [allUsers]);
+
+  const userOptions = sysM(() => {
+    const opts = [{ value: "all", label: sx("allUsers") }];
+    allUsers.forEach(u => {
+      if (u.id) opts.push({ value: u.id, label: u.fullName || u.username });
+    });
+    return opts;
+  }, [allUsers]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1237,6 +1259,7 @@ function AuditPage() {
       page_size: PER_PAGE,
       search: q || undefined,
       action: actionFilter !== "all" ? actionFilter : undefined,
+      actor: actorFilter !== "all" ? actorFilter : undefined,
     }).then(({ results, count }) => {
       if (cancelled) return;
       setRows(results);
@@ -1244,9 +1267,9 @@ function AuditPage() {
       setLoading(false);
     }).catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page, q, actionFilter]);
+  }, [page, q, actionFilter, actorFilter]);
 
-  React.useEffect(() => { setPage(1); }, [q, actionFilter]);
+  React.useEffect(() => { setPage(1); }, [q, actionFilter, actorFilter]);
 
   const totalPages = Math.ceil(total / PER_PAGE);
 
@@ -1273,8 +1296,9 @@ function AuditPage() {
       <PageHeader title={t("page.audit")} desc={sx("auditDesc")} crumbs={[{ label: sx("systemCrumb") }, { label: t("page.audit") }]} />
 
       <Panel title={sx("auditPanel")} icon="clock" color="accent" pad={false}
-        action={<div style={{ display: "flex", gap: 10 }}>
+        action={<div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <SearchInput value={q} onChange={v => setQ(v)} placeholder={t("common.search")} width={200} />
+          <FilterSelect label={sx("colUser")} icon="user" value={actorFilter} onChange={v => setActorFilter(v)} options={userOptions} />
           <FilterSelect value={actionFilter} onChange={v => setActionFilter(v)} options={ACTION_OPTIONS} />
         </div>}>
         {loading ? <SkeletonRows rows={12} cols={5} /> : (
@@ -1302,8 +1326,11 @@ function AuditPage() {
                       <tr key={a.id}>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Avatar name={a.actor_username} size={26} />
-                            <span style={{ fontSize: 13 }}>{a.actor_username}</span>
+                            <Avatar name={userMap[a.actor]?.fullName || a.actor_username} size={26} />
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>{userMap[a.actor]?.fullName || a.actor_username}</div>
+                              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "monospace" }}>@{a.actor_username}</div>
+                            </div>
                           </div>
                         </td>
                         <td>
