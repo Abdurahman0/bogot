@@ -986,6 +986,58 @@ function DebtorAttachmentsPanel({ debtorId, toast }) {
   );
 }
 
+function RecallPanel({ o, onSaved, toast }) {
+  const [recallVal, setRecallVal] = coS(o.recallAt || "");
+  const [saving, setSaving] = coS(false);
+  coE(() => { setRecallVal(o.recallAt || ""); }, [o.recallAt]);
+  const now = new Date();
+  const currentRecall = o.recallAt ? new Date(o.recallAt) : null;
+  const isPast = currentRecall && currentRecall < now;
+  const isToday = currentRecall && currentRecall.toDateString() === now.toDateString();
+  const statusColor = isPast ? "var(--red)" : isToday ? "var(--amber)" : "var(--blue)";
+  const quickSet = (ms) => {
+    const d = new Date(now.getTime() + ms);
+    const pad = n => String(n).padStart(2, "0");
+    setRecallVal(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+  };
+  const save = async (val) => {
+    setSaving(true);
+    try {
+      await apiSaveDebtor({ ...o, recallAt: val || null });
+      onSaved();
+      toast(val ? comTx("recallSet") : comTx("clearRecall"));
+    } catch(e) { toast(e.message || "Xato", "error"); }
+    finally { setSaving(false); }
+  };
+  return (
+    <Panel title={comTx("recallAt")} icon="phone" color="blue">
+      {currentRecall ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: "10px 14px", background: isPast ? "var(--red-bg)" : isToday ? "var(--amber-bg)" : "var(--accent-soft)", borderRadius: 10 }}>
+          <I.phone size={16} style={{ color: statusColor, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: statusColor, fontSize: 14 }}>
+              {isPast ? comTx("recallOverdue") : isToday ? comTx("recallToday") : comTx("recallSet")}
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>{currentRecall.toLocaleString()}</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ color: "var(--text-3)", fontSize: 13, marginBottom: 14 }}>— {comTx("recallAt")} belgilanmagan —</div>
+      )}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+        {[["+ 1 soat", 60*60*1000], ["+ 3 soat", 3*60*60*1000], ["Ertaga 9:00", (() => { const d = new Date(now); d.setDate(d.getDate()+1); d.setHours(9,0,0,0); return d - now; })()], ["+ 1 hafta", 7*24*60*60*1000]].map(([label, ms]) => (
+          <button key={label} type="button" onClick={() => quickSet(ms)} style={{ border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text-2)", borderRadius: 999, padding: "5px 10px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>{label}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ flex: 1 }}><DatePickerInput value={recallVal} onChange={setRecallVal} mode="datetime" placeholder="— sana va vaqt —" /></div>
+        <Button variant="primary" size="sm" disabled={saving || !recallVal} onClick={() => save(recallVal)}>{comTx("save")}</Button>
+        {currentRecall && <Button variant="ghost" size="sm" disabled={saving} onClick={() => { setRecallVal(""); save(null); }}>{comTx("clearRecall")}</Button>}
+      </div>
+    </Panel>
+  );
+}
+
 function OrderDetailPage({ id }) {
   const { data, nav, t, upsert, toast } = useApp();
   const [editOpen, setEditOpen] = coS(false);
@@ -1033,13 +1085,13 @@ function OrderDetailPage({ id }) {
               <div className="tg-meta-row"><span className="tg-meta-k">{comTx("remaining")}</span><span className="tg-meta-v" style={{ color: debtNum(o.remainingDebtUzs) > 0 ? "var(--red)" : "var(--green)", fontWeight: 700 }}>{fmtUZS(debtNum(o.remainingDebtUzs))}</span></div>
               {!!debtNum(o.overdueAmountUzs) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("overdueAmount")}</span><span className="tg-meta-v" style={{ color: "var(--red)" }}>{fmtUZS(debtNum(o.overdueAmountUzs))}</span></div>}
               <div className="tg-meta-row"><span className="tg-meta-k">{comTx("deadline")}</span><span className="tg-meta-v">{fmtDate(o.dueDate)}</span></div>
-              {!!o.recallAt && (() => { const rc = new Date(o.recallAt); const now = new Date(); const isPast = rc < now; const isToday = rc.toDateString() === now.toDateString(); return <div className="tg-meta-row"><span className="tg-meta-k">{comTx("recallAt")}</span><span className="tg-meta-v" style={{ color: isPast ? "var(--red)" : isToday ? "var(--amber)" : "var(--blue)", fontWeight: 600 }}>📞 {rc.toLocaleString()}</span></div>; })()}
               {!!o.note && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("note")}</span><span className="tg-meta-v">{o.note}</span></div>}
             </div>
           </Panel>
           <Panel title={comTx("customerPanel")} icon="user" color="violet">
             {cust ? <div style={{ display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }} onClick={() => nav("/customers/" + cust.id)}><Avatar name={cust.fullName} size={40} /><div><div className="tg-cell-strong">{cust.fullName}</div><div className="tg-cell-sub">{cust.phone}</div></div></div> : <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar name={o.customerName} size={36} /><div><div className="tg-cell-strong">{o.customerName}</div><div className="tg-cell-sub">{o.phone}</div></div></div>}
           </Panel>
+          <RecallPanel o={o} toast={toast} onSaved={() => { refresh(); }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <DebtorAttachmentsPanel debtorId={id} toast={toast} />
