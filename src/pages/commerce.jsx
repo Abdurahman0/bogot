@@ -169,6 +169,15 @@ const COMMERCE_UI = {
 };
 function comLang() { return window.__TG_LANG || "uz"; }
 function comTx(key) { return COMMERCE_UI[comLang()]?.[key] || COMMERCE_UI.uz[key] || key; }
+function fmtRecallDate(iso, short = false) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const localeMap = { uz: "uz-Latn-UZ", ru: "ru-RU", en: "en-GB" };
+  const locale = localeMap[comLang()] || "uz-Latn-UZ";
+  const date = d.toLocaleDateString(locale, short ? { day: "numeric", month: "short" } : { day: "numeric", month: "long", year: "numeric" });
+  const time = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  return `${date}, ${time}`;
+}
 const debtNum = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -255,7 +264,7 @@ OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete, onAddPayment
     const diffMs = recall - now;
     const isToday = recall.toDateString() === now.toDateString();
     const isPast = diffMs < 0;
-    return { color: isPast ? "red" : isToday ? "amber" : "blue", label: isPast ? comTx("recallOverdue") : isToday ? comTx("recallToday") : comTx("recallSet"), time: recall.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    return { color: isPast ? "red" : isToday ? "amber" : "blue", label: isPast ? comTx("recallOverdue") : isToday ? comTx("recallToday") : comTx("recallSet"), time: fmtRecallDate(o.recallAt, true) };
   })();
   return (
     <Card hover onClick={onClick}>
@@ -1018,7 +1027,7 @@ function RecallPanel({ o, onSaved, toast }) {
             <div style={{ fontWeight: 700, color: statusColor, fontSize: 14 }}>
               {isPast ? comTx("recallOverdue") : isToday ? comTx("recallToday") : comTx("recallSet")}
             </div>
-            <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>{currentRecall.toLocaleString()}</div>
+            <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>{fmtRecallDate(o.recallAt)}</div>
           </div>
         </div>
       ) : (
