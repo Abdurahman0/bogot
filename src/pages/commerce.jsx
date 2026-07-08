@@ -169,13 +169,21 @@ const COMMERCE_UI = {
 };
 function comLang() { return window.__TG_LANG || "uz"; }
 function comTx(key) { return COMMERCE_UI[comLang()]?.[key] || COMMERCE_UI.uz[key] || key; }
+const UZ_MONTHS_LONG  = ["yanvar","fevral","mart","aprel","may","iyun","iyul","avgust","sentabr","oktabr","noyabr","dekabr"];
+const UZ_MONTHS_SHORT = ["yan","fev","mar","apr","may","iyn","iyl","avg","sen","okt","noy","dek"];
 function fmtRecallDate(iso, short = false) {
   if (!iso) return "—";
   const d = new Date(iso);
-  const localeMap = { uz: "uz-Latn-UZ", ru: "ru-RU", en: "en-GB" };
-  const locale = localeMap[comLang()] || "uz-Latn-UZ";
+  const pad = n => String(n).padStart(2, "0");
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (comLang() === "uz") {
+    const month = short ? UZ_MONTHS_SHORT[d.getMonth()] : UZ_MONTHS_LONG[d.getMonth()];
+    const date = short ? `${d.getDate()} ${month}` : `${d.getDate()} ${month} ${d.getFullYear()}`;
+    return `${date}, ${time}`;
+  }
+  const localeMap = { ru: "ru-RU", en: "en-GB" };
+  const locale = localeMap[comLang()] || "ru-RU";
   const date = d.toLocaleDateString(locale, short ? { day: "numeric", month: "short" } : { day: "numeric", month: "long", year: "numeric" });
-  const time = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   return `${date}, ${time}`;
 }
 const debtNum = (value) => {
