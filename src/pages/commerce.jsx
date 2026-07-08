@@ -54,6 +54,7 @@ const COMMERCE_UI = {
     attachNotes: "Izoh", uploadingFile: "Yuklanmoqda...", attachUploadBtn: "Yuklash",
     fileTypePh: "Fayl turi", attUploadedBy: "Yuklagan", attUploadedAt: "Vaqt",
     dropOrClick: "Fayl tanlash yoki tashlang",
+    recallAt: "Qo'ng'iroq vaqti", tabRecall: "Qo'ng'iroq", recallOverdue: "Kechikkan", recallToday: "Bugun", recallSet: "Qo'ng'iroq belgilangan", clearRecall: "Qo'ng'iroqni tozalash",
   },
   ru: {
     overdue: "Просрочено", withDebt: "Есть остаток", closed: "Закрыто",
@@ -108,6 +109,7 @@ const COMMERCE_UI = {
     attachNotes: "Примечание", uploadingFile: "Загрузка...", attachUploadBtn: "Загрузить",
     fileTypePh: "Тип файла", attUploadedBy: "Загрузил", attUploadedAt: "Время",
     dropOrClick: "Выберите файл или перетащите",
+    recallAt: "Время перезвона", tabRecall: "Перезвонить", recallOverdue: "Просрочено", recallToday: "Сегодня", recallSet: "Перезвон назначен", clearRecall: "Снять перезвон",
   },
   en: {
     overdue: "Overdue", withDebt: "Has balance", closed: "Closed",
@@ -162,6 +164,7 @@ const COMMERCE_UI = {
     attachNotes: "Notes", uploadingFile: "Uploading...", attachUploadBtn: "Upload",
     fileTypePh: "File type", attUploadedBy: "Uploaded by", attUploadedAt: "Time",
     dropOrClick: "Click to select or drag & drop",
+    recallAt: "Callback time", tabRecall: "Recall", recallOverdue: "Overdue", recallToday: "Today", recallSet: "Recall scheduled", clearRecall: "Clear recall",
   },
 };
 function comLang() { return window.__TG_LANG || "uz"; }
@@ -245,6 +248,15 @@ OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete, onAddPayment
   const locationText = orderLocationLabel(o);
   const metaParts = [o.businessLine, o.paymentType === "credit" ? comTx("credit") : comTx("cash"), fmtDate(o.createdAt)].filter(Boolean);
   const subMetaParts = [locationText, o.deliveryAddress].filter(Boolean);
+  const recallBadge = (() => {
+    if (!o.recallAt) return null;
+    const now = new Date();
+    const recall = new Date(o.recallAt);
+    const diffMs = recall - now;
+    const isToday = recall.toDateString() === now.toDateString();
+    const isPast = diffMs < 0;
+    return { color: isPast ? "red" : isToday ? "amber" : "blue", label: isPast ? comTx("recallOverdue") : isToday ? comTx("recallToday") : comTx("recallSet"), time: recall.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+  })();
   return (
     <Card hover onClick={onClick}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -255,6 +267,7 @@ OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete, onAddPayment
           {!!subMetaParts.length && <div className="tg-cell-sub">{subMetaParts.join(" • ")}</div>}
         </div>
         {hasOrderLocation(o) && <Badge color="slate" size="sm">{orderMahalla(o) || orderTuman(o)}</Badge>}
+        {recallBadge && <Badge color={recallBadge.color} size="sm" title={o.recallAt}>📞 {recallBadge.label} {recallBadge.time}</Badge>}
         <Badge color={overdueAmount > 0 ? "red" : remainingDebt > 0 ? "amber" : "green"} size="sm">
           {overdueAmount > 0 ? comTx("overdue") : remainingDebt > 0 ? comTx("withDebt") : comTx("closed")}
         </Badge>
@@ -371,6 +384,7 @@ function OrdersPage() {
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
     if (statusTab === "closed" && debtNum(o.remainingDebtUzs) > 0) return false;
+    if (statusTab === "recall" && !o.recallAt) return false;
     if (showLocationFilters && districtFilter !== "all" && orderTuman(o) !== districtFilter) return false;
     if (showLocationFilters && mahallaFilter !== "all" && orderMahalla(o) !== mahallaFilter) return false;
     if (!orderDateMatchesRange(orderTakenDate(o), dateFrom, dateTo)) return false;
@@ -438,6 +452,7 @@ function OrdersPage() {
     { value: "open", label: comTx("tabOpen"), count: allOrders.filter(o => debtNum(o.remainingDebtUzs) > 0).length },
     { value: "overdue", label: comTx("tabOverdue"), count: allOrders.filter(o => debtNum(o.overdueAmountUzs) > 0).length },
     { value: "closed", label: comTx("tabClosed"), count: allOrders.filter(o => debtNum(o.remainingDebtUzs) === 0).length },
+    { value: "recall", label: comTx("tabRecall"), count: allOrders.filter(o => !!o.recallAt).length },
   ];
 
   return (
@@ -631,6 +646,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
     dueDate: new Date().toISOString().slice(0, 10),
     nextReminderAt: new Date().toISOString().slice(0, 10),
     note: "",
+    recallAt: null,
   };
   const normalizeLocation = (item) => {
     const district = item?.district || "";
@@ -687,6 +703,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             productItems: form.productItems || [],
             note: form.note || "",
             createdAt: form.createdAt || new Date().toISOString(),
+            recallAt: form.recallAt || null,
           });
         }}>{initial ? comTx("save") : comTx("create")}</Button>
       </>}>
@@ -759,6 +776,12 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
           <Field label={comTx("deadline")}><DatePickerInput value={(form.dueDate || "").slice(0, 10)} onChange={(value) => set("dueDate", value)} /></Field>
         </div>
         <Field label={comTx("note")}><Textarea rows={4} value={form.note || ""} onChange={e => set("note", e.target.value)} placeholder={comTx("notePlaceholder")} /></Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
+          <Field label={comTx("recallAt")}>
+            <DatePickerInput value={form.recallAt || ""} onChange={v => set("recallAt", v || null)} mode="datetime" placeholder="— belgilanmagan —" />
+          </Field>
+          {form.recallAt && <Button variant="ghost" size="sm" onClick={() => set("recallAt", null)} style={{ marginBottom: 2 }}>{comTx("clearRecall")}</Button>}
+        </div>
       </div>
     </Modal>
   );
@@ -1010,6 +1033,7 @@ function OrderDetailPage({ id }) {
               <div className="tg-meta-row"><span className="tg-meta-k">{comTx("remaining")}</span><span className="tg-meta-v" style={{ color: debtNum(o.remainingDebtUzs) > 0 ? "var(--red)" : "var(--green)", fontWeight: 700 }}>{fmtUZS(debtNum(o.remainingDebtUzs))}</span></div>
               {!!debtNum(o.overdueAmountUzs) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("overdueAmount")}</span><span className="tg-meta-v" style={{ color: "var(--red)" }}>{fmtUZS(debtNum(o.overdueAmountUzs))}</span></div>}
               <div className="tg-meta-row"><span className="tg-meta-k">{comTx("deadline")}</span><span className="tg-meta-v">{fmtDate(o.dueDate)}</span></div>
+              {!!o.recallAt && (() => { const rc = new Date(o.recallAt); const now = new Date(); const isPast = rc < now; const isToday = rc.toDateString() === now.toDateString(); return <div className="tg-meta-row"><span className="tg-meta-k">{comTx("recallAt")}</span><span className="tg-meta-v" style={{ color: isPast ? "var(--red)" : isToday ? "var(--amber)" : "var(--blue)", fontWeight: 600 }}>📞 {rc.toLocaleString()}</span></div>; })()}
               {!!o.note && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("note")}</span><span className="tg-meta-v">{o.note}</span></div>}
             </div>
           </Panel>

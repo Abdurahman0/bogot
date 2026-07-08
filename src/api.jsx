@@ -708,6 +708,7 @@ function mapApiDebtor(debtor) {
     phone: debtor.phone || "",
     city: debtor.city || "",
     debtorType: debtor.debtor_type,
+    recallAt: debtor.recall_at || null,
   };
 }
 
@@ -1188,6 +1189,8 @@ async function apiSaveDebtor(order) {
     repayment_due_date: dueDate,
     notes: order.note || "",
   };
+  if (order.recallAt) payload.recall_at = new Date(order.recallAt).toISOString();
+  else if (order.recallAt === null && isUpdate) payload.recall_at = null;
   if (!isUpdate) {
     const openingPaid = apiParseNumber(order.paidUzs || 0);
     if (openingPaid > 0) payload.paid_amount = String(openingPaid);
