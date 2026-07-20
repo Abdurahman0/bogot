@@ -380,10 +380,13 @@ function OrdersPage() {
     try {
       setExporting(true);
       await apiDownloadDebtorsExcel({
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
+        search: q || undefined,
+        debtor_type: debtorTypeFilter !== "all" ? debtorTypeFilter : undefined,
         district: districtFilter !== "all" ? districtFilter : undefined,
         neighborhood: mahallaFilter !== "all" ? mahallaFilter : undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        ordering: sourceNumSort === "asc" ? "source_number" : sourceNumSort === "desc" ? "-source_number" : undefined,
       });
       toast(comTx("excelOk"));
     } catch (error) {
