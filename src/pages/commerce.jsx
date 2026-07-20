@@ -368,7 +368,7 @@ function OrdersPage() {
   const showLocationFilters = statusTab === "all";
   const showFullGrouped = showLocationFilters && districtFilter === "all" && mahallaFilter === "all";
   const showDistrictGrouped = showLocationFilters && districtFilter !== "all" && mahallaFilter === "all";
-  const showFlatList = !showLocationFilters || mahallaFilter !== "all";
+  const showFlatList = !showLocationFilters || mahallaFilter !== "all" || sourceNumSort !== "all";
 
   coE(() => {
     if (mahallaFilter !== "all" && !mahallaOptions.some((option) => option.value === mahallaFilter)) {
