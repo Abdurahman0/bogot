@@ -683,6 +683,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
     nextReminderAt: new Date().toISOString().slice(0, 10),
     note: "",
     recallAt: null,
+    sourceNumber: "",
   };
   const normalizeLocation = (item) => {
     const district = item?.district || "";
@@ -740,14 +741,16 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             note: form.note || "",
             createdAt: form.createdAt || new Date().toISOString(),
             recallAt: form.recallAt || null,
+            sourceNumber: form.sourceNumber !== "" && form.sourceNumber != null ? Number(form.sourceNumber) : null,
           });
         }}>{initial ? comTx("save") : comTx("create")}</Button>
       </>}>
       <div style={{ display: "grid", gap: 14 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 120px", gap: 14 }}>
           <Field label={comTx("debtorLabel")}><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
           <Field label={comTx("phoneLabel")} required><Input value={form.phone || ""} onChange={e => set("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
           <Field label={comTx("colDistrict")}>{apiDistricts.length ? <Select value={form.district} onChange={v => { set("district", v); set("mahalla", ""); }} options={[{ value: "", label: "— tanlang —" }, ...apiDistricts.map(d => ({ value: d.name, label: d.name }))]} /> : <Input value={form.district} onChange={e => set("district", e.target.value)} placeholder={comTx("districtPh")} />}</Field>
+          <Field label={comTx("colSourceNum")}><Input type="number" value={form.sourceNumber ?? ""} onChange={e => set("sourceNumber", e.target.value)} placeholder="#" /></Field>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <Field label={comTx("colMahalla")}>{apiDistricts.length ? <Select value={form.mahalla} onChange={v => set("mahalla", v)} options={[{ value: "", label: "— tanlang —" }, ...apiNeighborhoods.filter(n => { const d = apiDistricts.find(d => d.name === form.district); return d && n.district === d.id; }).map(n => ({ value: n.name, label: n.name }))]} /> : <Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder={comTx("mahallaPh")} />}</Field>

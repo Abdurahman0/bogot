@@ -1190,6 +1190,7 @@ async function apiSaveDebtor(order) {
     repayment_due_date: dueDate,
     notes: order.note || "",
   };
+  if (order.sourceNumber != null && order.sourceNumber !== "") payload.source_number = Number(order.sourceNumber);
   if (order.recallAt) payload.recall_at = new Date(order.recallAt).toISOString();
   else if (order.recallAt === null && isUpdate) payload.recall_at = null;
   if (!isUpdate) {
