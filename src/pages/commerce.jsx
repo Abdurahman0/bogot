@@ -334,7 +334,7 @@ function OrdersPage() {
   const [listRefreshTick, setListRefreshTick] = coS(0);
   const [sourceNumSort, setSourceNumSort] = coS("all"); // "all" | "asc" | "desc"
 
-  coE(() => { setOrdPage(1); }, [q, debtorTypeFilter, sourceNumSort]);
+  coE(() => { setOrdPage(1); setOrdRows([]); setOrdTotal(0); }, [q, debtorTypeFilter, sourceNumSort]);
 
   coE(() => {
     let cancelled = false;
