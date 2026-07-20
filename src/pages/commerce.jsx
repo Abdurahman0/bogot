@@ -32,7 +32,7 @@ const COMMERCE_UI = {
     availableMahallas: "Mavjud mahallalar", paymentType: "To'lov turi",
     tabAll: "Barchasi", tabOpen: "Qoldiq bor", tabOverdue: "Muddati o'tgan", tabClosed: "Yopilgan",
     remainingLabel: "Qoldiq:", overdueLabel: "Muddati o'tgan:",
-    debtorsSearch: "Mijoz, ID, tuman yoki mahalla...", paymentsSearch: "Kategoriya, mijoz, ID...",
+    debtorsSearch: "Mijoz, telefon, tuman... yoki #raqam", paymentsSearch: "Kategoriya, mijoz, ID...",
     solar: "Quyosh panel biznesi", oldBiz: "Moto biznes",
     filterDebtorType: "Tur", colStatus: "Holat",
     notePlaceholder: "To'lov kelishuvi yoki eslatma...", currencyPh: "UZS yoki USD",
@@ -88,7 +88,7 @@ const COMMERCE_UI = {
     availableMahallas: "Доступные махалли", paymentType: "Тип оплаты",
     tabAll: "Все", tabOpen: "Есть остаток", tabOverdue: "Просрочено", tabClosed: "Закрыто",
     remainingLabel: "Остаток:", overdueLabel: "Просрочено:",
-    debtorsSearch: "Клиент, ID, район или махалля...", paymentsSearch: "Категория, клиент, ID...",
+    debtorsSearch: "Клиент, телефон, район... или #номер", paymentsSearch: "Категория, клиент, ID...",
     solar: "Бизнес солнечных панелей", oldBiz: "Мото бизнес",
     filterDebtorType: "Тип", colStatus: "Статус",
     notePlaceholder: "Договор об оплате или примечание...", currencyPh: "UZS или USD",
@@ -144,7 +144,7 @@ const COMMERCE_UI = {
     availableMahallas: "Available mahallas", paymentType: "Payment type",
     tabAll: "All", tabOpen: "Has balance", tabOverdue: "Overdue", tabClosed: "Closed",
     remainingLabel: "Balance:", overdueLabel: "Overdue:",
-    debtorsSearch: "Customer, ID, district or mahalla...", paymentsSearch: "Category, customer, ID...",
+    debtorsSearch: "Customer, phone, district... or #number", paymentsSearch: "Category, customer, ID...",
     solar: "Solar panel business", oldBiz: "Moto biznes",
     filterDebtorType: "Type", colStatus: "Status",
     notePlaceholder: "Payment agreement or note...", currencyPh: "UZS or USD",
@@ -342,7 +342,7 @@ function OrdersPage() {
     apiGetDebtorsPage({
       page: ordPage,
       page_size: 50,
-      search: q || undefined,
+      search: q.startsWith("#") ? undefined : q || undefined,
       debtor_type: debtorTypeFilter !== "all" ? debtorTypeFilter : undefined,
       ordering: sourceNumSort === "asc" ? "source_number" : sourceNumSort === "desc" ? "-source_number" : undefined,
     }).then(({ results, count }) => {
@@ -399,13 +399,17 @@ function OrdersPage() {
   // allFiltered: client-side filter of all debtors — used for grouped views and tab counts
   const allFiltered = coM(() => allOrders.filter(o => {
     if (q) {
-      const term = q.toLowerCase();
-      if (!(o.customerName || "").toLowerCase().includes(term) &&
-          !String(o.id).includes(q) &&
-          !(o.phone || "").toLowerCase().includes(term) &&
-          !(o.district || "").toLowerCase().includes(term) &&
-          !(o.mahalla || "").toLowerCase().includes(term) &&
-          !(o.sourceNumber != null && String(o.sourceNumber).includes(q))) return false;
+      if (q.startsWith("#")) {
+        const num = q.slice(1);
+        if (!num || o.sourceNumber == null || !String(o.sourceNumber).includes(num)) return false;
+      } else {
+        const term = q.toLowerCase();
+        if (!(o.customerName || "").toLowerCase().includes(term) &&
+            !String(o.id).includes(q) &&
+            !(o.phone || "").toLowerCase().includes(term) &&
+            !(o.district || "").toLowerCase().includes(term) &&
+            !(o.mahalla || "").toLowerCase().includes(term)) return false;
+      }
     }
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
