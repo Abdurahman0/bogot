@@ -332,7 +332,7 @@ function OrdersPage() {
   const [ordRows, setOrdRows] = coS([]);
   const [ordLoading, setOrdLoading] = coS(false);
   const [listRefreshTick, setListRefreshTick] = coS(0);
-  const [sourceNumSort, setSourceNumSort] = coS(null); // null | "asc" | "desc"
+  const [sourceNumSort, setSourceNumSort] = coS("all"); // "all" | "asc" | "desc"
 
   coE(() => { setOrdPage(1); }, [q, debtorTypeFilter, sourceNumSort]);
 
@@ -423,7 +423,7 @@ function OrdersPage() {
   // when a status tab is active, allFiltered (full dataset) is more accurate than ordRows (current server page)
   const listRows = coM(() => {
     const base = statusTab !== "all" ? allFiltered : filtered;
-    if (!sourceNumSort) return base;
+    if (sourceNumSort === "all") return base;
     return [...base].sort((a, b) => {
       const av = a.sourceNumber ?? Infinity;
       const bv = b.sourceNumber ?? Infinity;
@@ -506,9 +506,7 @@ function OrdersPage() {
         <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder={comTx("startDate")} /></div>
         <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder={comTx("endDate")} /></div>
         {(dateFrom || dateTo) ? <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>{comTx("clear")}</Button> : null}
-        <Button variant={sourceNumSort ? "primary" : "default"} size="sm" onClick={() => setSourceNumSort(s => s === null ? "asc" : s === "asc" ? "desc" : null)}>
-          {sourceNumSort === "asc" ? comTx("sortSourceAsc") : sourceNumSort === "desc" ? comTx("sortSourceDesc") : comTx("colSourceNum")}
-        </Button>
+        <FilterSelect label={comTx("colSourceNum")} icon="filter" value={sourceNumSort} onChange={setSourceNumSort} options={[{ value: "asc", label: comTx("sortSourceAsc") }, { value: "desc", label: comTx("sortSourceDesc") }]} />
         <div className="toolbar-spacer" />
         <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportDebtorsExcel} disabled={exporting}>Excel</Button>
       </div>
