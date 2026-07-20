@@ -55,6 +55,7 @@ const COMMERCE_UI = {
     fileTypePh: "Fayl turi", attUploadedBy: "Yuklagan", attUploadedAt: "Vaqt",
     dropOrClick: "Fayl tanlash yoki tashlang",
     recallAt: "Qo'ng'iroq vaqti", tabRecall: "Qo'ng'iroq", recallOverdue: "Kechikkan", recallToday: "Bugun", recallSet: "Qo'ng'iroq belgilangan", clearRecall: "Qo'ng'iroqni tozalash",
+    colSourceNum: "Raqam", sortSourceAsc: "Raqam ↑", sortSourceDesc: "Raqam ↓",
   },
   ru: {
     overdue: "Просрочено", withDebt: "Есть остаток", closed: "Закрыто",
@@ -110,6 +111,7 @@ const COMMERCE_UI = {
     fileTypePh: "Тип файла", attUploadedBy: "Загрузил", attUploadedAt: "Время",
     dropOrClick: "Выберите файл или перетащите",
     recallAt: "Время перезвона", tabRecall: "Перезвонить", recallOverdue: "Просрочено", recallToday: "Сегодня", recallSet: "Перезвон назначен", clearRecall: "Снять перезвон",
+    colSourceNum: "Номер", sortSourceAsc: "Номер ↑", sortSourceDesc: "Номер ↓",
   },
   en: {
     overdue: "Overdue", withDebt: "Has balance", closed: "Closed",
@@ -165,6 +167,7 @@ const COMMERCE_UI = {
     fileTypePh: "File type", attUploadedBy: "Uploaded by", attUploadedAt: "Time",
     dropOrClick: "Click to select or drag & drop",
     recallAt: "Callback time", tabRecall: "Recall", recallOverdue: "Overdue", recallToday: "Today", recallSet: "Recall scheduled", clearRecall: "Clear recall",
+    colSourceNum: "No.", sortSourceAsc: "No. ↑", sortSourceDesc: "No. ↓",
   },
 };
 function comLang() { return window.__TG_LANG || "uz"; }
@@ -279,7 +282,7 @@ OrderRow = function OrderRowPatched({ o, onClick, onEdit, onDelete, onAddPayment
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <span className="tg-card-icon" style={{ color: "var(--amber)", background: "var(--amber-bg)" }}><I.wallet size={17} /></span>
         <div style={{ flex: 1, minWidth: 160 }}>
-          <div className="tg-cell-strong">{o.customerName}</div>
+          <div className="tg-cell-strong">{o.customerName}{o.sourceNumber != null && <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600, color: "var(--text-3)" }}>#{o.sourceNumber}</span>}</div>
           <div className="tg-cell-sub">{metaParts.join(" • ")}</div>
           {!!subMetaParts.length && <div className="tg-cell-sub">{subMetaParts.join(" • ")}</div>}
         </div>
@@ -329,8 +332,9 @@ function OrdersPage() {
   const [ordRows, setOrdRows] = coS([]);
   const [ordLoading, setOrdLoading] = coS(false);
   const [listRefreshTick, setListRefreshTick] = coS(0);
+  const [sourceNumSort, setSourceNumSort] = coS(null); // null | "asc" | "desc"
 
-  coE(() => { setOrdPage(1); }, [q, debtorTypeFilter]);
+  coE(() => { setOrdPage(1); }, [q, debtorTypeFilter, sourceNumSort]);
 
   coE(() => {
     let cancelled = false;
@@ -340,6 +344,7 @@ function OrdersPage() {
       page_size: 50,
       search: q || undefined,
       debtor_type: debtorTypeFilter !== "all" ? debtorTypeFilter : undefined,
+      ordering: sourceNumSort === "asc" ? "source_number" : sourceNumSort === "desc" ? "-source_number" : undefined,
     }).then(({ results, count }) => {
       if (cancelled) return;
       setOrdRows(results);
@@ -347,7 +352,7 @@ function OrdersPage() {
       setOrdLoading(false);
     }).catch(() => { if (!cancelled) setOrdLoading(false); });
     return () => { cancelled = true; };
-  }, [ordPage, q, debtorTypeFilter, listRefreshTick]);
+  }, [ordPage, q, debtorTypeFilter, sourceNumSort, listRefreshTick]);
 
   const allOrders = data.orders || [];
   const districts = coM(() => [...new Set(allOrders.map((order) => orderTuman(order)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "uz")), [allOrders]);
@@ -396,7 +401,8 @@ function OrdersPage() {
           !String(o.id).includes(q) &&
           !(o.phone || "").toLowerCase().includes(term) &&
           !(o.district || "").toLowerCase().includes(term) &&
-          !(o.mahalla || "").toLowerCase().includes(term)) return false;
+          !(o.mahalla || "").toLowerCase().includes(term) &&
+          !(o.sourceNumber != null && String(o.sourceNumber).includes(q))) return false;
     }
     if (statusTab === "overdue" && debtNum(o.overdueAmountUzs) <= 0) return false;
     if (statusTab === "open" && debtNum(o.remainingDebtUzs) <= 0) return false;
@@ -415,7 +421,15 @@ function OrdersPage() {
   }), [ordRows, dateFrom, dateTo]);
 
   // when a status tab is active, allFiltered (full dataset) is more accurate than ordRows (current server page)
-  const listRows = statusTab !== "all" ? allFiltered : filtered;
+  const listRows = coM(() => {
+    const base = statusTab !== "all" ? allFiltered : filtered;
+    if (!sourceNumSort) return base;
+    return [...base].sort((a, b) => {
+      const av = a.sourceNumber ?? Infinity;
+      const bv = b.sourceNumber ?? Infinity;
+      return sourceNumSort === "asc" ? av - bv : bv - av;
+    });
+  }, [statusTab, allFiltered, filtered, sourceNumSort]);
 
   const grouped = coM(() => {
     const map = new Map();
@@ -492,6 +506,9 @@ function OrdersPage() {
         <div style={{ width: 170 }}><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder={comTx("startDate")} /></div>
         <div style={{ width: 170 }}><DatePickerInput value={dateTo} onChange={setDateTo} placeholder={comTx("endDate")} /></div>
         {(dateFrom || dateTo) ? <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>{comTx("clear")}</Button> : null}
+        <Button variant={sourceNumSort ? "primary" : "default"} size="sm" onClick={() => setSourceNumSort(s => s === null ? "asc" : s === "asc" ? "desc" : null)}>
+          {sourceNumSort === "asc" ? comTx("sortSourceAsc") : sourceNumSort === "desc" ? comTx("sortSourceDesc") : comTx("colSourceNum")}
+        </Button>
         <div className="toolbar-spacer" />
         <Button variant="default" size="sm" icon={<I.download size={15} />} onClick={exportDebtorsExcel} disabled={exporting}>Excel</Button>
       </div>
@@ -506,6 +523,7 @@ function OrdersPage() {
         <Card pad={false}>
           <DataTable
             columns={[
+              { key: "sourceNum", label: comTx("colSourceNum"), sortVal: (row) => row.sourceNumber ?? Infinity, render: (row) => row.sourceNumber != null ? <span style={{ fontWeight: 700, color: "var(--text-2)" }}>#{row.sourceNumber}</span> : <span className="tg-cell-sub">—</span> },
               { key: "name", label: comTx("colCustomer"), sortVal: (row) => row.customerName, render: (row) => <div><div className="tg-cell-strong">{row.customerName}</div><div className="tg-cell-sub">{row.phone || row.id}</div></div> },
               { key: "district", label: comTx("colDistrict"), sortVal: (row) => orderTuman(row), render: (row) => orderTuman(row) || <span className="tg-cell-sub">—</span> },
               { key: "mahalla", label: comTx("colMahalla"), sortVal: (row) => orderMahalla(row), render: (row) => orderMahalla(row) || <span className="tg-cell-sub">—</span> },
@@ -1092,6 +1110,7 @@ function OrderDetailPage({ id }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Panel title={comTx("debtPanel")} icon="wallet" color="amber">
             <div className="tg-meta">
+              {o.sourceNumber != null && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("colSourceNum")}</span><span className="tg-meta-v" style={{ fontWeight: 700 }}>#{o.sourceNumber}</span></div>}
               <div className="tg-meta-row"><span className="tg-meta-k">{comTx("businessLine")}</span><span className="tg-meta-v">{o.businessLine}</span></div>
               {!!o.phone && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("phoneLabel")}</span><span className="tg-meta-v">{o.phone}</span></div>}
               {!!orderTuman(o) && <div className="tg-meta-row"><span className="tg-meta-k">{comTx("colDistrict")}</span><span className="tg-meta-v">{orderTuman(o)}</span></div>}

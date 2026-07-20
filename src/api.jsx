@@ -709,6 +709,7 @@ function mapApiDebtor(debtor) {
     city: debtor.city || "",
     debtorType: debtor.debtor_type,
     recallAt: debtor.recall_at || null,
+    sourceNumber: debtor.source_number != null ? Number(debtor.source_number) : null,
   };
 }
 
