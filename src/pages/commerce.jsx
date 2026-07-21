@@ -368,7 +368,7 @@ function OrdersPage() {
   const showLocationFilters = statusTab === "all";
   const showFullGrouped = showLocationFilters && districtFilter === "all" && mahallaFilter === "all";
   const showDistrictGrouped = showLocationFilters && districtFilter !== "all" && mahallaFilter === "all";
-  const showFlatList = !showLocationFilters || mahallaFilter !== "all" || sourceNumSort !== "all";
+  const showFlatList = !showLocationFilters || mahallaFilter !== "all" || sourceNumSort !== "all" || !!q;
 
   coE(() => {
     if (mahallaFilter !== "all" && !mahallaOptions.some((option) => option.value === mahallaFilter)) {
@@ -405,7 +405,6 @@ function OrdersPage() {
       } else {
         const term = q.toLowerCase();
         if (!(o.customerName || "").toLowerCase().includes(term) &&
-            !String(o.id).includes(q) &&
             !(o.phone || "").toLowerCase().includes(term) &&
             !(o.district || "").toLowerCase().includes(term) &&
             !(o.mahalla || "").toLowerCase().includes(term)) return false;
@@ -429,14 +428,19 @@ function OrdersPage() {
 
   // when a status tab is active, allFiltered (full dataset) is more accurate than ordRows (current server page)
   const listRows = coM(() => {
-    const base = statusTab !== "all" ? allFiltered : filtered;
+    let base = statusTab !== "all" ? allFiltered : filtered;
+    // #N search is skipped server-side; apply client-side when on "all" tab using ordRows
+    if (q.startsWith("#") && statusTab === "all") {
+      const num = q.slice(1);
+      base = num ? base.filter(o => o.sourceNumber != null && String(o.sourceNumber).includes(num)) : base;
+    }
     if (sourceNumSort === "all") return base;
     return [...base].sort((a, b) => {
       const av = a.sourceNumber ?? Infinity;
       const bv = b.sourceNumber ?? Infinity;
       return sourceNumSort === "asc" ? av - bv : bv - av;
     });
-  }, [statusTab, allFiltered, filtered, sourceNumSort]);
+  }, [statusTab, allFiltered, filtered, sourceNumSort, q]);
 
   const grouped = coM(() => {
     const map = new Map();
