@@ -802,7 +802,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
           <Field label={comTx("direction")}><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: comTx("solar") }, { value: "Moto biznes", label: comTx("oldBiz") }]} /></Field>
           <Field label={comTx("paymentType")}><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: comTx("credit") }, { value: "cash", label: comTx("cash") }]} /></Field>
         </div>
-        {!!districts.length && (
+        {(!!districts.length || isNewDistrict) && (
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 12, color: "var(--text-3)" }}>{comTx("availableDistricts")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
