@@ -28,7 +28,7 @@ const COMMERCE_UI = {
     direction: "Yo'nalish", category: "Kategoriya", subject: "Subyekt",
     currency: "Valyuta", sortOrder: "Tartib", note: "Izoh", newRecord: "Yangi yozuv",
     paymentsDesc: "Kunlik kirim-chiqim va moliyaviy nazorat",
-    debtorsDescUnit: "ta qarzdor yozuvi", availableDistricts: "Mavjud tumanlar",
+    debtorsDescUnit: "ta qarzdor yozuvi", availableDistricts: "Mavjud tumanlar", addNewDistrict: "Yangi tuman qo'shish", addNewMahalla: "Yangi mahalla qo'shish", districtAdded: "tuman qo'shildi", mahallaAdded: "mahalla qo'shildi",
     availableMahallas: "Mavjud mahallalar", paymentType: "To'lov turi",
     tabAll: "Barchasi", tabOpen: "Qoldiq bor", tabOverdue: "Muddati o'tgan", tabClosed: "Yopilgan",
     remainingLabel: "Qoldiq:", overdueLabel: "Muddati o'tgan:",
@@ -84,7 +84,7 @@ const COMMERCE_UI = {
     direction: "Направление", category: "Категория", subject: "Субъект",
     currency: "Валюта", sortOrder: "Порядок", note: "Примечание", newRecord: "Новая запись",
     paymentsDesc: "Ежедневные доходы-расходы и финансовый контроль",
-    debtorsDescUnit: "записей должников", availableDistricts: "Доступные районы",
+    debtorsDescUnit: "записей должников", availableDistricts: "Доступные районы", addNewDistrict: "Добавить район", addNewMahalla: "Добавить махаллю", districtAdded: "район добавлен", mahallaAdded: "махалля добавлена",
     availableMahallas: "Доступные махалли", paymentType: "Тип оплаты",
     tabAll: "Все", tabOpen: "Есть остаток", tabOverdue: "Просрочено", tabClosed: "Закрыто",
     remainingLabel: "Остаток:", overdueLabel: "Просрочено:",
@@ -140,7 +140,7 @@ const COMMERCE_UI = {
     direction: "Direction", category: "Category", subject: "Subject",
     currency: "Currency", sortOrder: "Order", note: "Note", newRecord: "New entry",
     paymentsDesc: "Daily income/expenses and financial control",
-    debtorsDescUnit: "debtor records", availableDistricts: "Available districts",
+    debtorsDescUnit: "debtor records", availableDistricts: "Available districts", addNewDistrict: "Add new district", addNewMahalla: "Add new mahalla", districtAdded: "district added", mahallaAdded: "mahalla added",
     availableMahallas: "Available mahallas", paymentType: "Payment type",
     tabAll: "All", tabOpen: "Has balance", tabOverdue: "Overdue", tabClosed: "Closed",
     remainingLabel: "Balance:", overdueLabel: "Overdue:",
@@ -672,9 +672,12 @@ function OrdersPage() {
 window.OrdersPage = OrdersPage;
 
 function OrderFormModal({ open, onClose, onSave, initial, locations }) {
-  const { data, toast } = useApp();
-  const apiDistricts = data.districts || [];
-  const apiNeighborhoods = data.neighborhoods || [];
+  const { data, toast, upsert } = useApp();
+  const [localDistricts, setLocalDistricts] = coS(data.districts || []);
+  const [localNeighborhoods, setLocalNeighborhoods] = coS(data.neighborhoods || []);
+  coE(() => { setLocalDistricts(data.districts || []); setLocalNeighborhoods(data.neighborhoods || []); }, [data.districts, data.neighborhoods]);
+  const apiDistricts = localDistricts;
+  const apiNeighborhoods = localNeighborhoods;
   const districts = apiDistricts.length ? apiDistricts.map(d => d.name) : orderDistrictOptions(locations);
   const blank = {
     customerName: "",
@@ -705,6 +708,40 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
   }, [initial, open]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const isNewDistrict = !!form.district && !apiDistricts.find(d => d.name === form.district);
+  const foundDistrict = apiDistricts.find(d => d.name === form.district);
+  const mahallasForDistrict = foundDistrict
+    ? apiNeighborhoods.filter(n => n.district === foundDistrict.id).map(n => n.name)
+    : [];
+  const isNewMahalla = !!form.mahalla && !!foundDistrict && !mahallasForDistrict.includes(form.mahalla);
+
+  const [savingDistrict, setSavingDistrict] = coS(false);
+  const [savingMahalla, setSavingMahalla] = coS(false);
+
+  const addNewDistrictFn = async () => {
+    setSavingDistrict(true);
+    try {
+      const res = await apiSaveDistrict({ name: form.district });
+      const nd = { id: res.id, name: res.name };
+      setLocalDistricts(d => [...d, nd]);
+      await upsert("districts", nd);
+      toast(`"${res.name}" ${comTx("districtAdded")}`);
+    } catch(e) { toast(e.message || "Xato", "error"); }
+    finally { setSavingDistrict(false); }
+  };
+
+  const addNewMahallaFn = async () => {
+    setSavingMahalla(true);
+    try {
+      const res = await apiSaveNeighborhood({ name: form.mahalla, districtId: foundDistrict.id });
+      const nn = { id: res.id, name: res.name, district: foundDistrict.id };
+      setLocalNeighborhoods(n => [...n, nn]);
+      await upsert("neighborhoods", nn);
+      toast(`"${res.name}" ${comTx("mahallaAdded")}`);
+    } catch(e) { toast(e.message || "Xato", "error"); }
+    finally { setSavingMahalla(false); }
+  };
 
   return (
     <Modal open={open} onClose={onClose} title={initial ? comTx("debtorFormEdit") : comTx("debtorFormNew")} icon={initial ? <I.edit size={18} /> : <I.plus size={18} />} width={620}
@@ -768,7 +805,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
         {!!districts.length && (
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 12, color: "var(--text-3)" }}>{comTx("availableDistricts")}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
               {districts.slice(0, 10).map((district) => (
                 <button
                   key={district}
@@ -788,6 +825,28 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
                   {district}
                 </button>
               ))}
+              {isNewDistrict && (
+                <button
+                  type="button"
+                  disabled={savingDistrict}
+                  onClick={addNewDistrictFn}
+                  style={{
+                    border: "1px dashed var(--accent)",
+                    background: "var(--accent-soft)",
+                    color: "var(--accent)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 12.5,
+                    cursor: savingDistrict ? "wait" : "pointer",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  + {comTx("addNewDistrict")}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -795,10 +854,10 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
           const apiMahallas = apiNeighborhoods.filter(n => { const d = apiDistricts.find(d => d.name === form.district); return d && n.district === d.id; }).map(n => n.name);
           const locationMahallas = debtorMahallasFor(form.district, locations);
           const allMahallas = [...new Set([...apiMahallas, ...locationMahallas])];
-          return allMahallas.length > 0 && (
+          return (allMahallas.length > 0 || isNewMahalla) && (
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 12, color: "var(--text-3)" }}>{comTx("availableMahallas")}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
               {allMahallas.slice(0, 12).map((mahalla) => (
                 <button
                   key={mahalla}
@@ -818,6 +877,28 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
                   {mahalla}
                 </button>
               ))}
+              {isNewMahalla && (
+                <button
+                  type="button"
+                  disabled={savingMahalla}
+                  onClick={addNewMahallaFn}
+                  style={{
+                    border: "1px dashed var(--accent)",
+                    background: "var(--accent-soft)",
+                    color: "var(--accent)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 12.5,
+                    cursor: savingMahalla ? "wait" : "pointer",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  + {comTx("addNewMahalla")}
+                </button>
+              )}
             </div>
           </div>
           ); })()}
