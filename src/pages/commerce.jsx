@@ -757,11 +757,11 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 120px", gap: 14 }}>
           <Field label={comTx("debtorLabel")}><Input value={form.customerName} onChange={e => set("customerName", e.target.value)} /></Field>
           <Field label={comTx("phoneLabel")} required><Input value={form.phone || ""} onChange={e => set("phone", e.target.value)} placeholder="+998 90 123 45 67" /></Field>
-          <Field label={comTx("colDistrict")}>{apiDistricts.length ? <Select value={form.district} onChange={v => { set("district", v); set("mahalla", ""); }} options={[{ value: "", label: "— tanlang —" }, ...apiDistricts.map(d => ({ value: d.name, label: d.name }))]} /> : <Input value={form.district} onChange={e => set("district", e.target.value)} placeholder={comTx("districtPh")} />}</Field>
+          <Field label={comTx("colDistrict")}><Input value={form.district} onChange={e => { set("district", e.target.value); set("mahalla", ""); }} placeholder={comTx("districtPh")} /></Field>
           <Field label={comTx("colSourceNum")}><Input type="number" value={form.sourceNumber ?? ""} onChange={e => set("sourceNumber", e.target.value)} placeholder="#" /></Field>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <Field label={comTx("colMahalla")}>{apiDistricts.length ? <Select value={form.mahalla} onChange={v => set("mahalla", v)} options={[{ value: "", label: "— tanlang —" }, ...apiNeighborhoods.filter(n => { const d = apiDistricts.find(d => d.name === form.district); return d && n.district === d.id; }).map(n => ({ value: n.name, label: n.name }))]} /> : <Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder={comTx("mahallaPh")} />}</Field>
+          <Field label={comTx("colMahalla")}><Input value={form.mahalla} onChange={e => set("mahalla", e.target.value)} placeholder={comTx("mahallaPh")} /></Field>
           <Field label={comTx("direction")}><Select value={form.businessLine} onChange={v => set("businessLine", v)} options={[{ value: "Quyosh panel biznesi", label: comTx("solar") }, { value: "Moto biznes", label: comTx("oldBiz") }]} /></Field>
           <Field label={comTx("paymentType")}><Select value={form.paymentType} onChange={v => set("paymentType", v)} options={[{ value: "credit", label: comTx("credit") }, { value: "cash", label: comTx("cash") }]} /></Field>
         </div>
@@ -791,11 +791,15 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
             </div>
           </div>
         )}
-        {!!form.district && !!debtorMahallasFor(form.district, locations).length && (
+        {!!form.district && (() => {
+          const apiMahallas = apiNeighborhoods.filter(n => { const d = apiDistricts.find(d => d.name === form.district); return d && n.district === d.id; }).map(n => n.name);
+          const locationMahallas = debtorMahallasFor(form.district, locations);
+          const allMahallas = [...new Set([...apiMahallas, ...locationMahallas])];
+          return allMahallas.length > 0 && (
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 12, color: "var(--text-3)" }}>{comTx("availableMahallas")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {debtorMahallasFor(form.district, locations).slice(0, 12).map((mahalla) => (
+              {allMahallas.slice(0, 12).map((mahalla) => (
                 <button
                   key={mahalla}
                   type="button"
@@ -816,7 +820,7 @@ function OrderFormModal({ open, onClose, onSave, initial, locations }) {
               ))}
             </div>
           </div>
-        )}
+          ); })()}
         <div style={{ display: "grid", gridTemplateColumns: initial ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14 }}>
           <Field label={comTx("totalAmount")}><Input type="number" value={form.totalUzs} onChange={e => set("totalUzs", e.target.value)} /></Field>
           {!initial && <Field label={comTx("openingPaid")}><Input type="number" value={form.paidUzs} onChange={e => set("paidUzs", e.target.value)} placeholder="0" /></Field>}
